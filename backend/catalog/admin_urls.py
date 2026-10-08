@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .admin_views import (
     AdminOverviewView,
     AdminNavCountsView,
+    AdminOrdersView,
     AdminProductViewSet,
     AdminCategoryViewSet,
     AdminProductStockView,
@@ -19,6 +20,11 @@ router.register(r"customers", AdminCustomerViewSet, basename="admin-customers")
 urlpatterns = [
     path("overview/", AdminOverviewView.as_view(), name="admin-overview"),
     path("nav-counts/", AdminNavCountsView.as_view(), name="admin-nav-counts"),
+    path(
+        "orders/",
+        AdminOrdersView.as_view(),
+        name="admin-orders",
+    ),
     path(
         "products/<int:product_id>/adjust-stock/",
         AdminProductStockView.as_view(),

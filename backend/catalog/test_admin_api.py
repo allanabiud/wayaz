@@ -95,6 +95,72 @@ class AdminAPITestCase(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data, {"orders": 1, "products": 1, "customers": 1})
 
+    def test_admin_orders_forbidden_for_customers(self):
+        self.assertEqual(
+            self.client.get("/api/v1/admin/orders/").status_code,
+            status.HTTP_401_UNAUTHORIZED,
+        )
+        self.client.force_authenticate(user=self.customer)
+        self.assertEqual(
+            self.client.get("/api/v1/admin/orders/").status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+
+    def test_admin_orders_filters_and_pending_count(self):
+        def make_order(order_status, name):
+            return Order.objects.create(
+                email=f"{name.split()[0].lower()}@example.com",
+                phone_number="+254700000002",
+                shipping_name=name,
+                county="Mombasa",
+                town="Nyali",
+                street_address="2 Cedar Rd",
+                delivery_method="upcountry_courier",
+                subtotal=Decimal("1500.00"),
+                shipping_fee=Decimal("600.00"),
+                total_amount=Decimal("2100.00"),
+                status=order_status,
+                payment_method=Order.PaymentMethod.M_PESA,
+            )
+
+        amina_pending = make_order(Order.Status.PENDING_PAYMENT, "Amina Ali")
+        make_order(Order.Status.PROCESSING, "Brian Otieno")
+        make_order(Order.Status.DELIVERED, "Amina Ali")
+        make_order(Order.Status.CANCELLED, "Brian Otieno")
+
+        self.client.force_authenticate(user=self.admin_user)
+
+        # No filters: everything, newest first, pending count on top.
+        res = self.client.get("/api/v1/admin/orders/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["count"], 4)
+        self.assertEqual(res.data["pending_count"], 2)
+        self.assertEqual(len(res.data["results"]), 4)
+        self.assertEqual(res.data["results"][0]["status"], "CANCELLED")
+
+        # status=pending excludes delivered and cancelled.
+        res = self.client.get("/api/v1/admin/orders/?status=pending")
+        self.assertEqual(res.data["count"], 2)
+        self.assertEqual(res.data["pending_count"], 2)
+
+        # A single pipeline status.
+        res = self.client.get("/api/v1/admin/orders/?status=DELIVERED")
+        self.assertEqual(res.data["count"], 1)
+        self.assertEqual(res.data["results"][0]["status_display"], "Delivered")
+
+        # Search matches shipping name and order number.
+        res = self.client.get("/api/v1/admin/orders/?search=Amina")
+        self.assertEqual(res.data["count"], 2)
+        res = self.client.get(
+            f"/api/v1/admin/orders/?search={amina_pending.order_number}"
+        )
+        self.assertEqual(res.data["count"], 1)
+        self.assertEqual(
+            res.data["results"][0]["customer"], "Amina Ali"
+        )
+        self.assertEqual(res.data["results"][0]["total_amount"], "2100.00")
+        self.assertEqual(res.data["results"][0]["item_count"], 0)
+
     def test_admin_overview_revenue_reflects_confirmed_orders(self):
         def make_order(total, order_status):
             return Order.objects.create(

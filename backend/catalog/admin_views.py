@@ -30,7 +30,6 @@ class AdminOverviewView(APIView):
             Product.objects.aggregate(total=Sum("stock_quantity"))["total"] or 0
         )
 
-        # Out of stock and low stock items
         out_of_stock_count = Product.objects.filter(stock_quantity=0).count()
         low_stock_products = list(
             Product.objects.filter(stock_quantity__gt=0, stock_quantity__lte=5)
@@ -41,7 +40,7 @@ class AdminOverviewView(APIView):
         total_categories = Category.objects.count()
         total_customers = User.objects.filter(role="customer").count()
 
-        # "This month" deltas for the dashboard KPI cards
+        # Monthly deltas for the dashboard KPI cards
         month_start = timezone.now().replace(
             day=1, hour=0, minute=0, second=0, microsecond=0
         )
@@ -52,8 +51,8 @@ class AdminOverviewView(APIView):
             role="customer", date_joined__gte=month_start
         ).count()
 
-        # Top products by sales: units sold and revenue across every order
-        # except cancelled ones (group-by aggregate, no join fan-out).
+        # Top products by sales, excluding cancelled orders (group-by
+        # aggregate, no join fan-out).
         sales_rows = list(
             OrderItem.objects.filter(product__isnull=False)
             .exclude(order__status=Order.Status.CANCELLED)
@@ -78,8 +77,7 @@ class AdminOverviewView(APIView):
             if row["product_id"] in sales_products
         ]
 
-        # All-time units sold (excluding cancelled orders) for the Top
-        # Products card header.
+        # All-time units sold (excluding cancelled) for the Top Products header.
         sales_summary = {
             "units_sold": (
                 OrderItem.objects.exclude(order__status=Order.Status.CANCELLED).aggregate(
@@ -89,8 +87,7 @@ class AdminOverviewView(APIView):
             ),
         }
 
-        # Revenue series for the dashboard line chart: last 30 days, only
-        # orders where money is confirmed (pending payments excluded).
+        # Revenue series: last 30 days, confirmed money only.
         confirmed_statuses = [
             Order.Status.PAID,
             Order.Status.PROCESSING,
@@ -252,6 +249,60 @@ class AdminNavCountsView(APIView):
                 "orders": Order.objects.count(),
                 "products": Product.objects.count(),
                 "customers": User.objects.filter(role="customer").count(),
+            }
+        )
+
+
+class AdminOrdersView(APIView):
+    """All orders for the admin header sheet, newest first.
+
+    Filters: ?status=<pipeline status or "pending">, ?search=<order number,
+    shipping name, or email>. "pending" means not delivered/cancelled.
+    `count` honours the filters; `pending_count` never does (header badge).
+    """
+
+    permission_classes = [IsStaffOrAdminUser]
+
+    def get(self, request):
+        all_orders = Order.objects.all()
+        qs = all_orders.select_related("user").order_by("-created_at")
+
+        status_param = (request.query_params.get("status") or "").strip()
+        if status_param == "pending":
+            qs = qs.exclude(
+                status__in=[Order.Status.DELIVERED, Order.Status.CANCELLED]
+            )
+        elif status_param in Order.Status.values:
+            qs = qs.filter(status=status_param)
+
+        search = (request.query_params.get("search") or "").strip()
+        if search:
+            qs = qs.filter(
+                Q(order_number__icontains=search)
+                | Q(shipping_name__icontains=search)
+                | Q(email__icontains=search)
+            )
+
+        results = [
+            {
+                "order_number": o.order_number,
+                "customer": o.shipping_name or o.email,
+                "status": o.status,
+                "status_display": o.get_status_display(),
+                "payment_method_display": o.get_payment_method_display(),
+                "total_amount": str(o.total_amount),
+                "item_count": o.item_count,
+                "created_at": o.created_at.isoformat(),
+            }
+            for o in qs[:20]
+        ]
+        return Response(
+            {
+                "count": qs.count(),
+                "pending_count": all_orders.exclude(
+                    status__in=[Order.Status.DELIVERED, Order.Status.CANCELLED]
+                ).count(),
+                "results": results,
             }
         )
 

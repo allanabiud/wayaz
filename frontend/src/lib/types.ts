@@ -76,6 +76,23 @@ export interface NavCounts {
   customers: number;
 }
 
+export interface AdminOrder {
+  order_number: string;
+  customer: string;
+  status: string;
+  status_display: string;
+  payment_method_display: string;
+  total_amount: string;
+  item_count: number;
+  created_at: string;
+}
+
+export interface AdminOrdersResponse {
+  count: number;
+  pending_count: number;
+  results: AdminOrder[];
+}
+
 export interface StockByCategory {
   name: string;
   units: number;

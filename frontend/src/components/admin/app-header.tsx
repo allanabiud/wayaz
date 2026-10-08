@@ -1,19 +1,21 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  ChevronDown,
   ChevronRight,
+  Clock,
+  LayoutDashboard,
   Loader2,
   LogOut,
   Package,
   Search,
-  Store,
+  User,
+  Users,
   X,
 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -31,22 +33,29 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import type { Paginated, Product } from "@/lib/types";
-
-function getInitials(name?: string) {
-  if (!name) return "?";
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((n) => n[0]?.toUpperCase() ?? "")
-    .join("");
-}
+import type { AdminOrdersResponse, Paginated, Product } from "@/lib/types";
 
 function money(value: string | number): string {
   const n = Number(value);
@@ -58,20 +67,28 @@ const SEGMENT_LABELS: Record<string, string> = {
   customers: "Customers",
 };
 
+const ORDER_STATUSES: Array<[string, string]> = [
+  ["PENDING_PAYMENT", "Pending payment"],
+  ["PAID", "Paid"],
+  ["PROCESSING", "Processing"],
+  ["SHIPPED", "Shipped"],
+  ["DELIVERED", "Delivered"],
+  ["CANCELLED", "Cancelled"],
+];
+
 function titleize(segment: string): string {
   return segment
     .replace(/[-_]/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-/** Haze-style breadcrumb: `Dashboard > Products > <product title>` */
 function Breadcrumbs() {
   const pathname = usePathname();
   const segments = pathname.split("/").filter(Boolean);
   const startsAdmin = segments[0] === "admin";
   const tail = startsAdmin ? segments.slice(1) : segments;
 
-  // /admin/products/<id> and /admin/products/<id>/edit both show the title.
+  // Product routes show the fetched title instead of the raw id.
   const isProductRoute =
     startsAdmin &&
     segments[1] === "products" &&
@@ -109,8 +126,6 @@ function Breadcrumbs() {
     const isLast = idx === tail.length - 1;
     const href =
       "/" + segments.slice(0, (startsAdmin ? 1 : 0) + idx + 1).join("/");
-    // The numeric segment under /products is the product itself; deeper
-    // segments (like "edit") titleize as usual.
     const isProductIdSegment =
       isProductRoute && startsAdmin && idx === 1;
     let label = SEGMENT_LABELS[segment] ?? titleize(segment);
@@ -160,10 +175,41 @@ export function AppHeader() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [orders, setOrders] = useState<AdminOrdersResponse | null>(null);
+  const [ordersFetching, setOrdersFetching] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [orderQuery, setOrderQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // ⌘K / Ctrl+K focuses the search field; Esc closes the results dropdown (query preserved)
+  // Badge + sheet: all orders, refetched when filters change (search debounced).
+  useEffect(() => {
+    let active = true;
+    const search = orderQuery.trim();
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams();
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (search) params.set("search", search);
+      setOrdersFetching(true);
+      api
+        .get<AdminOrdersResponse>(`/api/v1/admin/orders/?${params.toString()}`)
+        .then((res) => {
+          if (active) setOrders(res);
+        })
+        .catch(() => {
+          // Keep the last good snapshot; an empty sheet beats a broken header.
+        })
+        .finally(() => {
+          if (active) setOrdersFetching(false);
+        });
+    }, search ? 250 : 0);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [statusFilter, orderQuery]);
+
+  // Cmd/Ctrl+K focuses search; Esc closes the results dropdown.
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -180,7 +226,6 @@ export function AppHeader() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  // Click outside closes the results dropdown (query preserved)
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (
@@ -196,14 +241,10 @@ export function AppHeader() {
 
   useEffect(() => {
     const q = query.trim();
-    if (!q) {
-      setResults([]);
-      setSearching(false);
-      return;
-    }
+    if (!q) return;
 
-    setSearching(true);
     const timer = setTimeout(async () => {
+      setSearching(true);
       try {
         const res = await api.get<Paginated<Product>>(
           `/api/v1/admin/products/?search=${encodeURIComponent(q)}`
@@ -235,10 +276,9 @@ export function AppHeader() {
 
         <Breadcrumbs />
 
-        {/* Free space */}
         <div className="flex-1" />
 
-        {/* Live Search: always visible; expands on focus to exactly the results popup width */}
+        {/* Search expands on focus to the results popup width */}
         <div
           ref={containerRef}
           className={`relative shrink-0 transition-[width] duration-200 ${searchFocused ? "w-52 sm:w-96" : "w-40 sm:w-56 lg:w-64"}`}
@@ -270,7 +310,7 @@ export function AppHeader() {
             className="h-9 w-full rounded-lg border border-border/60 bg-muted/50 pl-8 pr-8 text-sm outline-none transition-all duration-200 focus:bg-background focus:ring-2 focus:ring-primary/25 focus:border-primary/40"
           />
 
-          {searching ? (
+          {searching && query.trim() ? (
             <Loader2 className="absolute right-2.5 top-1/2 size-3 -translate-y-1/2 animate-spin text-muted-foreground" />
           ) : query ? (
             <button
@@ -332,57 +372,201 @@ export function AppHeader() {
           )}
         </div>
 
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant="outline"
-            size="sm"
-            asChild
-            className="hidden sm:inline-flex text-xs h-8 gap-1.5 cursor-pointer"
-          >
-            <Link href="/">
-              <Store className="size-3.5" />
-              <span>Live Store</span>
-            </Link>
-          </Button>
+        <div className="flex items-center gap-2">
+          {/* All orders: pending-count badge button + filterable side sheet */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button
+                variant="outline"
+                size="lg"
+                className="gap-2 cursor-pointer"
+                aria-label="Orders"
+              >
+                <Clock className="size-4" />
+                <span className="hidden sm:inline">Orders</span>
+                {orders && (
+                  <Badge className="tabular-nums">{orders.pending_count}</Badge>
+                )}
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="gap-0">
+              <SheetHeader className="border-b">
+                <SheetTitle>Orders</SheetTitle>
+                <SheetDescription>
+                  {orders
+                    ? `${orders.pending_count} pending · ${orders.count} ${
+                        statusFilter !== "all" || orderQuery.trim()
+                          ? "matching"
+                          : "total"
+                      }`
+                    : "Loading…"}
+                </SheetDescription>
+              </SheetHeader>
+              <div className="space-y-2 border-b px-4 py-3">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={orderQuery}
+                    onChange={(e) => setOrderQuery(e.target.value)}
+                    placeholder="Search order #, name or email…"
+                    aria-label="Search orders"
+                    className="h-9 pl-8 pr-8"
+                  />
+                  {ordersFetching && (
+                    <Loader2 className="absolute right-2.5 top-1/2 size-3 -translate-y-1/2 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger
+                    className="h-9 w-full"
+                    aria-label="Filter by status"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    <SelectItem value="pending">
+                      Pending - not delivered or cancelled
+                    </SelectItem>
+                    {ORDER_STATUSES.map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1 space-y-2 overflow-y-auto px-4 py-3">
+                {!orders ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : orders.results.length === 0 ? (
+                  <p className="py-10 text-center text-sm text-muted-foreground">
+                    {statusFilter === "all" && !orderQuery.trim()
+                      ? "No orders yet."
+                      : "No orders match your filters."}
+                  </p>
+                ) : (
+                  <>
+                    {orders.results.map((order) => (
+                      <div
+                        key={order.order_number}
+                        className="rounded-lg border border-border/60 p-3 text-xs"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono font-semibold text-foreground">
+                            {order.order_number}
+                          </span>
+                          <Badge variant="outline" className="text-[10px]">
+                            {order.status_display}
+                          </Badge>
+                        </div>
+                        <div className="mt-1.5 flex items-center justify-between gap-2 text-muted-foreground">
+                          <span className="truncate">{order.customer}</span>
+                          <span className="shrink-0">
+                            {new Date(order.created_at).toLocaleDateString("en-KE", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex items-center justify-between gap-2">
+                          <span className="text-muted-foreground">
+                            {order.item_count} item{order.item_count === 1 ? "" : "s"} ·{" "}
+                            {order.payment_method_display}
+                          </span>
+                          <span className="font-bold text-primary">
+                            Ksh {money(order.total_amount)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                    {orders.count > orders.results.length && (
+                      <p className="pt-1 text-center text-[11px] text-muted-foreground">
+                        Showing the latest {orders.results.length} of {orders.count}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+              <SheetFooter className="border-t">
+                <Button variant="outline" className="w-full" disabled>
+                  Open orders page
+                </Button>
+                <p className="text-center text-[11px] text-muted-foreground">
+                  Orders page coming soon
+                </p>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
 
           <ThemeToggle />
 
+          {/* Account */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-2 rounded-lg px-2 py-1.5 h-9 hover:bg-accent cursor-pointer">
-                <Avatar className="size-7 shrink-0">
-                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                    {getInitials(user?.display_name || user?.username)}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="hidden text-left md:inline-block">
-                  <span className="block text-xs font-semibold leading-none text-foreground">
-                    {user?.display_name || user?.username}
-                  </span>
-                  <span className="block text-[10px] text-muted-foreground capitalize leading-tight mt-0.5">
-                    {user?.role}
-                  </span>
+              <Button
+                variant="outline"
+                size="lg"
+                className="gap-2 cursor-pointer"
+                aria-label="Account menu"
+              >
+                <User className="size-4" />
+                <span className="hidden sm:inline max-w-[120px] truncate">
+                  {user?.display_name || user?.username}
                 </span>
-                <ChevronDown className="hidden md:block size-3 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" sideOffset={6} className="w-56 p-1.5">
-              <DropdownMenuLabel className="px-2 py-1.5 font-normal">
-                <p className="text-xs font-semibold text-foreground">{user?.display_name || user?.username}</p>
-                {user?.email && <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>}
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold leading-none truncate">
+                      {user?.display_name || user?.username}
+                    </p>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] uppercase font-bold text-primary border-primary/30 shrink-0"
+                    >
+                      {user?.role}
+                    </Badge>
+                  </div>
+                  <p className="text-xs leading-none text-muted-foreground truncate">
+                    {user?.email}
+                  </p>
+                </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild className="cursor-pointer text-xs">
-                <Link href="/" className="flex items-center">
-                  <Store className="mr-2 size-3.5" />View Live Store
-                </Link>
+              <DropdownMenuItem
+                onClick={() => router.push("/admin")}
+                className="cursor-pointer"
+              >
+                <LayoutDashboard className="size-4" />
+                <span>Dashboard</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push("/admin/products")} className="cursor-pointer text-xs">
-                <Package className="mr-2 size-3.5" />Manage Products
+              <DropdownMenuItem
+                onClick={() => router.push("/admin/products")}
+                className="cursor-pointer"
+              >
+                <Package className="size-4" />
+                <span>Manage Products</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => router.push("/admin/customers")}
+                className="cursor-pointer"
+              >
+                <Users className="size-4" />
+                <span>Customers</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setShowLogoutDialog(true)} className="cursor-pointer text-xs text-destructive focus:text-destructive">
-                <LogOut className="mr-2 size-3.5" />Sign Out
+              <DropdownMenuItem
+                onClick={() => setShowLogoutDialog(true)}
+                className="cursor-pointer text-destructive focus:text-destructive"
+              >
+                <LogOut className="size-4" />
+                <span>Sign Out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
