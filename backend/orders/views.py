@@ -1,15 +1,23 @@
 import uuid
+from decimal import Decimal
+
+from django.db import transaction
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404
-from rest_framework import status, permissions
+from rest_framework import generics, status, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.serializers import ValidationError
 
 from catalog.models import Product
-from .models import Cart, CartItem
+from .delivery import delivery_fee
+from .emails import send_order_confirmation_email
+from .models import Cart, CartItem, Order, OrderItem
 from .serializers import (
     CartSerializer,
     AddToCartSerializer,
+    CheckoutSerializer,
+    OrderSerializer,
     UpdateCartItemSerializer,
     MergeCartSerializer,
 )
@@ -194,3 +202,133 @@ class CartMergeView(APIView):
         cart_serializer = CartSerializer(user_cart, context={"request": request})
         return Response(cart_serializer.data, status=status.HTTP_200_OK)
 
+
+class OrderListView(generics.ListAPIView):
+    """
+    GET /api/v1/orders/ - the signed-in shopper's order history.
+
+    Scoped strictly to request.user (staff and customers alike); guest
+    checkouts are tied to a cart id rather than an account and are not
+    returned here. Paginated by the project-wide StandardResultsSetPagination.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = OrderSerializer
+
+    def get_queryset(self):
+        return (
+            Order.objects.filter(user=self.request.user)
+            .prefetch_related("items")
+            .order_by("-created_at")
+        )
+
+
+class CheckoutView(APIView):
+    """
+    POST /api/v1/orders/checkout/ (Phase 6, Steps 6.2 & 6.4)
+
+    Validates the cart, computes delivery, and creates the order inside a
+    single atomic transaction with product rows locked (select_for_update)
+    so concurrent checkouts can never oversell stock. Stock is decremented
+    at placement and restored if the order is later cancelled.
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = CheckoutSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        cart = get_or_create_cart(request)
+        items = list(cart.items.select_related("product"))
+        if not items:
+            return Response(
+                {"detail": "Your cart is empty."}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            with transaction.atomic():
+                # Lock product rows so stock checks and decrements are atomic.
+                locked_products = {
+                    product.id: product
+                    for product in Product.objects.select_for_update().filter(
+                        id__in=[item.product_id for item in items]
+                    )
+                }
+
+                # Step 6.2: validate availability before charging anything.
+                # Stock is per product, so total every size line together.
+                required: dict[int, int] = {}
+                for item in items:
+                    required[item.product_id] = (
+                        required.get(item.product_id, 0) + item.quantity
+                    )
+                for product_id, needed in required.items():
+                    product = locked_products[product_id]
+                    if needed > product.stock_quantity:
+                        raise ValidationError(
+                            {
+                                "detail": (
+                                    f"Only {product.stock_quantity} unit(s) of "
+                                    f"{product.title} available."
+                                ),
+                                "available_stock": product.stock_quantity,
+                            }
+                        )
+
+                subtotal = sum(item.line_total for item in items)
+                shipping_fee = delivery_fee(data["delivery_method"], subtotal)
+                discount = Decimal("0.00")
+                total = subtotal + shipping_fee - discount
+
+                if data["payment_method"] == Order.PaymentMethod.M_PESA:
+                    # Await STK push confirmation (payment integration = Phase 7).
+                    order_status = Order.Status.PENDING_PAYMENT
+                    requires_manual = False
+                else:
+                    # Cash on delivery: verified manually on delivery (plan 7.6).
+                    order_status = Order.Status.PROCESSING
+                    requires_manual = True
+
+                order = Order.objects.create(
+                    user=request.user if request.user.is_authenticated else None,
+                    guest_id=data.get("guest_id")
+                    or (str(cart.id) if not request.user.is_authenticated else ""),
+                    email=data["email"],
+                    phone_number=data["phone_number"],
+                    shipping_name=data["full_name"],
+                    county=data["county"],
+                    town=data["town"],
+                    street_address=data["street_address"],
+                    delivery_method=data["delivery_method"],
+                    shipping_fee=shipping_fee,
+                    subtotal=subtotal,
+                    discount_amount=discount,
+                    total_amount=total,
+                    status=order_status,
+                    payment_method=data["payment_method"],
+                    requires_manual_verification=requires_manual,
+                )
+
+                for item in items:
+                    product = locked_products[item.product_id]
+                    OrderItem.objects.create(
+                        order=order,
+                        product=product,
+                        product_title=product.title,
+                        unit_price=product.current_price,
+                        quantity=item.quantity,
+                    )
+                    product.stock_quantity -= item.quantity
+                    product.save(update_fields=["stock_quantity"])
+
+                cart.items.all().delete()
+        except ValidationError as exc:
+            return Response(exc.detail, status=status.HTTP_400_BAD_REQUEST)
+
+        # Step 6.5: confirmation hooks (email is fire-and-forget, WhatsApp link
+        # is serialized back to the client for the order success page).
+        send_order_confirmation_email(order)
+
+        return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)

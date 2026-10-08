@@ -1,7 +1,8 @@
 import uuid
 from rest_framework import serializers
 from catalog.models import Product
-from .models import Cart, CartItem
+from .delivery import DELIVERY_ZONES
+from .models import Cart, CartItem, Order, OrderItem
 
 
 class CartItemProductSerializer(serializers.ModelSerializer):
@@ -137,3 +138,85 @@ class UpdateCartItemSerializer(serializers.Serializer):
 class MergeCartSerializer(serializers.Serializer):
     guest_cart_id = serializers.UUIDField()
 
+
+class CheckoutSerializer(serializers.Serializer):
+    """Customer details, delivery selection, and payment method (Step 6.4)."""
+
+    email = serializers.EmailField()
+    phone_number = serializers.CharField(max_length=25)
+    full_name = serializers.CharField(max_length=150)
+    county = serializers.CharField(max_length=100)
+    town = serializers.CharField(max_length=100)
+    street_address = serializers.CharField(max_length=255)
+    delivery_method = serializers.ChoiceField(
+        choices=[(key, zone["label"]) for key, zone in DELIVERY_ZONES.items()]
+    )
+    payment_method = serializers.ChoiceField(
+        choices=Order.PaymentMethod.choices, default=Order.PaymentMethod.COD
+    )
+    guest_id = serializers.CharField(
+        max_length=64, required=False, allow_blank=True, default=""
+    )
+
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    line_total = serializers.DecimalField(
+        max_digits=10, decimal_places=2, read_only=True
+    )
+
+    class Meta:
+        model = OrderItem
+        fields = (
+            "id",
+            "product_title",
+            "unit_price",
+            "quantity",
+            "line_total",
+        )
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    items = OrderItemSerializer(many=True, read_only=True)
+    whatsapp_link = serializers.SerializerMethodField()
+    item_count = serializers.IntegerField(read_only=True)
+    # Human-readable labels so the storefront never re-learns backend choices.
+    status_display = serializers.CharField(
+        source="get_status_display", read_only=True
+    )
+    payment_method_display = serializers.CharField(
+        source="get_payment_method_display", read_only=True
+    )
+    delivery_method_display = serializers.CharField(
+        source="get_delivery_method_display", read_only=True
+    )
+
+    class Meta:
+        model = Order
+        fields = (
+            "id",
+            "order_number",
+            "status",
+            "status_display",
+            "payment_method",
+            "payment_method_display",
+            "payment_status",
+            "email",
+            "phone_number",
+            "shipping_name",
+            "county",
+            "town",
+            "street_address",
+            "delivery_method",
+            "delivery_method_display",
+            "subtotal",
+            "discount_amount",
+            "shipping_fee",
+            "total_amount",
+            "item_count",
+            "items",
+            "whatsapp_link",
+            "created_at",
+        )
+
+    def get_whatsapp_link(self, obj):
+        return obj.whatsapp_link
