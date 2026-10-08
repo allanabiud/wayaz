@@ -15,7 +15,9 @@ load_dotenv(BASE_DIR / ".env")
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production-wayaz")
 DEBUG = os.environ.get("DEBUG", "True").lower() in ("true", "1", "yes")
 
-allowed_hosts_raw = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1")
+allowed_hosts_raw = os.environ.get(
+    "ALLOWED_HOSTS", "localhost,127.0.0.1,192.168.1.138,192.168.6.195"
+)
 ALLOWED_HOSTS = [h.strip() for h in allowed_hosts_raw.split(",") if h.strip()]
 
 # Application definition
@@ -141,6 +143,9 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    # LAN origins used for the client demo (served over the local network).
+    "http://192.168.1.138:3000",
+    "http://192.168.6.195:3000",
 ]
 
 # Default allowed headers + the guest storefront cart's X-Cart-ID header,
