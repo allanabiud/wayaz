@@ -45,8 +45,8 @@ class WishlistViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return (
             WishlistItem.objects.filter(user=self.request.user)
-            .select_related("product", "product__category", "product__brand")
-            .prefetch_related("product__images", "product__variants")
+            .select_related("product", "product__category")
+            .prefetch_related("product__images")
         )
 
     @action(detail=False, methods=["delete"], url_path="remove-product/(?P<product_id>[^/.]+)")

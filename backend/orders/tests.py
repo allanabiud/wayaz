@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
-from catalog.models import Category, Product, ProductVariant
+from catalog.models import Category, Product
 from orders.models import Cart, CartItem
 
 User = get_user_model()
@@ -14,26 +14,18 @@ class CartAPITestCase(TestCase):
         self.client = APIClient()
 
         self.category = Category.objects.create(name="Shoes", slug="shoes")
-        self.product = Product.objects.create(
+        self.product_1 = Product.objects.create(
             title="Running Sneaker",
             category=self.category,
             base_price=3000.00,
             sale_price=2500.00,
-        )
-
-        self.variant_1 = ProductVariant.objects.create(
-            product=self.product,
-            sku="RUN-BLK-42",
-            color_name="Black",
-            size="42",
             stock_quantity=5,
         )
-
-        self.variant_2 = ProductVariant.objects.create(
-            product=self.product,
-            sku="RUN-WHT-42",
-            color_name="White",
-            size="42",
+        self.product_2 = Product.objects.create(
+            title="Court Sneaker",
+            category=self.category,
+            base_price=3000.00,
+            sale_price=2500.00,
             stock_quantity=10,
         )
 
@@ -51,15 +43,14 @@ class CartAPITestCase(TestCase):
         cart_id = res.headers["X-Cart-ID"]
         self.assertEqual(res.data["total_items"], 0)
         self.assertEqual(Decimal(str(res.data["subtotal"])), Decimal("0.00"))
-        self.assertFalse(res.data["has_free_shipping"])
 
     def test_add_item_to_guest_cart(self):
         # 1. Start guest cart
         init_res = self.client.get("/api/v1/orders/cart/")
         cart_id = init_res.headers["X-Cart-ID"]
 
-        # 2. Add 2 units of variant 1
-        payload = {"variant_id": self.variant_1.id, "quantity": 2}
+        # 2. Add 2 units of product 1
+        payload = {"product_id": self.product_1.id, "quantity": 2}
         add_res = self.client.post(
             "/api/v1/orders/cart/items/",
             payload,
@@ -70,14 +61,17 @@ class CartAPITestCase(TestCase):
         self.assertEqual(add_res.data["total_items"], 2)
         # 2 * 2500.00 = 5000.00
         self.assertEqual(Decimal(str(add_res.data["subtotal"])), Decimal("5000.00"))
-        self.assertTrue(add_res.data["has_free_shipping"])
+        # Cart line now embeds product info instead of variant info
+        line = add_res.data["items"][0]
+        self.assertEqual(line["product"]["product_title"], "Running Sneaker")
+        self.assertEqual(Decimal(str(line["product"]["unit_price"])), Decimal("2500.00"))
 
     def test_add_item_exceeding_stock_rejected(self):
         init_res = self.client.get("/api/v1/orders/cart/")
         cart_id = init_res.headers["X-Cart-ID"]
 
-        # variant_1 only has stock of 5
-        payload = {"variant_id": self.variant_1.id, "quantity": 10}
+        # product_1 only has stock of 5
+        payload = {"product_id": self.product_1.id, "quantity": 10}
         res = self.client.post(
             "/api/v1/orders/cart/items/",
             payload,
@@ -93,7 +87,7 @@ class CartAPITestCase(TestCase):
 
         add_res = self.client.post(
             "/api/v1/orders/cart/items/",
-            {"variant_id": self.variant_2.id, "quantity": 1},
+            {"product_id": self.product_2.id, "quantity": 1},
             HTTP_X_CART_ID=cart_id,
             format="json",
         )
@@ -124,7 +118,7 @@ class CartAPITestCase(TestCase):
 
         self.client.post(
             "/api/v1/orders/cart/items/",
-            {"variant_id": self.variant_2.id, "quantity": 3},
+            {"product_id": self.product_2.id, "quantity": 3},
             HTTP_X_CART_ID=guest_cart_id,
             format="json",
         )
@@ -142,3 +136,4 @@ class CartAPITestCase(TestCase):
         self.assertEqual(merge_res.data["total_items"], 3)
         # Guest cart should have been deleted/merged
         self.assertFalse(Cart.objects.filter(id=guest_cart_id).exists())
+

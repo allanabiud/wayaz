@@ -1,7 +1,7 @@
 from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework import status
-from catalog.models import Category, Brand, Product, ProductVariant
+from catalog.models import Category, Product
 
 
 class CatalogAPITestCase(TestCase):
@@ -9,44 +9,19 @@ class CatalogAPITestCase(TestCase):
         self.client = APIClient()
 
         self.category = Category.objects.create(
-            name="Audio & Electronics",
-            description="All audio gear",
-            is_featured=True,
+            name="Jeans",
+            slug="jeans",
+            description="Denim jeans",
             display_order=1,
         )
 
-        self.brand = Brand.objects.create(
-            name="Apex Sound",
-            is_featured=True,
-        )
-
         self.product = Product.objects.create(
-            title="Apex Pro Wireless Earbuds",
+            title="Vintage Washed Wide-Leg Jeans",
             category=self.category,
-            brand=self.brand,
-            description="Premium earbuds with ANC",
+            description="Premium wide-leg denim",
             base_price=5000.00,
             sale_price=4200.00,
-            is_featured=True,
-            is_trending=True,
-        )
-
-        self.variant_black = ProductVariant.objects.create(
-            product=self.product,
-            sku="APX-EAR-BLK",
-            color_name="Phantom Black",
-            color_hex="#000000",
-            size="One Size",
             stock_quantity=10,
-        )
-
-        self.variant_white = ProductVariant.objects.create(
-            product=self.product,
-            sku="APX-EAR-WHT",
-            color_name="Pearl White",
-            color_hex="#FFFFFF",
-            size="One Size",
-            stock_quantity=0,
         )
 
     def test_product_properties(self):
@@ -54,8 +29,16 @@ class CatalogAPITestCase(TestCase):
         self.assertEqual(self.product.current_price, 4200.00)
         self.assertEqual(self.product.total_stock, 10)
         self.assertTrue(self.product.is_in_stock)
-        self.assertTrue(self.variant_black.is_in_stock)
-        self.assertFalse(self.variant_white.is_in_stock)
+
+    def test_out_of_stock_product(self):
+        empty = Product.objects.create(
+            title="Sold Out Jeans",
+            category=self.category,
+            base_price=3000.00,
+            stock_quantity=0,
+        )
+        self.assertFalse(empty.is_in_stock)
+        self.assertEqual(empty.total_stock, 0)
 
     def test_list_products_api(self):
         response = self.client.get("/api/v1/catalog/products/")
@@ -63,16 +46,16 @@ class CatalogAPITestCase(TestCase):
         results = response.data.get("results", response.data)
         self.assertGreaterEqual(len(results), 1)
         first_product = results[0]
-        self.assertEqual(first_product["title"], "Apex Pro Wireless Earbuds")
-        self.assertEqual(len(first_product["available_colors"]), 2)
+        self.assertEqual(first_product["title"], "Vintage Washed Wide-Leg Jeans")
+        self.assertTrue(first_product["is_in_stock"])
 
     def test_retrieve_product_detail_api(self):
         response = self.client.get(f"/api/v1/catalog/products/{self.product.slug}/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.data
         self.assertEqual(data["slug"], self.product.slug)
-        self.assertEqual(len(data["variants"]), 2)
-        self.assertEqual(data["category"]["name"], "Audio & Electronics")
+        self.assertEqual(data["stock_quantity"], 10)
+        self.assertEqual(data["category"]["name"], "Jeans")
 
     def test_filter_products_by_category(self):
         response = self.client.get(f"/api/v1/catalog/products/?category={self.category.slug}")
@@ -81,10 +64,11 @@ class CatalogAPITestCase(TestCase):
         self.assertEqual(len(results), 1)
 
     def test_search_suggestions_api(self):
-        response = self.client.get("/api/v1/catalog/products/search-suggestions/?q=Apex")
+        response = self.client.get("/api/v1/catalog/products/search-suggestions/?q=Vintage")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("products", response.data)
         self.assertIn("categories", response.data)
         matching_products = response.data["products"]
         self.assertGreaterEqual(len(matching_products), 1)
-        self.assertEqual(matching_products[0]["title"], "Apex Pro Wireless Earbuds")
+        self.assertEqual(matching_products[0]["title"], "Vintage Washed Wide-Leg Jeans")
+

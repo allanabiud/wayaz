@@ -1,10 +1,11 @@
 import uuid
+from django.db.models import Sum
 from django.shortcuts import get_object_or_404
 from rest_framework import status, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
-from catalog.models import ProductVariant
+from catalog.models import Product
 from .models import Cart, CartItem
 from .serializers import (
     CartSerializer,
@@ -61,21 +62,29 @@ class CartItemAddView(APIView):
         serializer = AddToCartSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        variant_id = serializer.validated_data["variant_id"]
+        product_id = serializer.validated_data["product_id"]
         quantity = serializer.validated_data["quantity"]
-        variant = ProductVariant.objects.get(id=variant_id)
+        size = serializer.validated_data.get("size") or ""
+        product = Product.objects.get(id=product_id)
 
         cart = get_or_create_cart(request)
         cart_item, created = CartItem.objects.get_or_create(
-            cart=cart, variant=variant, defaults={"quantity": 0}
+            cart=cart, product=product, size=size, defaults={"quantity": 0}
         )
 
         desired_qty = cart_item.quantity + quantity
-        if desired_qty > variant.stock_quantity:
+        # Stock is tracked per product, so count every size line in this cart.
+        other_qty = (
+            CartItem.objects.filter(cart=cart, product=product)
+            .exclude(pk=cart_item.pk)
+            .aggregate(total=Sum("quantity"))["total"]
+            or 0
+        )
+        if other_qty + desired_qty > product.stock_quantity:
             return Response(
                 {
-                    "detail": f"Cannot add {quantity} item(s). Only {variant.stock_quantity} left in stock.",
-                    "available_stock": variant.stock_quantity,
+                    "detail": f"Cannot add {quantity} item(s). Only {product.stock_quantity} left in stock.",
+                    "available_stock": product.stock_quantity,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -99,12 +108,18 @@ class CartItemDetailView(APIView):
         serializer = UpdateCartItemSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # Update variant if requested
-        if "variant_obj" in serializer.validated_data:
-            new_variant = serializer.validated_data["variant_obj"]
-            # Check if another line item with this variant already exists
+        # Update product if requested
+        if "product_obj" in serializer.validated_data:
+            new_product = serializer.validated_data["product_obj"]
+            # Keep the size only if the new product offers it.
+            new_size = cart_item.size
+            if new_size and new_size not in new_product.sizes:
+                new_size = ""
+            # Check if another line for this product+size already exists
             existing_duplicate = (
-                CartItem.objects.filter(cart=cart, variant=new_variant)
+                CartItem.objects.filter(
+                    cart=cart, product=new_product, size=new_size
+                )
                 .exclude(id=cart_item.id)
                 .first()
             )
@@ -114,16 +129,24 @@ class CartItemDetailView(APIView):
                 cart_item.delete()
                 cart_item = existing_duplicate
             else:
-                cart_item.variant = new_variant
+                cart_item.product = new_product
+                cart_item.size = new_size
 
         # Update quantity if requested
         if "quantity" in serializer.validated_data:
             qty = serializer.validated_data["quantity"]
-            if qty > cart_item.variant.stock_quantity:
+            # Stock is per product: total every other size line as well.
+            other_qty = (
+                CartItem.objects.filter(cart=cart, product=cart_item.product)
+                .exclude(id=cart_item.id)
+                .aggregate(total=Sum("quantity"))["total"]
+                or 0
+            )
+            if qty + other_qty > cart_item.product.stock_quantity:
                 return Response(
                     {
-                        "detail": f"Only {cart_item.variant.stock_quantity} unit(s) available.",
-                        "available_stock": cart_item.variant.stock_quantity,
+                        "detail": f"Only {cart_item.product.stock_quantity} unit(s) available.",
+                        "available_stock": cart_item.product.stock_quantity,
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
@@ -158,7 +181,8 @@ class CartMergeView(APIView):
             for guest_item in guest_cart.items.all():
                 user_item, created = CartItem.objects.get_or_create(
                     cart=user_cart,
-                    variant=guest_item.variant,
+                    product=guest_item.product,
+                    size=guest_item.size,
                     defaults={"quantity": guest_item.quantity},
                 )
                 if not created:
@@ -169,3 +193,4 @@ class CartMergeView(APIView):
 
         cart_serializer = CartSerializer(user_cart, context={"request": request})
         return Response(cart_serializer.data, status=status.HTTP_200_OK)
+

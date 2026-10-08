@@ -3,11 +3,22 @@ from django.utils.text import slugify
 
 
 class Category(models.Model):
+    JEANS = "jeans"
+    SHOES = "shoes"
+    SHIRTS = "shirts"
+    BIKINIS = "bikinis"
+
+    ALLOWED_CATEGORIES = [
+        (JEANS, "Jeans"),
+        (SHOES, "Shoes"),
+        (SHIRTS, "Shirts"),
+        (BIKINIS, "Bikinis"),
+    ]
+
     name = models.CharField(max_length=120, unique=True)
     slug = models.SlugField(max_length=140, unique=True, blank=True)
     description = models.TextField(blank=True)
     image = models.ImageField(upload_to="categories/", blank=True, null=True)
-    is_featured = models.BooleanField(default=False)
     display_order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -24,41 +35,23 @@ class Category(models.Model):
         return self.name
 
 
-class Brand(models.Model):
-    name = models.CharField(max_length=120, unique=True)
-    slug = models.SlugField(max_length=140, unique=True, blank=True)
-    logo = models.ImageField(upload_to="brands/", blank=True, null=True)
-    is_featured = models.BooleanField(default=False)
-
-    class Meta:
-        ordering = ["name"]
-
-    def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = slugify(self.name)
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.name
-
-
 class Product(models.Model):
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=280, unique=True, blank=True)
     category = models.ForeignKey(
         Category, on_delete=models.CASCADE, related_name="products"
     )
-    brand = models.ForeignKey(
-        Brand, on_delete=models.SET_NULL, null=True, blank=True, related_name="products"
-    )
     description = models.TextField(blank=True)
     base_price = models.DecimalField(max_digits=10, decimal_places=2)
     sale_price = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True
     )
+    stock_quantity = models.PositiveIntegerField(default=0)
+    # Shopper-selectable sizes in display order, e.g. ["S", "M", "L"].
+    # An empty list means a one-size product.
+    sizes = models.JSONField(blank=True, default=list)
+    # Merchandising flag - surfaced in the storefront's Featured shelf.
     is_featured = models.BooleanField(default=False)
-    is_trending = models.BooleanField(default=False)
-    is_new_arrival = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -93,11 +86,11 @@ class Product(models.Model):
 
     @property
     def total_stock(self):
-        return sum(variant.stock_quantity for variant in self.variants.all())
+        return self.stock_quantity
 
     @property
     def is_in_stock(self):
-        return self.total_stock > 0
+        return self.stock_quantity > 0
 
     def __str__(self):
         return self.title
@@ -126,38 +119,3 @@ class ProductImage(models.Model):
     def __str__(self):
         return f"Image for {self.product.title}"
 
-
-class ProductVariant(models.Model):
-    product = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name="variants"
-    )
-    sku = models.CharField(max_length=64, unique=True)
-    color_name = models.CharField(max_length=50, blank=True)
-    color_hex = models.CharField(max_length=20, blank=True)  # e.g. #000000
-    size = models.CharField(max_length=30, blank=True)  # e.g. S, M, L, XL, 38
-    price_override = models.DecimalField(
-        max_digits=10, decimal_places=2, null=True, blank=True
-    )
-    stock_quantity = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        ordering = ["color_name", "size"]
-        unique_together = ("product", "color_name", "size")
-
-    @property
-    def effective_price(self):
-        if self.price_override is not None:
-            return self.price_override
-        return self.product.current_price
-
-    @property
-    def is_in_stock(self):
-        return self.stock_quantity > 0
-
-    def __str__(self):
-        parts = [self.product.title]
-        if self.color_name:
-            parts.append(self.color_name)
-        if self.size:
-            parts.append(f"Size: {self.size}")
-        return " - ".join(parts)

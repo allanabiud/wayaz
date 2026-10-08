@@ -4,10 +4,9 @@ from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import Category, Brand, Product
+from .models import Category, Product
 from .serializers import (
     CategorySerializer,
-    BrandSerializer,
     ProductListSerializer,
     ProductDetailSerializer,
 )
@@ -19,32 +18,11 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
     lookup_field = "slug"
 
-    def get_queryset(self):
-        qs = super().get_queryset()
-        featured = self.request.query_params.get("featured")
-        if featured is not None:
-            qs = qs.filter(is_featured=featured.lower() in ("true", "1"))
-        return qs
-
-
-class BrandViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Brand.objects.all()
-    serializer_class = BrandSerializer
-    permission_classes = [permissions.AllowAny]
-    lookup_field = "slug"
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-        featured = self.request.query_params.get("featured")
-        if featured is not None:
-            qs = qs.filter(is_featured=featured.lower() in ("true", "1"))
-        return qs
-
 
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = (
-        Product.objects.select_related("category", "brand")
-        .prefetch_related("images", "variants")
+        Product.objects.select_related("category")
+        .prefetch_related("images")
         .all()
     )
     permission_classes = [permissions.AllowAny]
@@ -63,19 +41,6 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         category_slug = params.get("category")
         if category_slug:
             qs = qs.filter(category__slug=category_slug)
-
-        # Brand filter
-        brand_slug = params.get("brand")
-        if brand_slug:
-            qs = qs.filter(brand__slug=brand_slug)
-
-        # Trending, Featured, New Arrival flags
-        if params.get("trending") in ("true", "1"):
-            qs = qs.filter(is_trending=True)
-        if params.get("featured") in ("true", "1"):
-            qs = qs.filter(is_featured=True)
-        if params.get("new_arrival") in ("true", "1"):
-            qs = qs.filter(is_new_arrival=True)
 
         # Sale filter
         if params.get("sale") in ("true", "1"):
@@ -96,14 +61,13 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             except ValueError:
                 pass
 
-        # Text search (title, description, brand, category)
+        # Text search (title, description, category)
         search_query = params.get("search")
         if search_query:
             qs = qs.filter(
                 Q(title__icontains=search_query)
                 | Q(description__icontains=search_query)
                 | Q(category__name__icontains=search_query)
-                | Q(brand__name__icontains=search_query)
             )
 
         # Ordering
@@ -123,16 +87,13 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     def search_suggestions(self, request):
         query = request.query_params.get("q", "").strip()
         if not query or len(query) < 2:
-            # Return trending categories and top products
-            trending_products = (
-                Product.objects.filter(is_trending=True)
-                .prefetch_related("images")[:6]
-            )
-            popular_categories = Category.objects.filter(is_featured=True)[:6]
+            # Suggest newest products and top-level categories
+            trending_products = Product.objects.all().prefetch_related("images")[:6]
+            popular_categories = Category.objects.all()[:6]
             return Response(
                 {
                     "products": [
-                        {
+                    {
                             "id": p.id,
                             "title": p.title,
                             "slug": p.slug,
@@ -153,7 +114,6 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             Product.objects.filter(
                 Q(title__icontains=query)
                 | Q(category__name__icontains=query)
-                | Q(brand__name__icontains=query)
             )
             .prefetch_related("images")[:8]
         )
