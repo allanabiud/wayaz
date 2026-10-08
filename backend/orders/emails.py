@@ -1,8 +1,5 @@
-"""Order confirmation email hook (Phase 6, Step 6.5).
-
-Fires after a checkout commits; must never break order placement, so all
-failures are swallowed (the WhatsApp link is the primary confirmation channel).
-"""
+"""Order confirmation email; fires after checkout and never raises - the
+WhatsApp link is the primary confirmation channel."""
 from django.conf import settings
 from django.core.mail import send_mail
 

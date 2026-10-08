@@ -159,17 +159,16 @@ function OrderCard({ order }: { order: StoreOrder }) {
 }
 
 /**
- * Account order history behind the header's Account → Orders item.
- * Signed-out shoppers get an in-place sign-in prompt (the store's login
- * dialog) instead of a redirect away from the page.
+ * Account order history behind Account → Orders; signed-out visitors get the
+ * store's in-place login dialog instead of a redirect.
  */
 export function OrdersView() {
   const { ready, isAuthenticated } = useAuth();
   const { openLogin } = useStore();
   const [page, setPage] = useState(1);
 
-  // Skips the network entirely while signed out; flips to a real fetch the
-  // moment isAuthenticated changes (i.e. right after the login dialog).
+  // Skips the network while signed out; fetches as soon as isAuthenticated
+  // flips (i.e. right after the login dialog).
   const { data, error, loading, refetch } = useQuery<
     Paginated<StoreOrder> | null
   >(

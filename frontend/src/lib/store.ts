@@ -39,8 +39,8 @@ export interface StoreProductDetail {
   stock_quantity: number;
   sizes: string[];
   images: ProductImage[];
-  // Rating summary from the catalog detail endpoint (user_rating is always
-  // null for anonymous/SSR requests - the client refreshes it when signed in).
+  // Rating summary; user_rating is null for anonymous/SSR requests until
+  // refreshed client-side when signed in.
   average_rating: number | null;
   rating_count: number;
   user_rating: number | null;
@@ -351,8 +351,8 @@ const HOT_STOPWORDS = new Set([
 ]);
 
 /**
- * Suggested "hot searches": categories with items first, then the most
- * frequent words across product titles. Every term matches real products.
+ * Hot searches: categories with items first, then the most frequent words
+ * across product titles.
  */
 export function hotSearches(catalog: StorefrontCatalog): string[] {
   const terms: string[] = [];

@@ -85,16 +85,13 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         qs = super().get_queryset()
         params = self.request.query_params
 
-        # Category filter
         category_slug = params.get("category")
         if category_slug:
             qs = qs.filter(category__slug=category_slug)
 
-        # Sale filter
         if params.get("sale") in ("true", "1"):
             qs = qs.filter(sale_price__isnull=False, sale_price__lt=models.F("base_price"))
 
-        # Price range filters
         min_price = params.get("min_price")
         if min_price:
             try:
@@ -109,7 +106,6 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             except ValueError:
                 pass
 
-        # Text search (title, description, category)
         search_query = params.get("search")
         if search_query:
             qs = qs.filter(
@@ -118,7 +114,6 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                 | Q(category__name__icontains=search_query)
             )
 
-        # Ordering
         ordering = params.get("ordering")
         if ordering == "price_asc":
             qs = qs.order_by("base_price")

@@ -100,8 +100,7 @@ class AddToCartSerializer(serializers.Serializer):
         size = (attrs.get("size") or "").strip()
 
         if product.sizes:
-            # Sized products must name one of their offered sizes, so a
-            # sizeless line can never exist for them.
+            # Sized products must name one of their offered sizes.
             if not size:
                 raise serializers.ValidationError(
                     {"size": "Select a size for this product."}

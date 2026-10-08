@@ -71,8 +71,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         max_digits=10, decimal_places=2, read_only=True
     )
     is_in_stock = serializers.BooleanField(read_only=True)
-    # Rating summary - annotated onto the object by ProductViewSet.get_object()
-    # for the detail route (see views.rating_payload).
+    # Annotated by ProductViewSet.get_object for the detail route.
     average_rating = serializers.SerializerMethodField()
     rating_count = serializers.SerializerMethodField()
     user_rating = serializers.SerializerMethodField()

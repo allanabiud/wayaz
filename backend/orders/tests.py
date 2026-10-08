@@ -202,7 +202,7 @@ class CheckoutAPITestCase(TestCase):
         self.assertEqual(self.product.stock_quantity, 3)
         self.assertEqual(self.cart.items.count(), 0)
 
-        # Step 6.5 hooks: WhatsApp link returned + confirmation email sent
+        # WhatsApp link returned + confirmation email sent
         self.assertIn("wa.me/", res.data["whatsapp_link"])
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn(res.data["order_number"], mail.outbox[0].subject)
@@ -248,7 +248,7 @@ class CheckoutAPITestCase(TestCase):
         self.assertEqual(res.data["status"], Order.Status.PENDING_PAYMENT)
         order = Order.objects.get(order_number=res.data["order_number"])
         self.assertFalse(order.requires_manual_verification)
-        # Stock is still reserved while awaiting the STK push (Phase 7).
+        # Stock stays reserved while awaiting the STK push.
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock_quantity, 3)
 

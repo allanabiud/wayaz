@@ -21,7 +21,7 @@ export async function generateMetadata({
   return {
     title: `Search: ${query}`,
     description: `Search the Wayaz Collection for ${query}. Order on WhatsApp or add pieces to your cart.`,
-    // Result listings are near-duplicates of the home and category pages.
+    // Near-duplicate of the main listings - keep it out of the index.
     robots: { index: false },
   };
 }

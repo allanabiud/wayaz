@@ -152,8 +152,8 @@ export function Storefront() {
       .slice(0, 8);
   }, [catalog]);
 
-  // Banner links: only categories that actually have items to show; empty
-  // categories and the leftover "more" bucket get no button.
+  // Banner links only for categories with items; empty and leftover
+  // buckets get no button.
   const categorySections = sections.filter((section) => section.key !== "more");
 
   const toggleSection = (key: string) => {
@@ -223,8 +223,8 @@ export function Storefront() {
 
         {sections.map((section) => {
           const expanded = expandedKeys.includes(section.key);
-          // Real category sections link to their dedicated paginated page;
-          // the leftover bucket ("more"/"uncategorized") has no page.
+          // Real categories link to their paginated page; the leftover
+          // bucket has none.
           const sectionHref =
             section.key !== "more" && section.key !== "uncategorized"
               ? `/categories/${section.key}`

@@ -47,8 +47,7 @@ class CartItem(models.Model):
     product = models.ForeignKey(
         Product, on_delete=models.CASCADE, related_name="cart_items"
     )
-    # Selected size ("" = one-size product), so the same product in two
-    # sizes can sit on two separate lines.
+    # Selected size ("" = one-size), so one product can sit on two lines.
     size = models.CharField(max_length=50, blank=True, default="")
     quantity = models.PositiveIntegerField(default=1)
     added_at = models.DateTimeField(auto_now_add=True)

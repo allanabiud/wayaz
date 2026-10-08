@@ -60,14 +60,9 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-// Every nav item keeps a constant full-bleed box: -mx-2 pulls the item over
-// the group's p-2 padding, and the explicit calc() width makes it exactly
-// sidebar-width wide (group content + 2 * 0.5rem) so it reaches both edges.
-// An explicit width is required because <button> (used for coming-soon items)
-// shrink-wraps to its content instead of stretching like a link does.
-// px-5 keeps text where px-3 inside p-2 used to sit. Geometry never changes on
-// hover/active, so only the background-color transitions - no layout shifts
-// under the cursor, no flicker, always the full sidebar width.
+// Full-bleed box: -mx-2 + an explicit calc() width so items reach both
+// sidebar edges (buttons shrink-wrap otherwise). Only background-color
+// transitions on hover/active, so the geometry never shifts.
 const itemClassName = "-mx-2 h-9 w-[calc(100%_+_1rem)] gap-3 rounded-none px-5";
 
 export function AppSidebar() {

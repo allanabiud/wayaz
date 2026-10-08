@@ -61,7 +61,6 @@ class ProductReviewAdmin(admin.ModelAdmin):
     search_fields = ("product__title", "user__username", "user__email")
     readonly_fields = ("product", "user", "rating", "created_at", "updated_at")
 
-    # Ratings are submitted through the storefront API only; admins can
-    # moderate by deleting a review, not by hand-editing it.
+    # Ratings are storefront-only; admins moderate by deleting, not editing.
     def has_add_permission(self, request):
         return False

@@ -79,9 +79,8 @@ export function ProductDetail({ product }: ProductDetailProps) {
   const [zoom, setZoom] = useState<{ x: number; y: number } | null>(null);
   const wishlisted = wishlist.has(product.id);
 
-  // Rating summary: SSR only has aggregates (the detail fetch is anonymous),
-  // so the viewer's own rating is refreshed once auth state is known and
-  // replaced by the POST response after every submission.
+  // SSR only has aggregates; the viewer's rating refreshes once auth is known
+  // (and is replaced by the POST response after each submission).
   const [rating, setRating] = useState<ProductRatingSummary>({
     average_rating: product.average_rating,
     rating_count: product.rating_count,
@@ -105,13 +104,9 @@ export function ProductDetail({ product }: ProductDetailProps) {
     };
   }, [isAuthenticated, product.slug]);
 
-  // The bottom bar appears once the in-flow buy row scrolls past and then
-  // stays put - including at the very bottom of the page. So it never covers
-  // the footer, this page reserves the bar's own height as footer bottom
-  // padding while mounted (cleared again on unmount), which keeps all footer
-  // content scrollable above the bar. The show/hide boundary has a dead zone
-  // (hysteresis) so lazy-loaded images shifting the layout, or the mobile URL
-  // bar resizing the viewport, can't make it flicker on and off mid-scroll.
+  // Sticky bar: appears once the buy row scrolls past, stays through the page
+  // bottom; a 48px dead zone stops layout shifts from flickering it. The footer
+  // reserves the bar's height as padding while mounted so it's never covered.
   const actionsRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const [showStickyBar, setShowStickyBar] = useState(false);
@@ -138,13 +133,12 @@ export function ProductDetail({ product }: ProductDetailProps) {
       const card = actions.getBoundingClientRect();
       setShowStickyBar((visible) => {
         if (visible) {
-          // Stay visible while the buy row is above/behind us (its bottom
-          // edge is negative); hide only once it peeks back into view.
+          // Visible while the buy row is above/behind us; hidden once it
+          // re-enters the viewport.
           return card.bottom <= 0;
         }
-        // Show once the buy row is well above the viewport - the 48px gap
-        // between this and the hide check is a dead zone that keeps the bar
-        // steady at the boundary.
+        // Show once the buy row is well above; the 48px gap to the hide
+        // check is the dead zone.
         return card.bottom < -48;
       });
     };
@@ -165,8 +159,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
     };
   }, []);
 
-  // Record where the pointer sits in the frame; the image scales around that
-  // point so the pixel under the cursor/tap stays put while it enlarges.
+  // Image scales around this focal point so the focused pixel stays put.
   const setZoomFromEvent = (
     e: MouseEvent<HTMLDivElement> | PointerEvent<HTMLDivElement>,
   ) => {
@@ -192,13 +185,13 @@ export function ProductDetail({ product }: ProductDetailProps) {
   const adding = addingId === product.id;
   const categorySlug = product.category?.slug ?? null;
 
-  // Size + quantity gate the add: sized products need an explicit pick
-  // before anything reaches the cart (one-size products skip straight in).
+  // Sized products need an explicit size before adding; one-size skips
+  // straight in.
   const hasSizes = product.sizes.length > 0;
   const sizeChosen = !hasSizes || size !== "";
   const maxQuantity = Math.max(1, product.stock_quantity);
-  // Cart state is tracked per product + size, so picking another size
-  // offers "Add to Cart" again while the selected one shows "In Cart".
+  // Cart state is per product + size, so switching size re-offers
+  // "Add to Cart" while the selected one shows "In Cart".
   const sizeInCart = (cart?.items ?? []).some(
     (line) => line.product.id === product.id && (line.size || "") === size,
   );
@@ -212,8 +205,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
       .slice(0, 4);
   }, [catalog, categorySlug, product.id]);
 
-  // Shared CTA state: used by the in-flow button (sm+) and the sticky
-  // price + add-to-cart bar that the mobile layout relies on.
+  // Shared by the in-flow CTA and the sticky bottom bar.
   const canAdd =
     !adding && sizeChosen && (sizeInCart || product.is_in_stock);
   const addLabel = adding
@@ -279,8 +271,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
     }
   };
 
-  // Stars show your own rating once you've left one, the average otherwise;
-  // hovering previews what a click would set.
+  // Your own rating once left, the average otherwise; hover previews a click.
   const displayStarValue =
     hoverStar ?? rating.user_rating ?? rating.average_rating ?? 0;
   const addedAt = new Date(product.created_at).toLocaleDateString("en-KE", {
@@ -288,9 +279,8 @@ export function ProductDetail({ product }: ProductDetailProps) {
     month: "short",
     year: "numeric",
   });
-  // Availability is tiered on purpose: exact counts only once stock is low
-  // (the scarcity nudge), a plain "In stock" otherwise - we don't publish
-  // exact inventory numbers to shoppers or competitors.
+  // Tiered on purpose: exact counts only at <=5 (scarcity nudge), a plain
+  // "In stock" otherwise - full inventory stays unpublished.
   const availabilityLabel = !product.is_in_stock
     ? "Out of stock"
     : product.stock_quantity <= 5
@@ -322,14 +312,13 @@ export function ProductDetail({ product }: ProductDetailProps) {
             }`}
             onClick={(e) => {
               if (!current?.image) return;
-              // Explicit toggle: click/tap opens the magnifier at that point,
-              // clicking again closes it - zooming never happens on hover.
+              // Click/tap toggles the magnifier at that point; zooming never
+              // happens on hover.
               if (zoom) setZoom(null);
               else setZoomFromEvent(e);
             }}
             onPointerMove={(e) => {
-              // While zoomed, moving the pointer (or dragging a finger)
-              // pans the magnified view; hovering alone does nothing.
+              // Pointer/drag pans while zoomed; hovering alone does nothing.
               if (zoom) setZoomFromEvent(e);
             }}
             onPointerCancel={() => setZoom(null)}

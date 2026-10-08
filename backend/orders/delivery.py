@@ -1,12 +1,7 @@
-"""
-Kenyan delivery zones & fee calculation (Phase 6, Step 6.3).
+"""Kenyan delivery zones and fees.
 
-Zones mirror the plan's delivery options:
-- Nairobi Doorstep        -> courier to the customer's door within Nairobi
-- Nairobi CBD Pickup       -> collect from the CBD pickup point
-- Upcountry Standard Courier -> standard parcel courier outside Nairobi
-
-Orders at or above FREE_DELIVERY_THRESHOLD ship free.
+Nairobi doorstep / CBD pickup / upcountry courier; orders at or above
+FREE_DELIVERY_THRESHOLD ship free.
 """
 from decimal import Decimal
 

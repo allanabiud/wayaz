@@ -204,12 +204,9 @@ class CartMergeView(APIView):
 
 
 class OrderListView(generics.ListAPIView):
-    """
-    GET /api/v1/orders/ - the signed-in shopper's order history.
+    """GET /api/v1/orders/ - the signed-in shopper's order history.
 
-    Scoped strictly to request.user (staff and customers alike); guest
-    checkouts are tied to a cart id rather than an account and are not
-    returned here. Paginated by the project-wide StandardResultsSetPagination.
+    Scoped to request.user; guest checkouts are not returned.
     """
 
     permission_classes = [permissions.IsAuthenticated]
@@ -224,13 +221,10 @@ class OrderListView(generics.ListAPIView):
 
 
 class CheckoutView(APIView):
-    """
-    POST /api/v1/orders/checkout/ (Phase 6, Steps 6.2 & 6.4)
+    """POST /api/v1/orders/checkout/.
 
-    Validates the cart, computes delivery, and creates the order inside a
-    single atomic transaction with product rows locked (select_for_update)
-    so concurrent checkouts can never oversell stock. Stock is decremented
-    at placement and restored if the order is later cancelled.
+    Validates the cart and creates the order atomically with
+    select_for_update product locks so concurrent checkouts can't oversell.
     """
 
     permission_classes = [permissions.AllowAny]
@@ -257,7 +251,7 @@ class CheckoutView(APIView):
                     )
                 }
 
-                # Step 6.2: validate availability before charging anything.
+                # Validate availability before charging anything.
                 # Stock is per product, so total every size line together.
                 required: dict[int, int] = {}
                 for item in items:
@@ -283,11 +277,11 @@ class CheckoutView(APIView):
                 total = subtotal + shipping_fee - discount
 
                 if data["payment_method"] == Order.PaymentMethod.M_PESA:
-                    # Await STK push confirmation (payment integration = Phase 7).
+                    # Await STK push confirmation (M-Pesa not wired yet).
                     order_status = Order.Status.PENDING_PAYMENT
                     requires_manual = False
                 else:
-                    # Cash on delivery: verified manually on delivery (plan 7.6).
+                    # Cash on delivery: verified manually on delivery.
                     order_status = Order.Status.PROCESSING
                     requires_manual = True
 
@@ -327,8 +321,8 @@ class CheckoutView(APIView):
         except ValidationError as exc:
             return Response(exc.detail, status=status.HTTP_400_BAD_REQUEST)
 
-        # Step 6.5: confirmation hooks (email is fire-and-forget, WhatsApp link
-        # is serialized back to the client for the order success page).
+        # Confirmation hooks: email is fire-and-forget; the WhatsApp link goes
+        # back to the client on the order success page.
         send_order_confirmation_email(order)
 
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)

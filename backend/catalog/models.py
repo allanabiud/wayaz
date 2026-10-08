@@ -49,8 +49,7 @@ class Product(models.Model):
         max_digits=10, decimal_places=2, null=True, blank=True
     )
     stock_quantity = models.PositiveIntegerField(default=0)
-    # Shopper-selectable sizes in display order, e.g. ["S", "M", "L"].
-    # An empty list means a one-size product.
+    # Sizes in display order, e.g. ["S", "M", "L"]; empty = one-size.
     sizes = models.JSONField(blank=True, default=list)
     # Merchandising flag - surfaced in the storefront's Featured shelf.
     is_featured = models.BooleanField(default=False)

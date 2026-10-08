@@ -45,12 +45,9 @@ import {
 } from "@/lib/store";
 
 /**
- * Full-bleed store header: logo flush to the left edge, search bar filling
- * all remaining length, actions at the right edge. The search popover keeps
- * category shortcuts pinned at the top, shows recent + hot searches while
- * idle, fills with product results as you type, and Enter (or the footer
- * link) opens the full /search results page. Wraps to two rows on small
- * screens; desktop keeps the single h-14 row.
+ * Full-bleed header: logo, search popover (pinned categories, recent + hot
+ * terms, live product results), account and cart actions. Wraps to two rows
+ * on small screens.
  */
 export function StoreHeader() {
   const router = useRouter();

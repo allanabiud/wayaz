@@ -123,8 +123,8 @@ export function ProductCard({
             </a>
           </Button>
           {product.sizes.length > 0 ? (
-            // Sized products route to the detail page so the shopper picks
-            // a size (and quantity) before anything reaches the cart.
+            // Sized products route to the detail page to pick size/quantity
+            // first.
             <Button className="w-full gap-1.5" asChild>
               <Link href={`/products/${product.slug}`}>
                 <ShoppingBag className="size-4" />

@@ -38,8 +38,7 @@ export function StoreFooter() {
   const { catalog, catalogLoading } = useStore();
   const year = new Date().getFullYear();
 
-  // A product link appears only when its category exists and has items, so
-  // the footer never points at an empty or missing category page.
+  // Only link categories that exist and hold items.
   const productLinks = PRODUCT_LINKS.filter(({ slug }) => {
     if (!catalog) return false;
     const exists = catalog.categories.some(
