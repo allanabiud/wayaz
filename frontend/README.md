@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Wayaz frontend
 
-## Getting Started
+Next.js 16 storefront (`/`) and admin (`/admin`) for the Wayaz Django API.
+See the [root README](../README.md) for the full stack, backend setup, and
+API surface.
 
-First, run the development server:
+## Setup
 
 ```bash
+npm install
+printf 'NEXT_PUBLIC_API_URL=http://127.0.0.1:8000\n' > .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The backend must be running first (see the root README). `NEXT_PUBLIC_*`
+values are inlined at boot, so restart `npm run dev` after changing
+`.env.local`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `npm run dev` - dev server on http://localhost:3000 (Turbopack)
+- `npm run build` - production build
+- `npm run start` - serve the production build
+- `npm run lint` - ESLint over `src/`
 
-## Learn More
+Quality gates before committing: `npx tsc --noEmit`, `npx eslint src`,
+`npm run build`.
 
-To learn more about Next.js, take a look at the following resources:
+## Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```text
+src/
+├── app/
+│   ├── (store)/        # home, categories/[slug], products/[slug], search, orders
+│   ├── admin/          # dashboard, products (list, new, [id], [id]/edit), customers
+│   └── login/          # standalone login page
+├── components/
+│   ├── store/          # storefront: header, footer, cart/wishlist sheets, product views
+│   ├── admin/          # admin header/sidebar, product form, image manager, tables
+│   └── ui/             # shadcn-style primitives
+└── lib/                # api client (JWT + X-Cart-ID), types, query helpers, store context
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Notes
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- The cart sheet is a "Checkout coming soon" flow: the checkout endpoint
+  exists, but payment is not wired up yet.
+- Admin data lives behind staff-only endpoints; the header and pages render
+  once the API confirms the role.
+- Stock tiers are surfaced as `In stock`, `Only N left` (up to 5), and
+  `Out of stock`.
