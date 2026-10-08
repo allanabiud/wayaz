@@ -1,15 +1,33 @@
 from django.db import models
-from django.db.models import Q, F
+from django.db.models import Q, F, Avg, Count
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import Category, Product
+from .models import Category, Product, ProductReview
 from .serializers import (
     CategorySerializer,
     ProductListSerializer,
     ProductDetailSerializer,
+    ProductReviewSerializer,
 )
+
+
+def rating_payload(product, user):
+    """Rating summary for a product plus the viewer's own rating (if any)."""
+    agg = product.reviews.aggregate(avg=Avg("rating"), count=Count("id"))
+    user_rating = None
+    if user is not None and user.is_authenticated:
+        user_rating = (
+            product.reviews.filter(user=user)
+            .values_list("rating", flat=True)
+            .first()
+        )
+    return {
+        "average_rating": round(agg["avg"], 1) if agg["count"] else None,
+        "rating_count": agg["count"],
+        "user_rating": user_rating,
+    }
 
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -32,6 +50,36 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         if self.action == "retrieve":
             return ProductDetailSerializer
         return ProductListSerializer
+
+    def get_permissions(self):
+        # Reading ratings is public; submitting one requires an account.
+        if self.action == "review" and self.request.method == "POST":
+            return [permissions.IsAuthenticated()]
+        return super().get_permissions()
+
+    def get_object(self):
+        obj = super().get_object()
+        if self.action == "retrieve":
+            payload = rating_payload(obj, self.request.user)
+            obj.average_rating = payload["average_rating"]
+            obj.rating_count = payload["rating_count"]
+            obj.user_rating = payload["user_rating"]
+        return obj
+
+    @action(detail=True, methods=["get", "post"], url_path="review")
+    def review(self, request, slug=None):
+        """GET the rating summary (incl. the caller's own rating) or POST a
+        1-5 star rating; repeating the POST overwrites the caller's rating."""
+        product = self.get_object()
+        if request.method == "POST":
+            serializer = ProductReviewSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            ProductReview.objects.update_or_create(
+                product=product,
+                user=request.user,
+                defaults={"rating": serializer.validated_data["rating"]},
+            )
+        return Response(rating_payload(product, request.user))
 
     def get_queryset(self):
         qs = super().get_queryset()

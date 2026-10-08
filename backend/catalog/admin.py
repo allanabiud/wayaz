@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Category, Product, ProductImage
+from .models import Category, Product, ProductImage, ProductReview
 
 
 class ProductImageInline(admin.TabularInline):
@@ -53,3 +53,15 @@ class ProductAdmin(admin.ModelAdmin):
         return format_html('<span style="color: {}; font-weight: bold;">{}</span>', color, stock)
     total_stock_display.short_description = "Stock"
 
+
+@admin.register(ProductReview)
+class ProductReviewAdmin(admin.ModelAdmin):
+    list_display = ("product", "user", "rating", "updated_at")
+    list_filter = ("rating", "created_at")
+    search_fields = ("product__title", "user__username", "user__email")
+    readonly_fields = ("product", "user", "rating", "created_at", "updated_at")
+
+    # Ratings are submitted through the storefront API only; admins can
+    # moderate by deleting a review, not by hand-editing it.
+    def has_add_permission(self, request):
+        return False

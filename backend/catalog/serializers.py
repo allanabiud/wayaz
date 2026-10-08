@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Product, ProductImage
+from .models import Category, Product, ProductImage, ProductReview
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -71,6 +71,12 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         max_digits=10, decimal_places=2, read_only=True
     )
     is_in_stock = serializers.BooleanField(read_only=True)
+    # Rating summary - annotated onto the object by ProductViewSet.get_object()
+    # for the detail route (see views.rating_payload).
+    average_rating = serializers.SerializerMethodField()
+    rating_count = serializers.SerializerMethodField()
+    user_rating = serializers.SerializerMethodField()
+
     class Meta:
         model = Product
         fields = (
@@ -87,7 +93,28 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             "stock_quantity",
             "sizes",
             "images",
+            "average_rating",
+            "rating_count",
+            "user_rating",
             "created_at",
             "updated_at",
         )
 
+    def get_average_rating(self, obj):
+        return getattr(obj, "average_rating", None)
+
+    def get_rating_count(self, obj):
+        return getattr(obj, "rating_count", 0)
+
+    def get_user_rating(self, obj):
+        return getattr(obj, "user_rating", None)
+
+
+class ProductReviewSerializer(serializers.ModelSerializer):
+    """Write serializer for the nested review endpoint (product + user are set
+    by the view, so only the rating itself comes from the payload)."""
+
+    class Meta:
+        model = ProductReview
+        fields = ("id", "rating", "created_at", "updated_at")
+        read_only_fields = ("id", "created_at", "updated_at")
