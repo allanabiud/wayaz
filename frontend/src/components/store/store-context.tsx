@@ -72,6 +72,9 @@ export function useStore(): StoreContextValue {
   return value;
 }
 
+/** Module-level empty list keeps the logged-out context value referentially stable. */
+const EMPTY_WISHLIST_IDS: number[] = [];
+
 /** Store state: guest cart sessions, the account-tied wishlist, and shared catalog. */
 export function StoreProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -126,10 +129,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // 3. Wishlist sync: strictly tied to authenticated user.
   useEffect(() => {
-    if (!isAuthenticated) {
-      setWishlistIds([]);
-      return;
-    }
+    if (!isAuthenticated) return;
 
     let cancelled = false;
     api
@@ -142,13 +142,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       })
       .catch(() => {
-        // Unauthenticated or network error resets list.
+        // Keep whatever the optimistic updates last wrote.
       });
 
     return () => {
       cancelled = true;
     };
   }, [isAuthenticated]);
+
+  // Logged-out sessions expose an empty list without discarding state, so a
+  // re-login shows the previous ids until the fetch above overwrites them.
+  const activeWishlistIds = isAuthenticated ? wishlistIds : EMPTY_WISHLIST_IDS;
 
   const addProduct = useCallback(
     async (
@@ -186,10 +190,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const isWishlisted = wishlistIds.includes(product.id);
+      const isWishlisted = activeWishlistIds.includes(product.id);
       const next = isWishlisted
-        ? wishlistIds.filter((id) => id !== product.id)
-        : [...wishlistIds, product.id];
+        ? activeWishlistIds.filter((id) => id !== product.id)
+        : [...activeWishlistIds, product.id];
 
       // Optimistic update
       setWishlistIds(next);
@@ -207,7 +211,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       } catch (err) {
         // Revert optimistic update on failure
-        setWishlistIds(wishlistIds);
+        setWishlistIds(activeWishlistIds);
         toast.error(
           err instanceof ApiError
             ? err.message
@@ -215,7 +219,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         );
       }
     },
-    [isAuthenticated, wishlistIds],
+    [isAuthenticated, activeWishlistIds],
   );
 
   const openWishlist = useCallback(() => {
@@ -234,15 +238,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [cart],
   );
 
-  const wishlist = useMemo(() => new Set(wishlistIds), [wishlistIds]);
+  const wishlist = useMemo(() => new Set(activeWishlistIds), [activeWishlistIds]);
 
   const wishlistProducts = useMemo(() => {
     if (!catalog) return [];
     const byId = new Map(catalog.products.map((item) => [item.id, item]));
-    return wishlistIds
+    return activeWishlistIds
       .map((id) => byId.get(id))
       .filter((item): item is StoreProduct => Boolean(item));
-  }, [catalog, wishlistIds]);
+  }, [catalog, activeWishlistIds]);
 
   const value = useMemo<StoreContextValue>(
     () => ({
@@ -254,7 +258,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addingId,
       addProduct,
       wishlist,
-      wishlistCount: wishlistIds.length,
+      wishlistCount: activeWishlistIds.length,
       wishlistProducts,
       toggleWishlist,
       wishlistOpen,
@@ -274,7 +278,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addingId,
       addProduct,
       wishlist,
-      wishlistIds.length,
+      activeWishlistIds.length,
       wishlistProducts,
       toggleWishlist,
       wishlistOpen,
@@ -300,7 +304,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         open={wishlistOpen}
         onOpenChange={setWishlistOpen}
         products={wishlistProducts}
-        total={wishlistIds.length}
+        total={activeWishlistIds.length}
         onToggle={toggleWishlist}
       />
       <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />

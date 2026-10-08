@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, Plus, Search, Star, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -42,13 +42,10 @@ function ProductsContent() {
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [category, setCategory] = useState(ALL);
-  const [inStock, setInStock] = useState(ALL);
   const [page, setPage] = useState(1);
-
-  useEffect(() => {
-    const filterStock = searchParams.get("in_stock");
-    if (filterStock) setInStock(filterStock);
-  }, [searchParams]);
+  const [inStock, setInStock] = useState(
+    () => searchParams.get("in_stock") || ALL,
+  );
 
   const { data: categories } = useQuery<Category[]>(async () => {
     const res = await api.get<Paginated<Category>>("/api/v1/admin/categories/");
