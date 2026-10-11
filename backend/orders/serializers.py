@@ -164,11 +164,17 @@ class OrderItemSerializer(serializers.ModelSerializer):
     line_total = serializers.DecimalField(
         max_digits=10, decimal_places=2, read_only=True
     )
+    # Live catalog slug for "buy again" links; null once the product is
+    # removed from the catalog (SET_NULL snapshot).
+    product_slug = serializers.SlugRelatedField(
+        source="product", read_only=True, slug_field="slug"
+    )
 
     class Meta:
         model = OrderItem
         fields = (
             "id",
+            "product_slug",
             "product_title",
             "unit_price",
             "quantity",

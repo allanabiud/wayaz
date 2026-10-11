@@ -359,6 +359,34 @@ class OrderHistoryAPITestCase(TestCase):
         self.assertEqual(payload["item_count"], 1)
         self.assertEqual(payload["items"][0]["product_title"], "Linen Shirt")
 
+    def test_item_exposes_product_slug_for_buy_again(self):
+        category = Category.objects.create(name="Shirts", slug="shirts")
+        product = Product.objects.create(
+            title="Linen Shirt",
+            category=category,
+            base_price=Decimal("2500.00"),
+            stock_quantity=5,
+        )
+        OrderItem.objects.create(
+            order=self.first_order,
+            product=product,
+            product_title="Linen Shirt",
+            unit_price=Decimal("2500.00"),
+            quantity=1,
+        )
+        self.client.force_authenticate(user=self.user)
+
+        res = self.client.get("/api/v1/orders/")
+        payload = res.data["results"][-1]  # oldest order carries the item
+        self.assertEqual(payload["items"][0]["product_slug"], "linen-shirt")
+
+        # Removing the product nulls the FK; the snapshot stays readable.
+        product.delete()
+        res = self.client.get("/api/v1/orders/")
+        payload = res.data["results"][-1]
+        self.assertIsNone(payload["items"][0]["product_slug"])
+        self.assertEqual(payload["items"][0]["product_title"], "Linen Shirt")
+
     def test_paginates_with_standard_results_set(self):
         self.client.force_authenticate(user=self.user)
         res = self.client.get("/api/v1/orders/?page_size=1")
