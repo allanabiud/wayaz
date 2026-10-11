@@ -2,7 +2,6 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Banknote,
@@ -12,8 +11,8 @@ import {
   CreditCard,
   ExternalLink,
   Lock,
-  MapPin,
   Package,
+  Pencil,
   Plus,
   ShoppingBag,
   Smartphone,
@@ -37,72 +36,27 @@ import { useStore } from "@/components/store/store-context";
 import { ApiError } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import {
+  createAddress,
   fetchUserAddresses,
   formatKsh,
   submitCheckout,
   type StoreOrder,
 } from "@/lib/store";
 import type { Address } from "@/lib/types";
-
-const KENYAN_COUNTIES = [
-  "Baringo",
-  "Bomet",
-  "Bungoma",
-  "Busia",
-  "Elgeyo-Marakwet",
-  "Embu",
-  "Garissa",
-  "Homa Bay",
-  "Isiolo",
-  "Kajiado",
-  "Kakamega",
-  "Kericho",
-  "Kiambu",
-  "Kilifi",
-  "Kirinyaga",
-  "Kisii",
-  "Kisumu",
-  "Kitui",
-  "Kwale",
-  "Laikipia",
-  "Lamu",
-  "Machakos",
-  "Makueni",
-  "Mandera",
-  "Marsabit",
-  "Meru",
-  "Migori",
-  "Mombasa",
-  "Murang'a",
-  "Nairobi",
-  "Nakuru",
-  "Nandi",
-  "Narok",
-  "Nyamira",
-  "Nyandarua",
-  "Nyeri",
-  "Samburu",
-  "Siaya",
-  "Taita-Taveta",
-  "Tana River",
-  "Tharaka-Nithi",
-  "Trans Nzoia",
-  "Turkana",
-  "Uasin Gishu",
-  "Vihiga",
-  "Wajir",
-  "West Pokot",
-];
+import { KENYAN_COUNTIES } from "@/lib/locations";
 
 export function CheckoutView() {
-  const router = useRouter();
   const { user, isAuthenticated } = useAuth();
   const { cart, clearCart, openLogin } = useStore();
 
   // Saved addresses state for logged in customers
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<number | "new">("new");
-  const [loadingAddresses, setLoadingAddresses] = useState(false);
+  // Persist a freshly typed address to the account after checkout.
+  const [saveToAccount, setSaveToAccount] = useState(false);
+  const [saveAsDefault, setSaveAsDefault] = useState(false);
+  // Expand the form for a selected saved address (collapsed into a summary otherwise).
+  const [editingAddress, setEditingAddress] = useState(false);
 
   // Address form fields
   const [fullName, setFullName] = useState("");
@@ -116,45 +70,34 @@ export function CheckoutView() {
   const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<StoreOrder | null>(null);
 
-  // Load saved addresses when authenticated
+  // Load saved addresses when authenticated. State updates happen in the
+  // async callbacks, never synchronously in the effect body.
   useEffect(() => {
-    if (isAuthenticated) {
-      setLoadingAddresses(true);
-      fetchUserAddresses()
-        .then((res) => {
-          const addrs = res.results || [];
-          setSavedAddresses(addrs);
-          if (addrs.length > 0) {
-            const def = addrs.find((a) => a.is_default) || addrs[0];
-            setSelectedAddressId(def.id);
-            setFullName(def.full_name);
-            setPhone(def.phone_number);
-            setCounty(def.county);
-            setTown(def.town);
-            setStreetAddress(def.street_address);
-          } else if (user) {
-            if (user.display_name) setFullName(user.display_name);
-            if (user.phone_number) setPhone(user.phone_number);
-          }
-        })
-        .catch(() => {
-          // If address fetch fails, fallback to manual form
-        })
-        .finally(() => {
-          setLoadingAddresses(false);
-        });
-    } else {
-      setSavedAddresses([]);
-      setSelectedAddressId("new");
-    }
+    if (!isAuthenticated) return;
+    fetchUserAddresses()
+      .then((res) => {
+        const addrs = res.results || [];
+        setSavedAddresses(addrs);
+        // Pre-fill contact details from the account.
+        if (user?.email) setEmail((prev) => prev || user.email);
+        if (addrs.length > 0) {
+          const def = addrs.find((a) => a.is_default) || addrs[0];
+          setSelectedAddressId(def.id);
+          setFullName(def.full_name);
+          setPhone(def.phone_number);
+          setCounty(def.county);
+          setTown(def.town);
+          setStreetAddress(def.street_address);
+        } else if (user) {
+          if (user.display_name) setFullName(user.display_name);
+          if (user.phone_number) setPhone(user.phone_number);
+        }
+      })
+      .catch(() => {
+        // If address fetch fails, fall back to the manual form.
+        if (user?.email) setEmail((prev) => prev || user.email);
+      });
   }, [isAuthenticated, user]);
-
-  // Set email from authenticated user
-  useEffect(() => {
-    if (user?.email && !email) {
-      setEmail(user.email);
-    }
-  }, [user, email]);
 
   // When user picks an existing saved address card
   const handleSelectAddress = (addr: Address) => {
@@ -164,6 +107,9 @@ export function CheckoutView() {
     setCounty(addr.county);
     setTown(addr.town);
     setStreetAddress(addr.street_address);
+    setSaveToAccount(false);
+    setSaveAsDefault(false);
+    setEditingAddress(false); // collapse into the summary card
   };
 
   const handleSelectNewAddress = () => {
@@ -173,6 +119,9 @@ export function CheckoutView() {
     setCounty("Nairobi");
     setTown("");
     setStreetAddress("");
+    setSaveToAccount(false);
+    setSaveAsDefault(false);
+    setEditingAddress(true);
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -198,6 +147,22 @@ export function CheckoutView() {
         street_address: streetAddress.trim(),
         payment_method: paymentMethod,
       });
+
+      // Persist the freshly typed address for faster checkout next time.
+      if (isAuthenticated && selectedAddressId === "new" && saveToAccount) {
+        try {
+          await createAddress({
+            full_name: fullName.trim(),
+            phone_number: phone.trim(),
+            county,
+            town: town.trim(),
+            street_address: streetAddress.trim(),
+            is_default: saveAsDefault,
+          });
+        } catch {
+          // Non-fatal: the order already went through.
+        }
+      }
 
       clearCart();
       setCompletedOrder(order);
@@ -427,81 +392,150 @@ export function CheckoutView() {
                 </div>
               )}
 
-              {/* Address Form (shown always for guests, or when 'new' / editing selected address) */}
-              <div className="grid gap-4 sm:grid-cols-2 pt-1">
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input
-                    id="fullName"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="e.g. Jane Doe"
-                  />
-                </div>
+              {/* Selected saved address: compact summary (email stays editable
+                  since it isn't part of a saved address) */}
+              {isAuthenticated && selectedAddressId !== "new" && !editingAddress ? (
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between gap-3 rounded-xl border bg-muted/30 p-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold">{fullName}</p>
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        {streetAddress}, {town}, {county}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {phone}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingAddress(true)}
+                        className="h-7 text-xs gap-1"
+                      >
+                        <Pencil className="size-3.5" />
+                        Edit
+                      </Button>
+                    </div>
+                  </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="e.g. jane@example.com"
-                  />
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="e.g. jane@example.com"
+                    />
+                  </div>
                 </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 pt-1">
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor="fullName">Full Name</Label>
+                    <Input
+                      id="fullName"
+                      required
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="e.g. Jane Doe"
+                    />
+                  </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="phone">Phone Number (M-Pesa / Delivery)</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    required
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="e.g. 0712345678"
-                  />
-                </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="e.g. jane@example.com"
+                    />
+                  </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="county">County</Label>
-                  <Select value={county} onValueChange={setCounty}>
-                    <SelectTrigger id="county" className="w-full">
-                      <SelectValue placeholder="Select County" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-60">
-                      {KENYAN_COUNTIES.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="phone">Phone Number (M-Pesa / Delivery)</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      required
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="e.g. 0712345678"
+                    />
+                  </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="town">Town / Area</Label>
-                  <Input
-                    id="town"
-                    required
-                    value={town}
-                    onChange={(e) => setTown(e.target.value)}
-                    placeholder="e.g. Westlands / Kilimani"
-                  />
-                </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="county">County</Label>
+                    <Select value={county} onValueChange={setCounty}>
+                      <SelectTrigger id="county" className="w-full">
+                        <SelectValue placeholder="Select County" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-60">
+                        {KENYAN_COUNTIES.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label htmlFor="address">Street Address / House / Building</Label>
-                  <Input
-                    id="address"
-                    required
-                    value={streetAddress}
-                    onChange={(e) => setStreetAddress(e.target.value)}
-                    placeholder="e.g. Delta Towers, 4th Floor"
-                  />
+                  <div className="space-y-1.5">
+                    <Label htmlFor="town">Town / Area</Label>
+                    <Input
+                      id="town"
+                      required
+                      value={town}
+                      onChange={(e) => setTown(e.target.value)}
+                      placeholder="e.g. Westlands / Kilimani"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor="address">Street Address / House / Building</Label>
+                    <Input
+                      id="address"
+                      required
+                      value={streetAddress}
+                      onChange={(e) => setStreetAddress(e.target.value)}
+                      placeholder="e.g. Delta Towers, 4th Floor"
+                    />
+                  </div>
+
+                  {/* Save the typed address for faster checkout next time */}
+                  {isAuthenticated && selectedAddressId === "new" && (
+                    <label className="flex items-center gap-2 sm:col-span-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={saveToAccount}
+                        onChange={(e) => setSaveToAccount(e.target.checked)}
+                        className="size-4 accent-primary"
+                      />
+                      <span className="text-sm">
+                        Save this address to my account
+                      </span>
+                    </label>
+                  )}
+                  {isAuthenticated && selectedAddressId === "new" && saveToAccount && (
+                    <label className="flex items-center gap-2 sm:col-span-2 cursor-pointer pl-6">
+                      <input
+                        type="checkbox"
+                        checked={saveAsDefault}
+                        onChange={(e) => setSaveAsDefault(e.target.checked)}
+                        className="size-4 accent-primary"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        Set as my default address
+                      </span>
+                    </label>
+                  )}
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
