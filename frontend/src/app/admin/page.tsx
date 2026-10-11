@@ -6,8 +6,6 @@ import {
   Activity,
   Boxes,
   CalendarDays,
-  CheckCircle2,
-  ChevronRight,
   ClipboardList,
   Coins,
   Heart,
@@ -191,7 +189,6 @@ export default function AdminOverviewPage() {
   const topProducts = data?.top_products ?? [];
   const topWishlisted = data?.top_wishlisted ?? [];
   const salesSummary = data?.sales_summary;
-  const revenueSeries = data?.revenue_series ?? [];
   const revenueSummary = data?.revenue_summary;
   const ordersSeries = data?.orders_series ?? [];
   const stockByCategory = data?.stock_by_category ?? [];

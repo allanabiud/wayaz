@@ -2,16 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import {
-  ChevronRight,
-  ClipboardList,
-  Mail,
-  MapPin,
-  Phone,
-  Search,
-  SlidersHorizontal,
-  X,
-} from "lucide-react";
+import { ClipboardList, Search, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

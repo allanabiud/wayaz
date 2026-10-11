@@ -4,35 +4,19 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
-  ArrowDownRight,
-  ArrowUpRight,
-  Boxes,
-  Calendar,
   CheckCircle2,
-  Clock,
   Coins,
   Download,
-  Filter,
-  Layers,
   MapPin,
-  Package,
-  Percent,
   RefreshCw,
-  ShoppingBag,
   TrendingUp,
-  Truck,
   Users,
-  XCircle,
 } from "lucide-react";
 import {
   Area,
   AreaChart,
   Bar,
-  BarChart,
   CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -90,8 +74,9 @@ function formatDay(iso: string): string {
 
 export default function AnalyticsPage() {
   const [period, setPeriod] = useState<PresetPeriod>("30d");
-  const [customStart, setCustomStart] = useState("");
-  const [customEnd, setCustomEnd] = useState("");
+  // Reserved for a future custom date-range picker; no UI writes them yet.
+  const [customStart] = useState("");
+  const [customEnd] = useState("");
   const [useCustomRange, setUseCustomRange] = useState(false);
 
   const queryUrl = useCustomRange && customStart && customEnd

@@ -12,7 +12,6 @@ import {
   KeyRound,
   LayoutDashboard,
   Loader2,
-  Lock,
   LogOut,
   Mail,
   MapPin,
@@ -206,14 +205,6 @@ export function AppHeader() {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (user) {
-      setProfileName(user.display_name || "");
-      setProfilePhone(user.phone_number || "");
-      setProfileEmail(user.email || "");
-    }
-  }, [user]);
-
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profileName.trim()) {
@@ -225,7 +216,7 @@ export function AppHeader() {
       const parts = profileName.trim().split(/\s+/);
       const firstName = parts[0] || "";
       const lastName = parts.slice(1).join(" ") || "";
-      await api.patch("/api/v1/accounts/me/", {
+      await api.patch("/api/v1/auth/me/", {
         first_name: firstName,
         last_name: lastName,
         phone_number: profilePhone.trim() || null,
@@ -281,24 +272,6 @@ export function AppHeader() {
       toast.error(message);
     } finally {
       setSavingPassword(false);
-    }
-  };
-
-  const fetchOrdersList = async () => {
-    const params = new URLSearchParams();
-    if (statusFilter !== "all") params.set("status", statusFilter);
-    const search = orderQuery.trim();
-    if (search) params.set("search", search);
-    setOrdersFetching(true);
-    try {
-      const res = await api.get<AdminOrdersResponse>(
-        `/api/v1/admin/orders/?${params.toString()}`
-      );
-      setOrders(res);
-    } catch {
-      // Keep last snapshot
-    } finally {
-      setOrdersFetching(false);
     }
   };
 
@@ -824,7 +797,14 @@ export function AppHeader() {
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => setShowSettingsDialog(true)}
+                onClick={() => {
+                  // Seed the form from the current session (event handler,
+                  // not an effect).
+                  setProfileName(user?.display_name || "");
+                  setProfilePhone(user?.phone_number || "");
+                  setProfileEmail(user?.email || "");
+                  setShowSettingsDialog(true);
+                }}
                 className="cursor-pointer"
               >
                 <Settings className="size-4" />

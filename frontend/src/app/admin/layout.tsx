@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ShieldAlert } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/admin/app-sidebar";
@@ -49,7 +46,7 @@ function GateSkeleton() {
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { ready, isAuthenticated, canManage, user, signOut } = useAuth();
+  const { ready, isAuthenticated, canManage } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
