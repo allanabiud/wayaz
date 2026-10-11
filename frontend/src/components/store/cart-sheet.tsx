@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -188,13 +189,10 @@ export function CartSheet({
                   Order on WhatsApp
                 </a>
               </Button>
-              <Button className="gap-1.5" disabled>
-                Checkout
+              <Button className="gap-1.5" asChild onClick={() => onOpenChange(false)}>
+                <Link href="/checkout">Checkout</Link>
               </Button>
             </div>
-            <p className="text-center text-[11px] text-muted-foreground">
-              Checkout coming soon - M-Pesa and cash on delivery.
-            </p>
           </SheetFooter>
         )}
       </SheetContent>

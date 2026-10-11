@@ -1,4 +1,4 @@
-import type { TokenResponse } from "./types";
+import type { SessionUser, TokenResponse } from "./types";
 
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
@@ -147,4 +147,17 @@ export function login(username: string, password: string) {
     username,
     password,
   });
+}
+
+export interface RegisterPayload {
+  username: string;
+  email: string;
+  password: string;
+  first_name?: string;
+  last_name?: string;
+  phone_number?: string;
+}
+
+export function registerCustomer(payload: RegisterPayload) {
+  return api.post<SessionUser>("/api/v1/auth/register/", payload);
 }

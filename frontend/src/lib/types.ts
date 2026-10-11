@@ -11,6 +11,7 @@ export interface SessionUser {
   id: number;
   username: string;
   email: string;
+  phone_number?: string;
   role: UserRole;
   display_name: string;
   is_staff: boolean;
@@ -23,6 +24,38 @@ export interface TokenResponse {
   user: SessionUser;
 }
 
+export interface TimeMetric {
+  current: number;
+  previous: number;
+  percent: number;
+}
+
+export interface TimeMetrics {
+  revenue: {
+    today: TimeMetric;
+    week: TimeMetric;
+    month: TimeMetric;
+  };
+  orders: {
+    today: TimeMetric;
+    week: TimeMetric;
+    month: TimeMetric;
+  };
+  customers: {
+    today: TimeMetric;
+    week: TimeMetric;
+    month: TimeMetric;
+  };
+}
+
+export interface TopWishlistedProduct {
+  id: number;
+  title: string;
+  saves: number;
+  price: number;
+  stock: number;
+}
+
 export interface Overview {
   kpis: {
     total_products: number;
@@ -33,12 +66,17 @@ export interface Overview {
     products_added_this_month: number;
     new_customers_this_month: number;
   };
+  time_metrics?: TimeMetrics;
   low_stock_alerts: LowStockAlert[];
   stock_by_category: StockByCategory[];
   recent_activity: RecentActivity[];
   top_products: TopProduct[];
-  sales_summary: { units_sold: number };
+  top_wishlisted?: TopWishlistedProduct[];
+  sales_summary: { units_sold: number; wishlist_saves?: number };
   revenue_series: RevenuePoint[];
+  revenue_series_today?: RevenuePoint[];
+  revenue_series_week?: RevenuePoint[];
+  revenue_series_month?: RevenuePoint[];
   revenue_summary: RevenueSummary;
   orders_series: OrdersWeek[];
 }
@@ -76,30 +114,13 @@ export interface NavCounts {
   customers: number;
 }
 
-export interface AdminOrder {
-  order_number: string;
-  customer: string;
-  status: string;
-  status_display: string;
-  payment_method_display: string;
-  total_amount: string;
-  item_count: number;
-  created_at: string;
-}
-
-export interface AdminOrdersResponse {
-  count: number;
-  pending_count: number;
-  results: AdminOrder[];
-}
-
 export interface StockByCategory {
   name: string;
   units: number;
   products: number;
 }
 
-export type ActivityType = "product" | "customer";
+export type ActivityType = "order" | "product" | "customer";
 
 export interface RecentActivity {
   type: ActivityType;
@@ -162,6 +183,17 @@ export interface ProductPayload {
   is_featured: boolean;
 }
 
+export interface Address {
+  id: number;
+  full_name: string;
+  phone_number: string;
+  county: string;
+  town: string;
+  street_address: string;
+  is_default: boolean;
+  created_at: string;
+}
+
 export interface Customer {
   id: number;
   username: string;
@@ -182,3 +214,107 @@ export interface ProductQuery {
   category?: number | string;
   in_stock?: "true" | "false";
 }
+
+export interface AdminOrderItem {
+  id: number;
+  product_title: string;
+  unit_price: string;
+  quantity: number;
+  line_total: string;
+}
+
+export interface AdminOrder {
+  id: number;
+  order_number: string;
+  customer: string;
+  email: string;
+  phone_number: string;
+  county: string;
+  town: string;
+  street_address: string;
+  status: string;
+  status_display: string;
+  payment_method: string;
+  payment_method_display: string;
+  payment_status: string;
+  total_amount: string;
+  subtotal: string;
+  shipping_fee: string;
+  item_count: number;
+  items: AdminOrderItem[];
+  created_at: string;
+}
+
+export interface AdminOrdersResponse {
+  count: number;
+  page: number;
+  page_size: number;
+  pending_count: number;
+  results: AdminOrder[];
+}
+
+export interface AnalyticsKpis {
+  gross_sales: number;
+  net_sales: number;
+  total_discount: number;
+  total_orders: number;
+  completed_orders: number;
+  cancelled_orders: number;
+  aov: number;
+  fulfillment_rate: number;
+  cancellation_rate: number;
+  repeat_customer_rate: number;
+}
+
+export interface AnalyticsTimelinePoint {
+  date: string;
+  revenue: number;
+  orders: number;
+}
+
+export interface AnalyticsStatusItem {
+  status: string;
+  label: string;
+  count: number;
+}
+
+export interface AnalyticsPaymentMethod {
+  payment_method: string;
+  count: number;
+  volume: number;
+}
+
+export interface AnalyticsTopProduct {
+  product_id: number;
+  title: string;
+  units_sold: number;
+  revenue: number;
+}
+
+export interface AnalyticsDestination {
+  county: string;
+  orders: number;
+  volume: number;
+}
+
+export interface AnalyticsDeadStock {
+  id: number;
+  title: string;
+  stock_quantity: number;
+  base_price: string;
+}
+
+export interface AnalyticsData {
+  period: string;
+  start_date: string;
+  end_date: string;
+  kpis: AnalyticsKpis;
+  timeline: AnalyticsTimelinePoint[];
+  status_distribution: AnalyticsStatusItem[];
+  payment_methods: AnalyticsPaymentMethod[];
+  top_products: AnalyticsTopProduct[];
+  destinations: AnalyticsDestination[];
+  dead_stock: AnalyticsDeadStock[];
+}
+
+

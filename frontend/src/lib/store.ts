@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import type { Category, Paginated, ProductImage } from "@/lib/types";
+import type { Address, Category, Paginated, ProductImage } from "@/lib/types";
 
 /** Product as returned by the public catalog list serializer. */
 export interface StoreProduct {
@@ -80,10 +80,8 @@ export interface Cart {
 // ---- Account order history ---------------------------------------------
 
 export type OrderStatus =
-  | "PENDING_PAYMENT"
-  | "PAID"
   | "PROCESSING"
-  | "SHIPPED"
+  | "CONFIRMED"
   | "DELIVERED"
   | "CANCELLED";
 
@@ -249,6 +247,102 @@ export function removeCartItem(item_id: number): Promise<Cart> {
     .then(rememberCart);
 }
 
+export function clearStoredCart(): void {
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(CART_KEY);
+  }
+}
+
+export interface CheckoutPayload {
+  email: string;
+  phone_number: string;
+  full_name: string;
+  county: string;
+  town: string;
+  street_address: string;
+  delivery_method?: string;
+  payment_method?: "cod" | "mpesa";
+  guest_id?: string;
+}
+
+export function submitCheckout(payload: CheckoutPayload): Promise<StoreOrder> {
+  return api
+    .post<StoreOrder>("/api/v1/orders/checkout/", payload, {
+      headers: cartHeaders(),
+    })
+    .then((order) => {
+      clearStoredCart();
+      return order;
+    });
+}
+
+// ---- Customer Saved Addresses ----------------------------------------
+
+export function fetchUserAddresses(): Promise<Paginated<Address>> {
+  return api.get<Paginated<Address>>("/api/v1/auth/addresses/");
+}
+
+export function createAddress(address: {
+  full_name: string;
+  phone_number: string;
+  county: string;
+  town: string;
+  street_address: string;
+  is_default?: boolean;
+}): Promise<Address> {
+  return api.post<Address>("/api/v1/auth/addresses/", address);
+}
+
+export function updateAddress(
+  id: number,
+  address: Partial<{
+    full_name: string;
+    phone_number: string;
+    county: string;
+    town: string;
+    street_address: string;
+    is_default: boolean;
+  }>,
+): Promise<Address> {
+  return api.patch<Address>(`/api/v1/auth/addresses/${id}/`, address);
+}
+
+export function deleteAddress(id: number): Promise<void> {
+  return api.delete<void>(`/api/v1/auth/addresses/${id}/`);
+}
+
+/** PATCH /api/v1/auth/me/ response (UserSerializer). */
+export interface AccountProfile {
+  id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone_number: string;
+  role: string;
+  display_name: string;
+}
+
+export function updateUserProfile(profile: {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone_number?: string;
+}): Promise<AccountProfile> {
+  return api.patch<AccountProfile>("/api/v1/auth/me/", profile);
+}
+
+/** POST /api/v1/auth/change-password/ - swaps the caller's password. */
+export function changePassword(
+  old_password: string,
+  new_password: string,
+): Promise<{ detail: string }> {
+  return api.post<{ detail: string }>("/api/v1/auth/change-password/", {
+    old_password,
+    new_password,
+  });
+}
+
 // ---- Favourites (device-local) ----------------------------------------
 
 const WISHLIST_KEY = "wayaz.wishlist";
@@ -399,24 +493,48 @@ export function hotSearches(catalog: StorefrontCatalog): string[] {
 
 // ---- Catalog ----------------------------------------------------------
 
-/** Loads every category plus all product pages (up to 1,000 products). */
-export async function fetchStorefrontCatalog(): Promise<StorefrontCatalog> {
-  const categories = await api.get<Paginated<Category>>(
-    "/api/v1/catalog/categories/?page_size=100",
-  );
+let cachedCatalog: StorefrontCatalog | null = null;
+let cachedCatalogTime = 0;
+let catalogInFlight: Promise<StorefrontCatalog> | null = null;
+const CATALOG_CACHE_TTL_MS = 60_000; // 1 minute fresh window
 
-  const products: StoreProduct[] = [];
-  let path: string | null = "/api/v1/catalog/products/?page_size=100";
-  for (let guard = 0; path !== null && guard < 10; guard += 1) {
-    const page: Paginated<StoreProduct> = await api.get<Paginated<StoreProduct>>(path);
-    products.push(...page.results);
-    if (page.next) {
-      const nextUrl = new URL(page.next);
-      path = `${nextUrl.pathname}${nextUrl.search}`;
-    } else {
-      path = null;
-    }
+/** Loads every category plus all product pages (up to 1,000 products), cached in memory. */
+export function fetchStorefrontCatalog(forceRefresh = false): Promise<StorefrontCatalog> {
+  const now = Date.now();
+  if (!forceRefresh && cachedCatalog && now - cachedCatalogTime < CATALOG_CACHE_TTL_MS) {
+    return Promise.resolve(cachedCatalog);
+  }
+  if (!forceRefresh && catalogInFlight) {
+    return catalogInFlight;
   }
 
-  return { categories: categories.results, products };
+  catalogInFlight = (async () => {
+    try {
+      const categories = await api.get<Paginated<Category>>(
+        "/api/v1/catalog/categories/?page_size=100",
+      );
+
+      const products: StoreProduct[] = [];
+      let path: string | null = "/api/v1/catalog/products/?page_size=100";
+      for (let guard = 0; path !== null && guard < 10; guard += 1) {
+        const page: Paginated<StoreProduct> = await api.get<Paginated<StoreProduct>>(path);
+        products.push(...page.results);
+        if (page.next) {
+          const nextUrl = new URL(page.next);
+          path = `${nextUrl.pathname}${nextUrl.search}`;
+        } else {
+          path = null;
+        }
+      }
+
+      const result: StorefrontCatalog = { categories: categories.results, products };
+      cachedCatalog = result;
+      cachedCatalogTime = Date.now();
+      return result;
+    } finally {
+      catalogInFlight = null;
+    }
+  })();
+
+  return catalogInFlight;
 }

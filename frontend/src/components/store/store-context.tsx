@@ -62,6 +62,9 @@ interface StoreContextValue {
   loginOpen: boolean;
   openLogin: () => void;
   closeLogin: () => void;
+  /** Direct cart resets upon checkout or manual update. */
+  clearCart: () => void;
+  updateCart: (next: Cart | null) => void;
 }
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -270,6 +273,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       loginOpen,
       openLogin: () => setLoginOpen(true),
       closeLogin: () => setLoginOpen(false),
+      clearCart: () => setCart(null),
+      updateCart: (next: Cart | null) => setCart(next),
     }),
     [
       cart,
