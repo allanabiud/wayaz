@@ -148,13 +148,14 @@ const HERO_GRADIENT =
   "linear-gradient(135deg, #e00613 0%, #b6050f 50%, #8a040b 100%)";
 
 /** Data-accent palette cycled across category pie slices. */
+// On-brand ramp from the theme tokens (globals.css): red -> gold -> charcoal
+// -> maroon -> grey. Slices take these in data order (largest stock first).
 const CATEGORY_COLORS = [
+  "var(--chart-1)",
+  "var(--gold)",
   "var(--chart-2)",
   "var(--chart-4)",
   "var(--chart-5)",
-  "var(--gold)",
-  "var(--chart-3)",
-  "var(--chart-1)",
 ];
 
 const TODAY_LABEL = new Date().toLocaleDateString("en-KE", {
