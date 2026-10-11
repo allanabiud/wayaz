@@ -68,9 +68,23 @@ uv sync                                 # creates .venv and installs deps
 cp .env.example .env                    # adjust secrets if needed
 .venv/bin/python manage.py migrate
 .venv/bin/python manage.py seed_catalog # demo catalog (jeans, shoes, shirts, ...)
-.venv/bin/python manage.py seed_demo    # optional: demo images, carts, orders, wishlist
+.venv/bin/python manage.py seed_demo    # optional: product images from examples/
+.venv/bin/python manage.py seed_shop    # optional: customers, orders, carts, reviews
 .venv/bin/python manage.py runserver    # http://127.0.0.1:8000
 ```
+
+`seed_demo` rebuilds the catalog from product images (and clears any carts,
+orders, and wishlist rows); `seed_shop` layers demo shop activity on top of
+that catalog without touching products. Run it after `seed_demo`. It creates
+20 demo customers (login `amina.wanjiku` / `wayaz1234`, password shared
+across all demo customers) with addresses, ~90 days of backdated orders,
+active carts, wishlist saves, and product reviews, so the admin dashboard
+and analytics charts have data to plot. It also creates a demo admin
+(`admin` / `admin1234`) if no superuser exists yet. Re-running is safe:
+only rows belonging to `@wayaz.demo` accounts and `guest-demo-` checkouts
+are replaced, so real accounts and their orders are left alone. Options:
+`--customers`, `--max-orders`, `--seed`, `--password`, `--admin-password`,
+`--skip-admin`.
 
 Run the backend suite:
 
