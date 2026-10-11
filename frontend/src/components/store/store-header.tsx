@@ -462,6 +462,12 @@ export function StoreHeader() {
                 )}
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="cursor-pointer">
+                <Link href="/account" className="flex items-center gap-1.5">
+                  <User className="size-4" />
+                  <span>My Account</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="cursor-pointer">
                 <Link href="/orders" className="flex items-center gap-1.5">
                   <ClipboardList className="size-4" />
                   <span>Orders</span>

@@ -65,6 +65,8 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   canManage: boolean;
   signIn: (user: SessionUser) => void;
+  /** Merges partial profile edits (e.g. after PATCH /auth/me/) into the session. */
+  updateSessionUser: (patch: Partial<SessionUser>) => void;
   signOut: () => void;
 }
 
@@ -76,6 +78,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback((next: SessionUser) => {
     window.localStorage.setItem(USER_KEY, JSON.stringify(next));
+    emit();
+  }, []);
+
+  const updateSessionUser = useCallback((patch: Partial<SessionUser>) => {
+    const current = readStoredUser();
+    if (!current) return;
+    window.localStorage.setItem(
+      USER_KEY,
+      JSON.stringify({ ...current, ...patch }),
+    );
     emit();
   }, []);
 
@@ -98,9 +110,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: Boolean(user),
       canManage,
       signIn,
+      updateSessionUser,
       signOut,
     };
-  }, [user, ready, signIn, signOut]);
+  }, [user, ready, signIn, updateSessionUser, signOut]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

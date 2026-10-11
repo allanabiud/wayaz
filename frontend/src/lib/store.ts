@@ -87,6 +87,8 @@ export type OrderStatus =
 
 export interface StoreOrderItem {
   id: number;
+  /** Live catalog slug for buy-again links; null once the product is removed. */
+  product_slug: string | null;
   product_title: string;
   unit_price: string;
   quantity: number;
@@ -321,6 +323,11 @@ export interface AccountProfile {
   phone_number: string;
   role: string;
   display_name: string;
+}
+
+/** GET /api/v1/auth/me/ - the signed-in shopper's full profile. */
+export function fetchUserProfile(): Promise<AccountProfile> {
+  return api.get<AccountProfile>("/api/v1/auth/me/");
 }
 
 export function updateUserProfile(profile: {
