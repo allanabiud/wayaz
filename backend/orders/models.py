@@ -106,10 +106,8 @@ def generate_order_number():
 
 class Order(models.Model):
     class Status(models.TextChoices):
-        PENDING_PAYMENT = "PENDING_PAYMENT", "Pending payment"
-        PAID = "PAID", "Paid"
         PROCESSING = "PROCESSING", "Processing"
-        SHIPPED = "SHIPPED", "Shipped"
+        CONFIRMED = "CONFIRMED", "Confirmed"
         DELIVERED = "DELIVERED", "Delivered"
         CANCELLED = "CANCELLED", "Cancelled"
 
@@ -142,7 +140,9 @@ class Order(models.Model):
     county = models.CharField(max_length=100)
     town = models.CharField(max_length=100)
     street_address = models.CharField(max_length=255)
-    delivery_method = models.CharField(max_length=32, choices=DELIVERY_ZONE_CHOICES)
+    delivery_method = models.CharField(
+        max_length=32, choices=DELIVERY_ZONE_CHOICES, default="free", blank=True
+    )
     shipping_fee = models.DecimalField(
         max_digits=10, decimal_places=2, default=Decimal("0.00")
     )
@@ -160,7 +160,10 @@ class Order(models.Model):
 
     # Status pipeline
     status = models.CharField(
-        max_length=20, choices=Status.choices, default=Status.PENDING_PAYMENT
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PROCESSING,
+        db_index=True,
     )
     payment_method = models.CharField(
         max_length=16, choices=PaymentMethod.choices, default=PaymentMethod.COD

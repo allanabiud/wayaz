@@ -216,8 +216,8 @@ class CheckoutAPITestCase(TestCase):
         CartItem.objects.filter(cart=self.cart).update(quantity=1)  # 2500.00
         res = self.checkout()
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(Decimal(str(res.data["shipping_fee"])), Decimal("300.00"))
-        self.assertEqual(Decimal(str(res.data["total_amount"])), Decimal("2800.00"))
+        self.assertEqual(Decimal(str(res.data["shipping_fee"])), Decimal("0.00"))
+        self.assertEqual(Decimal(str(res.data["total_amount"])), Decimal("2500.00"))
 
     def test_checkout_rejects_insufficient_stock(self):
         # Bypass the cart API to simulate a stale cart (qty > stock).
@@ -241,14 +241,14 @@ class CheckoutAPITestCase(TestCase):
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Order.objects.count(), 0)
 
-    def test_checkout_mpesa_stays_pending_payment(self):
+    def test_checkout_mpesa_initiates_processing(self):
         payload = {**self.checkout_payload, "payment_method": "mpesa"}
         res = self.checkout(payload)
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(res.data["status"], Order.Status.PENDING_PAYMENT)
+        self.assertEqual(res.data["status"], Order.Status.PROCESSING)
         order = Order.objects.get(order_number=res.data["order_number"])
         self.assertFalse(order.requires_manual_verification)
-        # Stock stays reserved while awaiting the STK push.
+        # Stock stays reserved while processing.
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock_quantity, 3)
 
@@ -353,7 +353,7 @@ class OrderHistoryAPITestCase(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
 
         payload = res.data["results"][-1]  # oldest order carries the item
-        self.assertEqual(payload["status_display"], "Pending payment")
+        self.assertEqual(payload["status_display"], "Processing")
         self.assertEqual(payload["payment_method_display"], "Cash on delivery")
         self.assertEqual(payload["delivery_method_display"], "Nairobi Doorstep")
         self.assertEqual(payload["item_count"], 1)

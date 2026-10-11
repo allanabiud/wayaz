@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 
+from accounts.models import Address
 from catalog.models import Product
 from .delivery import delivery_fee
 from .emails import send_order_confirmation_email
@@ -276,14 +277,9 @@ class CheckoutView(APIView):
                 discount = Decimal("0.00")
                 total = subtotal + shipping_fee - discount
 
-                if data["payment_method"] == Order.PaymentMethod.M_PESA:
-                    # Await STK push confirmation (M-Pesa not wired yet).
-                    order_status = Order.Status.PENDING_PAYMENT
-                    requires_manual = False
-                else:
-                    # Cash on delivery: verified manually on delivery.
-                    order_status = Order.Status.PROCESSING
-                    requires_manual = True
+                # New order begins in PROCESSING pipeline stage
+                order_status = Order.Status.PROCESSING
+                requires_manual = data["payment_method"] == Order.PaymentMethod.COD
 
                 order = Order.objects.create(
                     user=request.user if request.user.is_authenticated else None,
@@ -318,6 +314,32 @@ class CheckoutView(APIView):
                     product.save(update_fields=["stock_quantity"])
 
                 cart.items.all().delete()
+
+                # Save phone number and address to user profile for future checkouts
+                if request.user.is_authenticated:
+                    u = request.user
+                    if not u.phone_number and data.get("phone_number"):
+                        u.phone_number = data["phone_number"]
+                        u.save(update_fields=["phone_number"])
+
+                    # Save address record if not already existing
+                    existing_addr = Address.objects.filter(
+                        user=u,
+                        county=data["county"],
+                        town=data["town"],
+                        street_address=data["street_address"],
+                    ).first()
+                    if not existing_addr:
+                        has_addresses = Address.objects.filter(user=u).exists()
+                        Address.objects.create(
+                            user=u,
+                            full_name=data["full_name"],
+                            phone_number=data["phone_number"],
+                            county=data["county"],
+                            town=data["town"],
+                            street_address=data["street_address"],
+                            is_default=not has_addresses,
+                        )
         except ValidationError as exc:
             return Response(exc.detail, status=status.HTTP_400_BAD_REQUEST)
 

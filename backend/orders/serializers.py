@@ -148,7 +148,9 @@ class CheckoutSerializer(serializers.Serializer):
     town = serializers.CharField(max_length=100)
     street_address = serializers.CharField(max_length=255)
     delivery_method = serializers.ChoiceField(
-        choices=[(key, zone["label"]) for key, zone in DELIVERY_ZONES.items()]
+        choices=[(key, zone["label"]) for key, zone in DELIVERY_ZONES.items()],
+        required=False,
+        default="free",
     )
     payment_method = serializers.ChoiceField(
         choices=Order.PaymentMethod.choices, default=Order.PaymentMethod.COD
