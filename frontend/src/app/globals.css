@@ -154,3 +154,28 @@
     margin: 0;
   }
 }
+
+/* Printable order receipt: show only the targeted order card and drop the
+   site chrome. Elements opt out with .print:hidden where relevant. */
+@media print {
+  body:has(.print-target) * {
+    visibility: hidden;
+  }
+  .print-target,
+  .print-target * {
+    visibility: visible;
+  }
+  .print-target {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    background: transparent;
+  }
+  .print-target header,
+  .print-target [class*="bg-muted"] {
+    background: transparent;
+  }
+}

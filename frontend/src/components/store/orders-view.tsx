@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ChevronRight,
   ClipboardList,
   LogIn,
   MessageCircle,
+  Printer,
+  RotateCcw,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -139,9 +141,21 @@ function OrderProgressTimeline({ status }: { status: OrderStatus }) {
 }
 
 /** One order: header (number + status), timeline stepper, line items, totals, delivery. */
-function OrderCard({ order }: { order: StoreOrder }) {
+function OrderCard({
+  order,
+  printing,
+  onPrint,
+}: {
+  order: StoreOrder;
+  printing: boolean;
+  onPrint: () => void;
+}) {
   return (
-    <article className="rounded-2xl border bg-card overflow-hidden shadow-xs">
+    <article
+      className={`rounded-2xl border bg-card overflow-hidden shadow-xs${
+        printing ? " print-target" : ""
+      }`}
+    >
       <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b px-4 py-3 bg-muted/20">
         <div className="flex items-center gap-2">
           <ClipboardList className="size-4 text-gold" aria-hidden="true" />
@@ -176,6 +190,17 @@ function OrderCard({ order }: { order: StoreOrder }) {
                   {item.quantity}×
                 </span>{" "}
                 {item.product_title}
+                {/* Re-pick the size on the product page (order items don't
+                    store size snapshots). */}
+                {item.product_slug && (
+                  <Link
+                    href={`/products/${item.product_slug}`}
+                    className="ml-2 inline-flex items-center gap-1 align-middle text-xs font-medium text-primary hover:underline print:hidden"
+                  >
+                    <RotateCcw className="size-3" aria-hidden="true" />
+                    Buy again
+                  </Link>
+                )}
               </span>
               <span className="shrink-0 text-muted-foreground tabular-nums">
                 Ksh {formatKsh(item.line_total)}
@@ -217,16 +242,26 @@ function OrderCard({ order }: { order: StoreOrder }) {
         </p>
       </div>
 
-      <footer className="border-t px-4 py-3 bg-muted/10">
-        <a
-          href={order.whatsapp_link}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-gold outline-none transition-colors hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/50"
-        >
-          <MessageCircle className="size-3.5" aria-hidden="true" />
-          Follow up on WhatsApp
-        </a>
+      <footer className="border-t px-4 py-3 bg-muted/10 print:hidden">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <a
+            href={order.whatsapp_link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-gold outline-none transition-colors hover:text-primary"
+          >
+            <MessageCircle className="size-3.5" aria-hidden="true" />
+            Follow up on WhatsApp
+          </a>
+          <button
+            type="button"
+            onClick={onPrint}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground outline-none transition-colors hover:text-foreground cursor-pointer"
+          >
+            <Printer className="size-3.5" aria-hidden="true" />
+            Print receipt
+          </button>
+        </div>
       </footer>
     </article>
   );
@@ -240,6 +275,20 @@ export function OrdersView() {
   const { ready, isAuthenticated } = useAuth();
   const { openLogin } = useStore();
   const [page, setPage] = useState(1);
+  // Order currently styled for the browser print dialog (receipt).
+  const [printingId, setPrintingId] = useState<number | null>(null);
+
+  // Release the print-target marker once the dialog closes.
+  useEffect(() => {
+    const clear = () => setPrintingId(null);
+    window.addEventListener("afterprint", clear);
+    return () => window.removeEventListener("afterprint", clear);
+  }, []);
+
+  // Open the browser dialog once the target class has painted.
+  useEffect(() => {
+    if (printingId !== null) window.print();
+  }, [printingId]);
 
   // Skips the network while signed out; fetches as soon as isAuthenticated
   // flips (i.e. right after the login dialog).
@@ -311,7 +360,12 @@ export function OrdersView() {
           <>
             <div className="space-y-4">
               {orders.map((order) => (
-                <OrderCard key={order.id} order={order} />
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  printing={printingId === order.id}
+                  onPrint={() => setPrintingId(order.id)}
+                />
               ))}
             </div>
 
