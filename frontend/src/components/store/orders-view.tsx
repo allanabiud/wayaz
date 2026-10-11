@@ -31,10 +31,8 @@ const STATUS_VARIANT: Record<
   OrderStatus,
   "warning" | "success" | "info" | "destructive"
 > = {
-  PENDING_PAYMENT: "warning",
-  PAID: "success",
-  PROCESSING: "info",
-  SHIPPED: "info",
+  PROCESSING: "warning",
+  CONFIRMED: "info",
   DELIVERED: "success",
   CANCELLED: "destructive",
 };
@@ -66,11 +64,85 @@ function OrdersSkeleton() {
   );
 }
 
-/** One order: header (number + status), line items, totals, delivery. */
+const ORDER_STEPS: Array<{ key: OrderStatus; label: string }> = [
+  { key: "PROCESSING", label: "Processing" },
+  { key: "CONFIRMED", label: "Confirmed" },
+  { key: "DELIVERED", label: "Delivered" },
+];
+
+function OrderProgressTimeline({ status }: { status: OrderStatus }) {
+  if (status === "CANCELLED") {
+    return (
+      <div className="my-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive flex items-center justify-between">
+        <span className="font-semibold">Order Cancelled</span>
+        <span>This order was cancelled and will not be fulfilled.</span>
+      </div>
+    );
+  }
+
+  const currentIdx = ORDER_STEPS.findIndex((s) => s.key === status);
+  const activeIdx = currentIdx === -1 ? 0 : currentIdx;
+
+  return (
+    <div className="my-4 px-1" aria-label="Order status timeline">
+      <div className="relative flex items-center justify-between">
+        {/* Connecting track line */}
+        <div
+          aria-hidden="true"
+          className="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 w-full bg-border"
+        />
+        {/* Active progress track */}
+        <div
+          aria-hidden="true"
+          className="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-primary transition-all duration-300"
+          style={{
+            width: `${(activeIdx / (ORDER_STEPS.length - 1)) * 100}%`,
+          }}
+        />
+
+        {ORDER_STEPS.map((step, idx) => {
+          const isDone = idx < activeIdx;
+          const isCurrent = idx === activeIdx;
+          return (
+            <div
+              key={step.key}
+              className="relative z-10 flex flex-col items-center group"
+            >
+              <div
+                className={`flex size-6 items-center justify-center rounded-full border-2 text-[10px] font-bold transition-all duration-200 ${
+                  isDone
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                    : isCurrent
+                      ? "border-primary bg-background text-primary shadow-xs"
+                      : "border-muted-foreground/30 bg-muted text-muted-foreground"
+                }`}
+              >
+                {isDone ? "✓" : idx + 1}
+              </div>
+              <span
+                className={`mt-1.5 text-[11px] font-medium leading-tight select-none ${
+                  isCurrent
+                    ? "text-primary font-semibold"
+                    : isDone
+                      ? "text-foreground"
+                      : "text-muted-foreground"
+                }`}
+              >
+                {step.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** One order: header (number + status), timeline stepper, line items, totals, delivery. */
 function OrderCard({ order }: { order: StoreOrder }) {
   return (
-    <article className="rounded-2xl border bg-card">
-      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b px-4 py-3">
+    <article className="rounded-2xl border bg-card overflow-hidden shadow-xs">
+      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b px-4 py-3 bg-muted/20">
         <div className="flex items-center gap-2">
           <ClipboardList className="size-4 text-gold" aria-hidden="true" />
           <span className="text-sm font-semibold tabular-nums">
@@ -91,7 +163,9 @@ function OrderCard({ order }: { order: StoreOrder }) {
       </header>
 
       <div className="px-4 py-3">
-        <ul className="space-y-1.5">
+        <OrderProgressTimeline status={order.status} />
+
+        <ul className="space-y-1.5 pt-1">
           {order.items.map((item) => (
             <li
               key={item.id}
@@ -124,7 +198,7 @@ function OrderCard({ order }: { order: StoreOrder }) {
             </div>
           )}
           <div className="flex justify-between gap-3">
-            <dt>Delivery ({order.delivery_method_display})</dt>
+            <dt>Delivery</dt>
             <dd className="tabular-nums">
               {Number(order.shipping_fee) > 0
                 ? `Ksh ${formatKsh(order.shipping_fee)}`
@@ -143,7 +217,7 @@ function OrderCard({ order }: { order: StoreOrder }) {
         </p>
       </div>
 
-      <footer className="border-t px-4 py-3">
+      <footer className="border-t px-4 py-3 bg-muted/10">
         <a
           href={order.whatsapp_link}
           target="_blank"
@@ -187,7 +261,7 @@ export function OrdersView() {
       >
         <Link
           href="/"
-          className="rounded-sm outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="rounded-sm outline-none transition-colors hover:text-foreground"
         >
           Home
         </Link>

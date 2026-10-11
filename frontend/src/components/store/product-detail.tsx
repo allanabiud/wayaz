@@ -329,6 +329,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 key={current.id}
                 src={mediaUrl(current.image)}
                 alt={current.alt_text || product.title}
+                decoding="async"
                 className="h-full w-full object-cover transition-transform duration-150 ease-out"
                 style={
                   zoom
