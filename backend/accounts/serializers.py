@@ -12,11 +12,19 @@ User = get_user_model()
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
+        username_or_email = attrs.get(self.username_field)
+        if username_or_email:
+            # If input contains an '@' or doesn't match an existing username, check if it matches an email
+            user_by_email = User.objects.filter(email__iexact=username_or_email).first()
+            if user_by_email:
+                attrs[self.username_field] = user_by_email.get_username()
+
         data = super().validate(attrs)
         data["user"] = {
             "id": self.user.id,
             "username": self.user.username,
             "email": self.user.email,
+            "phone_number": self.user.phone_number or "",
             "role": self.user.role,
             "display_name": self.user.display_name,
             "is_staff": self.user.is_staff,
@@ -41,6 +49,17 @@ class UserSerializer(serializers.ModelSerializer):
             "display_name",
         )
         read_only_fields = ("id", "role")
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True, validators=[validate_password])
+
+    def validate_old_password(self, value):
+        user = self.context["request"].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Incorrect current password.")
+        return value
 
 
 class RegisterSerializer(serializers.ModelSerializer):

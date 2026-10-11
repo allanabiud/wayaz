@@ -5,6 +5,7 @@ from .views import (
     CustomTokenObtainPairView,
     RegisterView,
     UserProfileView,
+    ChangePasswordView,
     AddressViewSet,
     WishlistViewSet,
 )
@@ -18,5 +19,6 @@ urlpatterns = [
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("register/", RegisterView.as_view(), name="register"),
     path("me/", UserProfileView.as_view(), name="user_profile"),
+    path("change-password/", ChangePasswordView.as_view(), name="change_password"),
     path("", include(router.urls)),
 ]

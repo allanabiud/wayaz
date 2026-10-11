@@ -52,6 +52,17 @@ class AccountsAPITestCase(TestCase):
         self.assertIn("user", response.data)
         self.assertEqual(response.data["user"]["email"], "shiquo@example.com")
 
+    def test_jwt_token_obtain_via_email(self):
+        payload = {
+            "username": "SHIQUO@example.com",
+            "password": "StrongPassword123!",
+        }
+        response = self.client.post("/api/v1/auth/token/", payload)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("access", response.data)
+        self.assertEqual(response.data["user"]["username"], "shiquo_fan")
+        self.assertEqual(response.data["user"]["email"], "shiquo@example.com")
+
     def test_user_profile_authenticated(self):
         # Authenticate via credentials
         token_res = self.client.post(
