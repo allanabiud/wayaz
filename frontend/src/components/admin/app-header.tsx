@@ -3,20 +3,30 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 import {
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   Clock,
+  KeyRound,
   LayoutDashboard,
   Loader2,
+  Lock,
   LogOut,
+  Mail,
+  MapPin,
   Package,
+  Phone,
   Search,
+  Settings,
   User,
   Users,
   X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -68,10 +78,8 @@ const SEGMENT_LABELS: Record<string, string> = {
 };
 
 const ORDER_STATUSES: Array<[string, string]> = [
-  ["PENDING_PAYMENT", "Pending payment"],
-  ["PAID", "Paid"],
   ["PROCESSING", "Processing"],
-  ["SHIPPED", "Shipped"],
+  ["CONFIRMED", "Confirmed"],
   ["DELIVERED", "Delivered"],
   ["CANCELLED", "Cancelled"],
 ];
@@ -166,7 +174,7 @@ function Breadcrumbs() {
 }
 
 export function AppHeader() {
-  const { user, signOut } = useAuth();
+  const { user, signIn, signOut } = useAuth();
   const router = useRouter();
 
   const [query, setQuery] = useState("");
@@ -175,12 +183,155 @@ export function AppHeader() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<"profile" | "security">("profile");
+  const [profileName, setProfileName] = useState(user?.display_name || "");
+  const [profilePhone, setProfilePhone] = useState(user?.phone_number || "");
+  const [profileEmail, setProfileEmail] = useState(user?.email || "");
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  // Security / Password change state
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+
   const [orders, setOrders] = useState<AdminOrdersResponse | null>(null);
   const [ordersFetching, setOrdersFetching] = useState(false);
+  const [ordersSheetOpen, setOrdersSheetOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [orderQuery, setOrderQuery] = useState("");
+  const [expandedOrderNumber, setExpandedOrderNumber] = useState<string | null>(null);
+  const [updatingOrderNumber, setUpdatingOrderNumber] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (user) {
+      setProfileName(user.display_name || "");
+      setProfilePhone(user.phone_number || "");
+      setProfileEmail(user.email || "");
+    }
+  }, [user]);
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profileName.trim()) {
+      toast.error("Name is required");
+      return;
+    }
+    setSavingProfile(true);
+    try {
+      const parts = profileName.trim().split(/\s+/);
+      const firstName = parts[0] || "";
+      const lastName = parts.slice(1).join(" ") || "";
+      await api.patch("/api/v1/accounts/me/", {
+        first_name: firstName,
+        last_name: lastName,
+        phone_number: profilePhone.trim() || null,
+        email: profileEmail.trim(),
+      });
+      if (user) {
+        signIn({
+          ...user,
+          display_name: profileName.trim(),
+          email: profileEmail.trim(),
+          phone_number: profilePhone.trim(),
+        });
+      }
+      toast.success("Profile updated successfully!");
+      setShowSettingsDialog(false);
+    } catch {
+      toast.error("Failed to update profile.");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleSavePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!oldPassword || !newPassword) {
+      toast.error("Please fill in both current and new password.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("New passwords do not match.");
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      await api.post("/api/v1/auth/change-password/", {
+        old_password: oldPassword,
+        new_password: newPassword,
+      });
+      toast.success("Password changed successfully!");
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowSettingsDialog(false);
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message: unknown }).message)
+          : "Failed to update password. Check your current password.";
+      toast.error(message);
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
+  const fetchOrdersList = async () => {
+    const params = new URLSearchParams();
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    const search = orderQuery.trim();
+    if (search) params.set("search", search);
+    setOrdersFetching(true);
+    try {
+      const res = await api.get<AdminOrdersResponse>(
+        `/api/v1/admin/orders/?${params.toString()}`
+      );
+      setOrders(res);
+    } catch {
+      // Keep last snapshot
+    } finally {
+      setOrdersFetching(false);
+    }
+  };
+
+  const handleQuickStatusChange = async (orderNumber: string, nextStatus: string) => {
+    setUpdatingOrderNumber(orderNumber);
+    try {
+      await api.patch(`/api/v1/admin/orders/${orderNumber}/`, {
+        status: nextStatus,
+      });
+      toast.success(`Order #${orderNumber} updated to ${nextStatus.replace(/_/g, " ")}`);
+      // Update local state immediately
+      setOrders((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          results: prev.results.map((o) =>
+            o.order_number === orderNumber
+              ? {
+                  ...o,
+                  status: nextStatus,
+                  status_display:
+                    ORDER_STATUSES.find(([v]) => v === nextStatus)?.[1] ?? nextStatus,
+                }
+              : o
+          ),
+        };
+      });
+    } catch {
+      toast.error(`Failed to update status for order #${orderNumber}`);
+    } finally {
+      setUpdatingOrderNumber(null);
+    }
+  };
 
   // Badge + sheet: all orders, refetched when filters change (search debounced).
   useEffect(() => {
@@ -307,7 +458,7 @@ export function AppHeader() {
                 setDropdownOpen(false);
               }
             }}
-            className="h-9 w-full rounded-lg border border-border/60 bg-muted/50 pl-8 pr-8 text-sm outline-none transition-all duration-200 focus:bg-background focus:ring-2 focus:ring-primary/25 focus:border-primary/40"
+            className="h-9 w-full rounded-lg border border-border/60 bg-muted/50 pl-8 pr-8 text-sm outline-none transition-all duration-200 focus:bg-background focus:border-primary"
           />
 
           {searching && query.trim() ? (
@@ -374,7 +525,7 @@ export function AppHeader() {
 
         <div className="flex items-center gap-2">
           {/* All orders: pending-count badge button + filterable side sheet */}
-          <Sheet>
+          <Sheet open={ordersSheetOpen} onOpenChange={setOrdersSheetOpen}>
             <SheetTrigger asChild>
               <Button
                 variant="outline"
@@ -449,40 +600,152 @@ export function AppHeader() {
                   </p>
                 ) : (
                   <>
-                    {orders.results.map((order) => (
-                      <div
-                        key={order.order_number}
-                        className="rounded-lg border border-border/60 p-3 text-xs"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-mono font-semibold text-foreground">
-                            {order.order_number}
-                          </span>
-                          <Badge variant="outline" className="text-[10px]">
-                            {order.status_display}
-                          </Badge>
+                    {orders.results.map((order) => {
+                      const isExpanded = expandedOrderNumber === order.order_number;
+                      const isUpdating = updatingOrderNumber === order.order_number;
+                      return (
+                        <div
+                          key={order.order_number}
+                          className="rounded-lg border border-border/60 bg-card p-3 text-xs transition-shadow hover:shadow-xs"
+                        >
+                          <div
+                            onClick={() =>
+                              setExpandedOrderNumber(isExpanded ? null : order.order_number)
+                            }
+                            className="flex cursor-pointer items-center justify-between gap-2"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="font-mono font-semibold text-foreground">
+                                {order.order_number}
+                              </span>
+                              {isExpanded ? (
+                                <ChevronUp className="size-3 text-muted-foreground shrink-0" />
+                              ) : (
+                                <ChevronDown className="size-3 text-muted-foreground shrink-0" />
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <Badge variant="outline" className="text-[10px]">
+                                {order.status_display}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          <div className="mt-1.5 flex items-center justify-between gap-2 text-muted-foreground">
+                            <span className="truncate font-medium text-foreground">{order.customer}</span>
+                            <span className="shrink-0 text-[11px]">
+                              {new Date(order.created_at).toLocaleDateString("en-KE", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })}
+                            </span>
+                          </div>
+
+                          <div className="mt-1 flex items-center justify-between gap-2">
+                            <span className="text-muted-foreground text-[11px]">
+                              {order.item_count} item{order.item_count === 1 ? "" : "s"} ·{" "}
+                              {order.payment_method_display}
+                            </span>
+                            <span className="font-bold text-primary tabular-nums">
+                              Ksh {money(order.total_amount)}
+                            </span>
+                          </div>
+
+                          {/* Inline Status Processor */}
+                          <div className="mt-2.5 pt-2 border-t border-border/50 flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-medium text-muted-foreground">
+                              Update status:
+                            </span>
+                            <div className="w-36 shrink-0">
+                              <Select
+                                value={order.status}
+                                disabled={isUpdating}
+                                onValueChange={(val) =>
+                                  handleQuickStatusChange(order.order_number, val)
+                                }
+                              >
+                                <SelectTrigger className="h-7 text-[11px] w-full">
+                                  {isUpdating ? (
+                                    <div className="flex items-center gap-1">
+                                      <Loader2 className="size-3 animate-spin text-primary" />
+                                      <span>Saving…</span>
+                                    </div>
+                                  ) : (
+                                    <SelectValue />
+                                  )}
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {ORDER_STATUSES.map(([val, label]) => (
+                                    <SelectItem key={val} value={val} className="text-xs">
+                                      {label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+
+                          {/* Expanded Full Details */}
+                          {isExpanded && (
+                            <div className="mt-3 pt-3 border-t border-border/60 space-y-2 text-[11px] animate-in fade-in-0 duration-200">
+                              {/* Customer Contact & Address */}
+                              <div className="rounded-md bg-muted/40 p-2 space-y-1">
+                                {order.email && (
+                                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                                    <Mail className="size-3 shrink-0" />
+                                    <span className="truncate">{order.email}</span>
+                                  </div>
+                                )}
+                                {order.phone_number && (
+                                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                                    <Phone className="size-3 shrink-0" />
+                                    <span>{order.phone_number}</span>
+                                  </div>
+                                )}
+                                {(order.town || order.county) && (
+                                  <div className="flex items-start gap-1.5 text-muted-foreground">
+                                    <MapPin className="size-3 shrink-0 mt-0.5" />
+                                    <span>
+                                      {[order.street_address, order.town, order.county]
+                                        .filter(Boolean)
+                                        .join(", ")}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Order items if available */}
+                              {order.items && order.items.length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="font-semibold text-foreground text-[10px] uppercase tracking-wider">
+                                    Items
+                                  </p>
+                                  <ul className="divide-y divide-border/40">
+                                    {order.items.map((it) => (
+                                      <li
+                                        key={it.id}
+                                        className="py-1 flex items-baseline justify-between gap-2"
+                                      >
+                                        <span className="truncate text-muted-foreground">
+                                          <span className="font-semibold text-foreground">
+                                            {it.quantity}×
+                                          </span>{" "}
+                                          {it.product_title}
+                                        </span>
+                                        <span className="shrink-0 font-medium tabular-nums">
+                                          Ksh {money(it.line_total)}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <div className="mt-1.5 flex items-center justify-between gap-2 text-muted-foreground">
-                          <span className="truncate">{order.customer}</span>
-                          <span className="shrink-0">
-                            {new Date(order.created_at).toLocaleDateString("en-KE", {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            })}
-                          </span>
-                        </div>
-                        <div className="mt-1 flex items-center justify-between gap-2">
-                          <span className="text-muted-foreground">
-                            {order.item_count} item{order.item_count === 1 ? "" : "s"} ·{" "}
-                            {order.payment_method_display}
-                          </span>
-                          <span className="font-bold text-primary">
-                            Ksh {money(order.total_amount)}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {orders.count > orders.results.length && (
                       <p className="pt-1 text-center text-[11px] text-muted-foreground">
                         Showing the latest {orders.results.length} of {orders.count}
@@ -492,12 +755,11 @@ export function AppHeader() {
                 )}
               </div>
               <SheetFooter className="border-t">
-                <Button variant="outline" className="w-full" disabled>
-                  Open orders page
+                <Button variant="outline" className="w-full" asChild onClick={() => setOrdersSheetOpen(false)}>
+                  <Link href="/admin/orders">
+                    Open orders page
+                  </Link>
                 </Button>
-                <p className="text-center text-[11px] text-muted-foreground">
-                  Orders page coming soon
-                </p>
               </SheetFooter>
             </SheetContent>
           </Sheet>
@@ -562,6 +824,13 @@ export function AppHeader() {
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
+                onClick={() => setShowSettingsDialog(true)}
+                className="cursor-pointer"
+              >
+                <Settings className="size-4" />
+                <span>Account Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
                 onClick={() => setShowLogoutDialog(true)}
                 className="cursor-pointer text-destructive focus:text-destructive"
               >
@@ -573,11 +842,148 @@ export function AppHeader() {
         </div>
       </header>
 
+      {/* Account Settings Dialog (Profile + Security/Password) */}
+      <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Account Settings</DialogTitle>
+            <DialogDescription>
+              Manage your account profile and security credentials.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Tab selector */}
+          <div className="flex border-b border-border/60 text-xs">
+            <button
+              type="button"
+              onClick={() => setSettingsTab("profile")}
+              className={`flex items-center gap-1.5 pb-2 pt-1 font-medium border-b-2 transition-colors cursor-pointer mr-4 ${
+                settingsTab === "profile"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <User className="size-3.5" />
+              Profile Details
+            </button>
+            <button
+              type="button"
+              onClick={() => setSettingsTab("security")}
+              className={`flex items-center gap-1.5 pb-2 pt-1 font-medium border-b-2 transition-colors cursor-pointer ${
+                settingsTab === "security"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <KeyRound className="size-3.5" />
+              Password & Security
+            </button>
+          </div>
+
+          {settingsTab === "profile" ? (
+            <form onSubmit={handleSaveProfile} className="space-y-4 pt-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="profile-name">Display Name</Label>
+                <Input
+                  id="profile-name"
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  placeholder="e.g. John Doe"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="profile-email">Email Address</Label>
+                <Input
+                  id="profile-email"
+                  type="email"
+                  value={profileEmail}
+                  onChange={(e) => setProfileEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="profile-phone">Phone Number</Label>
+                <Input
+                  id="profile-phone"
+                  value={profilePhone}
+                  onChange={(e) => setProfilePhone(e.target.value)}
+                  placeholder="e.g. 0712345678"
+                />
+              </div>
+              <DialogFooter className="mt-4 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={savingProfile}
+                  onClick={() => setShowSettingsDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={savingProfile}>
+                  {savingProfile ? "Saving…" : "Save Profile"}
+                </Button>
+              </DialogFooter>
+            </form>
+          ) : (
+            <form onSubmit={handleSavePassword} className="space-y-4 pt-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="old-password">Current Password</Label>
+                <Input
+                  id="old-password"
+                  type="password"
+                  value={oldPassword}
+                  onChange={(e) => setOldPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="new-password">New Password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Min. 8 characters"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="confirm-password">Confirm New Password</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+              <DialogFooter className="mt-4 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={savingPassword}
+                  onClick={() => setShowSettingsDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={savingPassword}>
+                  {savingPassword ? "Updating…" : "Update Password"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Sign Out</DialogTitle>
-            <DialogDescription>Are you sure you want to end your backoffice session?</DialogDescription>
+            <DialogDescription>Are you sure you want to sign out?</DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4 gap-2">
             <Button variant="outline" onClick={() => setShowLogoutDialog(false)}>Cancel</Button>

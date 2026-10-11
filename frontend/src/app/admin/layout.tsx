@@ -57,41 +57,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (!ready) return;
     if (!isAuthenticated) {
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+    } else if (!canManage) {
+      // Normal customers wandering to /admin are silently redirected to storefront
+      router.replace("/");
     }
-  }, [ready, isAuthenticated, pathname, router]);
+  }, [ready, isAuthenticated, canManage, pathname, router]);
 
-  if (!ready || !isAuthenticated) return <GateSkeleton />;
-
-  if (!canManage) {
-    return (
-      <div className="grid min-h-screen place-items-center bg-background px-6">
-        <div className="max-w-md rounded-2xl border bg-card p-6 text-center shadow-lg">
-          <ShieldAlert className="mx-auto mb-4 size-10 text-destructive" aria-hidden />
-          <h1 className="text-lg font-bold">Staff Access Required</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            This account (<span className="font-medium text-foreground">{user?.username}</span>) is
-            signed in with role <span className="font-semibold text-primary capitalize">{user?.role}</span>. The
-            admin backoffice is limited to staff and admin users.
-          </p>
-          <div className="mt-6 flex flex-col gap-2">
-            <Button asChild className="w-full">
-              <Link href="/">Return to Storefront</Link>
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => {
-                signOut();
-                router.replace(`/login?next=${encodeURIComponent(pathname)}`);
-              }}
-            >
-              Sign in with staff account
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (!ready || !isAuthenticated || !canManage) return <GateSkeleton />;
 
   return (
     <SidebarProvider>

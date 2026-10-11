@@ -3,7 +3,17 @@
 import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Eye, EyeOff, Loader2, ShieldAlert } from "lucide-react";
+import {
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  Loader2,
+  Package,
+  ShieldAlert,
+  ShieldCheck,
+  Sparkles,
+  Truck,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -74,111 +84,147 @@ function LoginForm() {
   const isStaffRequested = Boolean(next && next.startsWith("/admin"));
 
   return (
-    <div className="grid min-h-screen place-items-center bg-muted/40 px-4 py-8">
-      <div className="w-full max-w-sm space-y-4">
-        <Card className="w-full">
-          <CardHeader className="text-center pb-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/waynz_logo.jpg"
-              alt="Wayaz Collection"
-              className="mx-auto h-10 w-auto mb-2"
-            />
-            <h1 className="text-xl font-bold tracking-tight">Sign In</h1>
+    <div className="flex min-h-screen w-full flex-col justify-between bg-background p-6 sm:p-10">
+      {/* Top Bar with Return link */}
+      <header className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {/* subtle header branding */}
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Wayaz Admin
+          </span>
+        </div>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          asChild
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
+          <Link href="/">
+            <ArrowLeft className="mr-1.5 size-3.5" />
+            Return to Storefront
+          </Link>
+        </Button>
+      </header>
+
+      {/* Main Centered Authentication Form */}
+      <main className="my-auto mx-auto w-full max-w-sm space-y-6">
+        {/* Larger Brand Logo and Header */}
+        <div className="flex flex-col items-center text-center space-y-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/waynz_logo.jpg"
+            alt="Wayaz Collection"
+            className="h-16 w-auto rounded-2xl shadow-md border border-border/60 object-contain"
+          />
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              Sign In
+            </h1>
             <p className="text-xs text-muted-foreground mt-1">
-              Sign in to manage your orders or access staff dashboard
+              Enter your credentials to access your account.
             </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {isStaffRequested && (
-              <div
-                role="status"
-                className="flex items-start gap-2.5 rounded-lg border border-primary/20 bg-primary/10 p-2.5 text-xs text-primary"
+          </div>
+        </div>
+
+        {isStaffRequested && (
+          <div
+            role="status"
+            className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary/10 p-3 text-xs text-primary"
+          >
+            <ShieldAlert className="size-4 shrink-0 mt-0.5" />
+            <span>
+              Staff credentials required to access the admin portal.
+            </span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="username" className="text-xs font-medium">
+              Username or Email
+            </Label>
+            <Input
+              id="username"
+              name="username"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              required
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              disabled={submitting}
+              placeholder="admin or name@example.com"
+              className="h-10 text-sm"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className="text-xs font-medium">
+              Password
+            </Label>
+            <div className="relative">
+              <Input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                required
+                className="h-10 pr-10 text-sm"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={submitting}
+                placeholder="••••••••"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute top-0 right-0 h-full px-3 text-muted-foreground hover:text-foreground hover:bg-transparent"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                tabIndex={-1}
               >
-                <ShieldAlert className="size-4 shrink-0 mt-0.5" />
-                <span>
-                  Staff credentials required to access the requested backoffice page.
-                </span>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="username" className="text-xs">Username or email</Label>
-                <Input
-                  id="username"
-                  name="username"
-                  autoComplete="username"
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  disabled={submitting}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="password" className="text-xs">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    required
-                    className="pr-10"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={submitting}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-0 right-0 h-full px-3 hover:bg-transparent"
-                    onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    tabIndex={-1}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4 text-muted-foreground" aria-hidden />
-                    ) : (
-                      <Eye className="h-4 w-4 text-muted-foreground" aria-hidden />
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              {error && (
-                <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive text-center">
-                  {error}
-                </p>
-              )}
-
-              <Button type="submit" className="w-full font-medium" disabled={submitting}>
-                {submitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                    Signing in…
-                  </>
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" aria-hidden />
                 ) : (
-                  "Sign In"
+                  <Eye className="h-4 w-4" aria-hidden />
                 )}
               </Button>
-            </form>
-          </CardContent>
-        </Card>
+            </div>
+          </div>
 
-        <div className="text-center">
-          <Button variant="ghost" size="sm" asChild className="text-xs text-muted-foreground hover:text-foreground">
-            <Link href="/">
-              <ArrowLeft className="mr-1.5 size-3.5" />
-              Return to Storefront
-            </Link>
+          {error && (
+            <p
+              role="alert"
+              className="rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive text-center"
+            >
+              {error}
+            </p>
+          )}
+
+          <Button
+            type="submit"
+            className="h-10 w-full text-sm font-semibold cursor-pointer"
+            disabled={submitting}
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                Signing in…
+              </>
+            ) : (
+              "Sign In"
+            )}
           </Button>
-        </div>
-      </div>
+        </form>
+      </main>
+
+      {/* Footer */}
+      <footer className="flex flex-col sm:flex-row items-center justify-between text-xs text-muted-foreground gap-2 pt-6">
+        <span>&copy; {new Date().getFullYear()} Wayaz Collection · Nairobi, Kenya</span>
+        <span>Protected by Wayaz Session Authentication</span>
+      </footer>
     </div>
   );
 }

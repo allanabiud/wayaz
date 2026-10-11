@@ -47,13 +47,13 @@ const navGroups: NavGroup[] = [
     label: "Dashboards",
     items: [
       { title: "Overview", icon: LayoutDashboard, href: "/admin", exact: true },
-      { title: "Analytics", icon: BarChart3, comingSoon: true },
+      { title: "Analytics", icon: BarChart3, href: "/admin/analytics" },
     ],
   },
   {
     label: "Management",
     items: [
-      { title: "Orders", icon: ClipboardList, comingSoon: true, countKey: "orders" },
+      { title: "Orders", icon: ClipboardList, href: "/admin/orders", countKey: "orders" },
       { title: "Products", icon: ShoppingBag, href: "/admin/products", countKey: "products" },
       { title: "Customers", icon: Users, href: "/admin/customers", countKey: "customers" },
     ],
@@ -84,7 +84,7 @@ export function AppSidebar() {
       <SidebarHeader className="h-[calc(var(--sidebar-width)*362/1600)] border-b border-sidebar-border p-0">
         <Link
           href="/admin"
-          className="block h-full w-full outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring"
+          className="block h-full w-full outline-none"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Boxes, LayoutDashboard, Users, type LucideIcon } from "lucide-react";
+import { BarChart3, Boxes, LayoutDashboard, Users, type LucideIcon } from "lucide-react";
 
 interface NavItem {
   href: string;
@@ -13,6 +13,7 @@ interface NavItem {
 
 const NAV: readonly NavItem[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/products", label: "Products", icon: Boxes },
   { href: "/admin/customers", label: "Customers", icon: Users },
 ];

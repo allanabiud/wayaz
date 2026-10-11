@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth-context";
-import { ApiError, login, tokenStore } from "@/lib/api";
+import { ApiError, login, registerCustomer, tokenStore } from "@/lib/api";
 import type { SessionUser } from "@/lib/types";
 
 interface Props {
@@ -29,17 +29,26 @@ export function LoginDialog({
   open,
   onOpenChange,
   onSuccess,
-  title = "Sign In",
-  description = "Enter your username or email and password to access your account.",
 }: Props) {
   const { signIn } = useAuth();
+  const [mode, setMode] = useState<"login" | "register">("login");
+
+  // Login state
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  // Register state
+  const [regFullName, setRegFullName] = useState("");
+  const [regEmail, setRegEmail] = useState("");
+  const [regPhone, setRegPhone] = useState("");
+  const [regUsername, setRegUsername] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (submitting) return;
 
@@ -81,9 +90,56 @@ export function LoginDialog({
     }
   };
 
+  const handleRegister = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (submitting) return;
+
+    setError(null);
+    setSubmitting(true);
+
+    const nameParts = regFullName.trim().split(/\s+/);
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+    const chosenUsername =
+      regUsername.trim() || regEmail.trim().split("@")[0] || "user";
+
+    try {
+      await registerCustomer({
+        username: chosenUsername,
+        email: regEmail.trim(),
+        password: regPassword,
+        first_name: firstName,
+        last_name: lastName,
+        phone_number: regPhone.trim(),
+      });
+
+      // Auto login right after registration
+      const result = await login(chosenUsername, regPassword);
+      tokenStore.save({ access: result.access, refresh: result.refresh });
+      signIn(result.user);
+
+      toast.success(`Account created! Welcome, ${result.user.display_name || result.user.username}.`);
+      onOpenChange(false);
+      setRegFullName("");
+      setRegEmail("");
+      setRegPhone("");
+      setRegUsername("");
+      setRegPassword("");
+      onSuccess?.(result.user);
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Could not create account. Please try again.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader className="text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -91,85 +147,229 @@ export function LoginDialog({
             alt="Wayaz Collection"
             className="mx-auto h-10 w-auto mb-2"
           />
-          <DialogTitle className="text-xl font-bold">{title}</DialogTitle>
+          <DialogTitle className="text-xl font-bold">
+            {mode === "login" ? "Sign In" : "Create Account"}
+          </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            {description}
+            {mode === "login"
+              ? "Access your saved addresses, past orders, and wishlist."
+              : "Register to save your shipping details and enjoy faster checkout."}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-          <div className="space-y-1.5 text-left">
-            <Label htmlFor="dialog-username" className="text-xs">Username or email</Label>
-            <Input
-              id="dialog-username"
-              name="username"
-              autoComplete="username"
-              autoCapitalize="none"
-              spellCheck={false}
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              disabled={submitting}
-              className="h-9 text-sm"
-            />
-          </div>
-
-          <div className="space-y-1.5 text-left">
-            <Label htmlFor="dialog-password" className="text-xs">Password</Label>
-            <div className="relative">
+        {mode === "login" ? (
+          <form onSubmit={handleLogin} className="space-y-4 pt-1">
+            <div className="space-y-1.5 text-left">
+              <Label htmlFor="dialog-username" className="text-xs">
+                Username or email
+              </Label>
               <Input
-                id="dialog-password"
-                name="password"
-                type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
+                id="dialog-username"
+                name="username"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
                 required
-                className="h-9 pr-10 text-sm"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 disabled={submitting}
+                className="h-9 text-sm"
               />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="absolute top-0 right-0 h-full px-2.5 hover:bg-transparent"
-                onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                tabIndex={-1}
+            </div>
+
+            <div className="space-y-1.5 text-left">
+              <Label htmlFor="dialog-password" className="text-xs">
+                Password
+              </Label>
+              <div className="relative">
+                <Input
+                  id="dialog-password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  required
+                  className="h-9 pr-10 text-sm"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={submitting}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-0 right-0 h-full px-2.5 hover:bg-transparent"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="size-4 text-muted-foreground" />
+                  ) : (
+                    <Eye className="size-4 text-muted-foreground" />
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {error && (
+              <div
+                role="alert"
+                className="rounded-lg border border-destructive/20 bg-destructive/10 p-2.5 text-xs text-destructive text-center"
               >
-                {showPassword ? (
-                  <EyeOff className="size-4 text-muted-foreground" />
-                ) : (
-                  <Eye className="size-4 text-muted-foreground" />
-                )}
-              </Button>
-            </div>
-          </div>
-
-          {error && (
-            <div
-              role="alert"
-              className="rounded-lg border border-destructive/20 bg-destructive/10 p-2.5 text-xs text-destructive text-center"
-            >
-              {error}
-            </div>
-          )}
-
-          <Button
-            type="submit"
-            className="w-full h-9 font-medium"
-            disabled={submitting}
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="mr-2 size-4 animate-spin" />
-                Signing in…
-              </>
-            ) : (
-              "Sign In"
+                {error}
+              </div>
             )}
-          </Button>
-        </form>
+
+            <Button
+              type="submit"
+              className="w-full h-9 font-medium"
+              disabled={submitting}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Signing in…
+                </>
+              ) : (
+                "Sign In"
+              )}
+            </Button>
+
+            <div className="text-center text-xs text-muted-foreground pt-1">
+              Don&apos;t have an account?{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setMode("register");
+                }}
+                className="text-primary font-semibold hover:underline cursor-pointer"
+              >
+                Create one now
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleRegister} className="space-y-3 pt-1">
+            <div className="space-y-1.5 text-left">
+              <Label htmlFor="reg-fullname" className="text-xs">
+                Full Name
+              </Label>
+              <Input
+                id="reg-fullname"
+                required
+                value={regFullName}
+                onChange={(e) => setRegFullName(e.target.value)}
+                placeholder="Jane Doe"
+                disabled={submitting}
+                className="h-9 text-sm"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-left">
+              <div className="space-y-1.5">
+                <Label htmlFor="reg-email" className="text-xs">
+                  Email Address
+                </Label>
+                <Input
+                  id="reg-email"
+                  type="email"
+                  required
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  placeholder="jane@example.com"
+                  disabled={submitting}
+                  className="h-9 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="reg-phone" className="text-xs">
+                  Phone Number
+                </Label>
+                <Input
+                  id="reg-phone"
+                  type="tel"
+                  required
+                  value={regPhone}
+                  onChange={(e) => setRegPhone(e.target.value)}
+                  placeholder="0712345678"
+                  disabled={submitting}
+                  className="h-9 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-left">
+              <div className="space-y-1.5">
+                <Label htmlFor="reg-username" className="text-xs">
+                  Username (optional)
+                </Label>
+                <Input
+                  id="reg-username"
+                  value={regUsername}
+                  onChange={(e) => setRegUsername(e.target.value)}
+                  placeholder="janedoe"
+                  disabled={submitting}
+                  className="h-9 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="reg-password" className="text-xs">
+                  Password
+                </Label>
+                <Input
+                  id="reg-password"
+                  type="password"
+                  required
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  disabled={submitting}
+                  className="h-9 text-sm"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div
+                role="alert"
+                className="rounded-lg border border-destructive/20 bg-destructive/10 p-2.5 text-xs text-destructive text-center"
+              >
+                {error}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full h-9 font-medium"
+              disabled={submitting}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Creating account…
+                </>
+              ) : (
+                "Create Account"
+              )}
+            </Button>
+
+            <div className="text-center text-xs text-muted-foreground pt-1">
+              Already have an account?{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setMode("login");
+                }}
+                className="text-primary font-semibold hover:underline cursor-pointer"
+              >
+                Sign in
+              </button>
+            </div>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

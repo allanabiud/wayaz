@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     default: "Wayaz Admin",
     template: "%s · Wayaz Admin",
   },
-  description: "Backoffice for the Wayaz e-commerce platform.",
+  description: "Wayaz admin management dashboard.",
   robots: { index: false, follow: false },
 };
 
