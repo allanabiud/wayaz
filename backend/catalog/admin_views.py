@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
+from accounts.models import WishlistItem
 from accounts.permissions import IsStaffOrAdminUser
 from orders.models import Order, OrderItem
 from .models import Category, Product, ProductImage
@@ -40,19 +41,145 @@ class AdminOverviewView(APIView):
         total_categories = Category.objects.count()
         total_customers = User.objects.filter(role="customer").count()
 
-        # Monthly deltas for the dashboard KPI cards
-        month_start = timezone.now().replace(
+        # Time anchors for period-based KPIs (Today, This Week, This Month)
+        now = timezone.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        yesterday_start = today_start - timedelta(days=1)
+
+        # Monday of this week
+        week_start = (now - timedelta(days=now.weekday())).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        prev_week_start = week_start - timedelta(days=7)
+
+        # 1st of this month
+        month_start = now.replace(
             day=1, hour=0, minute=0, second=0, microsecond=0
         )
-        products_added_this_month = Product.objects.filter(
-            created_at__gte=month_start
+        prev_month_end = month_start - timedelta(microseconds=1)
+        prev_month_start = prev_month_end.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+
+        confirmed_statuses = [
+            Order.Status.PROCESSING,
+            Order.Status.CONFIRMED,
+            Order.Status.DELIVERED,
+        ]
+
+        # Helper to calculate count and delta %
+        def calc_delta(curr: float, prev: float):
+            if prev <= 0:
+                pct = 100.0 if curr > 0 else 0.0
+            else:
+                pct = round(((curr - prev) / prev) * 100, 1)
+            return {"current": curr, "previous": prev, "percent": pct}
+
+        # Revenue metrics across periods
+        rev_today = float(
+            Order.objects.filter(
+                status__in=confirmed_statuses, created_at__gte=today_start
+            ).aggregate(t=Sum("total_amount"))["t"]
+            or 0
+        )
+        rev_yesterday = float(
+            Order.objects.filter(
+                status__in=confirmed_statuses,
+                created_at__gte=yesterday_start,
+                created_at__lt=today_start,
+            ).aggregate(t=Sum("total_amount"))["t"]
+            or 0
+        )
+
+        rev_this_week = float(
+            Order.objects.filter(
+                status__in=confirmed_statuses, created_at__gte=week_start
+            ).aggregate(t=Sum("total_amount"))["t"]
+            or 0
+        )
+        rev_prev_week = float(
+            Order.objects.filter(
+                status__in=confirmed_statuses,
+                created_at__gte=prev_week_start,
+                created_at__lt=week_start,
+            ).aggregate(t=Sum("total_amount"))["t"]
+            or 0
+        )
+
+        rev_this_month = float(
+            Order.objects.filter(
+                status__in=confirmed_statuses, created_at__gte=month_start
+            ).aggregate(t=Sum("total_amount"))["t"]
+            or 0
+        )
+        rev_prev_month = float(
+            Order.objects.filter(
+                status__in=confirmed_statuses,
+                created_at__gte=prev_month_start,
+                created_at__lt=month_start,
+            ).aggregate(t=Sum("total_amount"))["t"]
+            or 0
+        )
+
+        # Orders counts across periods
+        orders_today = Order.objects.filter(created_at__gte=today_start).count()
+        orders_yesterday = Order.objects.filter(
+            created_at__gte=yesterday_start, created_at__lt=today_start
         ).count()
-        new_customers_this_month = User.objects.filter(
-            role="customer", date_joined__gte=month_start
+        orders_this_week = Order.objects.filter(created_at__gte=week_start).count()
+        orders_prev_week = Order.objects.filter(
+            created_at__gte=prev_week_start, created_at__lt=week_start
+        ).count()
+        orders_this_month = Order.objects.filter(created_at__gte=month_start).count()
+        orders_prev_month = Order.objects.filter(
+            created_at__gte=prev_month_start, created_at__lt=month_start
         ).count()
 
-        # Top products by sales, excluding cancelled orders (group-by
-        # aggregate, no join fan-out).
+        # Customers joined across periods
+        cust_today = User.objects.filter(
+            role="customer", date_joined__gte=today_start
+        ).count()
+        cust_yesterday = User.objects.filter(
+            role="customer",
+            date_joined__gte=yesterday_start,
+            date_joined__lt=today_start,
+        ).count()
+        cust_this_week = User.objects.filter(
+            role="customer", date_joined__gte=week_start
+        ).count()
+        cust_prev_week = User.objects.filter(
+            role="customer",
+            date_joined__gte=prev_week_start,
+            date_joined__lt=week_start,
+        ).count()
+        cust_this_month = User.objects.filter(
+            role="customer", date_joined__gte=month_start
+        ).count()
+        cust_prev_month = User.objects.filter(
+            role="customer",
+            date_joined__gte=prev_month_start,
+            date_joined__lt=month_start,
+        ).count()
+
+        time_metrics = {
+            "revenue": {
+                "today": calc_delta(rev_today, rev_yesterday),
+                "week": calc_delta(rev_this_week, rev_prev_week),
+                "month": calc_delta(rev_this_month, rev_prev_month),
+            },
+            "orders": {
+                "today": calc_delta(orders_today, orders_yesterday),
+                "week": calc_delta(orders_this_week, orders_prev_week),
+                "month": calc_delta(orders_this_month, orders_prev_month),
+            },
+            "customers": {
+                "today": calc_delta(cust_today, cust_yesterday),
+                "week": calc_delta(cust_this_week, cust_prev_week),
+                "month": calc_delta(cust_this_month, cust_prev_month),
+            },
+        }
+
+        # Top products by sales (excluding cancelled orders)
         sales_rows = list(
             OrderItem.objects.filter(product__isnull=False)
             .exclude(order__status=Order.Status.CANCELLED)
@@ -61,7 +188,7 @@ class AdminOverviewView(APIView):
                 units_sold=Sum("quantity"),
                 revenue=Sum(F("unit_price") * F("quantity")),
             )
-            .order_by("-revenue", "-units_sold")[:5]
+            .order_by("-revenue", "-units_sold")[:6]
         )
         sales_products = Product.objects.in_bulk(
             [row["product_id"] for row in sales_rows]
@@ -77,7 +204,28 @@ class AdminOverviewView(APIView):
             if row["product_id"] in sales_products
         ]
 
-        # All-time units sold (excluding cancelled) for the Top Products header.
+        # Top products by wishlisted
+        wishlist_rows = list(
+            WishlistItem.objects.values("product_id")
+            .annotate(saves=Count("id"))
+            .order_by("-saves")[:6]
+        )
+        wishlist_products = Product.objects.in_bulk(
+            [row["product_id"] for row in wishlist_rows]
+        )
+        top_wishlisted = [
+            {
+                "id": row["product_id"],
+                "title": wishlist_products[row["product_id"]].title,
+                "saves": row["saves"],
+                "price": float(wishlist_products[row["product_id"]].current_price),
+                "stock": wishlist_products[row["product_id"]].stock_quantity,
+            }
+            for row in wishlist_rows
+            if row["product_id"] in wishlist_products
+        ]
+
+        # All-time units sold (excluding cancelled) for the Top Products header
         sales_summary = {
             "units_sold": (
                 OrderItem.objects.exclude(order__status=Order.Status.CANCELLED).aggregate(
@@ -85,15 +233,76 @@ class AdminOverviewView(APIView):
                 )["units"]
                 or 0
             ),
+            "wishlist_saves": WishlistItem.objects.count(),
         }
 
-        # Revenue series: last 30 days, confirmed money only.
-        confirmed_statuses = [
-            Order.Status.PAID,
-            Order.Status.PROCESSING,
-            Order.Status.SHIPPED,
-            Order.Status.DELIVERED,
+        # Today revenue series: 24 hours
+        today_hourly_rows = (
+            Order.objects.filter(
+                status__in=confirmed_statuses,
+                created_at__gte=today_start,
+            )
+            .values("created_at__hour")
+            .annotate(revenue=Sum("total_amount"), orders=Count("id"))
+        )
+        today_hourly_map = {r["created_at__hour"]: r for r in today_hourly_rows}
+        revenue_series_today = [
+            {
+                "date": f"{hour:02d}:00",
+                "revenue": float(today_hourly_map[hour]["revenue"]) if hour in today_hourly_map else 0,
+                "orders": today_hourly_map[hour]["orders"] if hour in today_hourly_map else 0,
+            }
+            for hour in range(24)
         ]
+
+        # Week revenue series: 7 days of current week (Mon -> Sun)
+        week_daily_rows = (
+            Order.objects.filter(
+                status__in=confirmed_statuses,
+                created_at__gte=week_start,
+            )
+            .values("created_at__date")
+            .annotate(revenue=Sum("total_amount"), orders=Count("id"))
+        )
+        week_daily_map = {r["created_at__date"]: r for r in week_daily_rows}
+        revenue_series_week = [
+            {
+                "date": (week_start.date() + timedelta(days=d)).isoformat(),
+                "revenue": float(week_daily_map[week_start.date() + timedelta(days=d)]["revenue"])
+                if (week_start.date() + timedelta(days=d)) in week_daily_map
+                else 0,
+                "orders": week_daily_map[week_start.date() + timedelta(days=d)]["orders"]
+                if (week_start.date() + timedelta(days=d)) in week_daily_map
+                else 0,
+            }
+            for d in range(7)
+        ]
+
+        # Month revenue series: days from 1st of current month to today (or end of month)
+        month_daily_rows = (
+            Order.objects.filter(
+                status__in=confirmed_statuses,
+                created_at__gte=month_start,
+            )
+            .values("created_at__date")
+            .annotate(revenue=Sum("total_amount"), orders=Count("id"))
+        )
+        month_daily_map = {r["created_at__date"]: r for r in month_daily_rows}
+        days_in_month = (timezone.localdate() - month_start.date()).days + 1
+        revenue_series_month = [
+            {
+                "date": (month_start.date() + timedelta(days=d)).isoformat(),
+                "revenue": float(month_daily_map[month_start.date() + timedelta(days=d)]["revenue"])
+                if (month_start.date() + timedelta(days=d)) in month_daily_map
+                else 0,
+                "orders": month_daily_map[month_start.date() + timedelta(days=d)]["orders"]
+                if (month_start.date() + timedelta(days=d)) in month_daily_map
+                else 0,
+            }
+            for d in range(days_in_month)
+        ]
+
+        # Revenue series: last 30 days (default rolling snapshot)
         series_start = timezone.localdate() - timedelta(days=29)
         daily_revenue = {
             row["created_at__date"]: row
@@ -119,29 +328,23 @@ class AdminOverviewView(APIView):
         confirmed = Order.objects.filter(status__in=confirmed_statuses)
         revenue_summary = {
             "total": float(confirmed.aggregate(total=Sum("total_amount"))["total"] or 0),
-            "this_month": float(
-                confirmed.filter(created_at__gte=month_start).aggregate(
-                    total=Sum("total_amount")
-                )["total"]
+            "this_month": rev_this_month,
+            "orders_total": Order.objects.count(),
+            "orders_this_month": orders_this_month,
+            "pending_orders": Order.objects.filter(
+                status=Order.Status.PROCESSING
+            ).count(),
+            "prev_30d": float(
+                Order.objects.filter(
+                    status__in=confirmed_statuses,
+                    created_at__date__gte=series_start - timedelta(days=30),
+                    created_at__date__lt=series_start,
+                ).aggregate(total=Sum("total_amount"))["total"]
                 or 0
             ),
-            "orders_total": Order.objects.count(),
-            "orders_this_month": Order.objects.filter(created_at__gte=month_start).count(),
-            "pending_orders": Order.objects.filter(
-                status=Order.Status.PENDING_PAYMENT
-            ).count(),
         }
-        # Previous 30-day window for the delta shown under Total Revenue.
-        revenue_summary["prev_30d"] = float(
-            Order.objects.filter(
-                status__in=confirmed_statuses,
-                created_at__date__gte=series_start - timedelta(days=30),
-                created_at__date__lt=series_start,
-            ).aggregate(total=Sum("total_amount"))["total"]
-            or 0
-        )
 
-        # Weekly order counts (Monday-start buckets) for the dashboard bar chart.
+        # Weekly order counts for the dashboard bar chart
         weeks_count = 8
         today = timezone.localdate()
         this_week_start = today - timedelta(days=today.weekday())
@@ -165,7 +368,7 @@ class AdminOverviewView(APIView):
             for i in range(weeks_count)
         ]
 
-        # Stock share per category (for the dashboard donut chart)
+        # Stock share per category
         stock_by_category = [
             {
                 "name": row["category__name"] or "Uncategorized",
@@ -182,15 +385,24 @@ class AdminOverviewView(APIView):
             )
         ]
 
-        # Newest products + newest customers merged into a feed
+        # Timeline activity feed: Orders placed, Products created, Customers joined
         activity = [
+            {
+                "type": "order",
+                "title": f"Order {o.order_number}",
+                "detail": f"{o.shipping_name or o.email} · Ksh {float(o.total_amount):,.0f} ({o.get_status_display()})",
+                "at": o.created_at,
+            }
+            for o in Order.objects.order_by("-created_at")[:6]
+        ]
+        activity += [
             {
                 "type": "product",
                 "title": p.title,
-                "detail": "Product added to catalog",
+                "detail": f"Product added ({p.category.name if p.category else 'Catalog'})",
                 "at": p.created_at,
             }
-            for p in Product.objects.order_by("-created_at")[:6]
+            for p in Product.objects.select_related("category").order_by("-created_at")[:4]
         ]
         activity += [
             {
@@ -199,7 +411,7 @@ class AdminOverviewView(APIView):
                 "detail": "New customer registered",
                 "at": u.date_joined,
             }
-            for u in User.objects.filter(role="customer").order_by("-date_joined")[:6]
+            for u in User.objects.filter(role="customer").order_by("-date_joined")[:4]
         ]
         activity.sort(key=lambda item: item["at"], reverse=True)
 
@@ -211,16 +423,21 @@ class AdminOverviewView(APIView):
                     "out_of_stock_count": out_of_stock_count,
                     "total_categories": total_categories,
                     "total_customers": total_customers,
-                    "products_added_this_month": products_added_this_month,
-                    "new_customers_this_month": new_customers_this_month,
+                    "products_added_this_month": Product.objects.filter(created_at__gte=month_start).count(),
+                    "new_customers_this_month": cust_this_month,
                 },
+                "time_metrics": time_metrics,
                 "top_products": top_products,
+                "top_wishlisted": top_wishlisted,
                 "sales_summary": sales_summary,
                 "revenue_series": revenue_series,
+                "revenue_series_today": revenue_series_today,
+                "revenue_series_week": revenue_series_week,
+                "revenue_series_month": revenue_series_month,
                 "revenue_summary": revenue_summary,
                 "orders_series": orders_series,
                 "stock_by_category": stock_by_category,
-                "recent_activity": activity[:8],
+                "recent_activity": activity[:10],
                 "low_stock_alerts": [
                     {
                         "product_id": p.id,
@@ -249,60 +466,6 @@ class AdminNavCountsView(APIView):
                 "orders": Order.objects.count(),
                 "products": Product.objects.count(),
                 "customers": User.objects.filter(role="customer").count(),
-            }
-        )
-
-
-class AdminOrdersView(APIView):
-    """All orders for the admin header sheet, newest first.
-
-    Filters: ?status=<pipeline status or "pending">, ?search=<order number,
-    shipping name, or email>. "pending" means not delivered/cancelled.
-    `count` honours the filters; `pending_count` never does (header badge).
-    """
-
-    permission_classes = [IsStaffOrAdminUser]
-
-    def get(self, request):
-        all_orders = Order.objects.all()
-        qs = all_orders.select_related("user").order_by("-created_at")
-
-        status_param = (request.query_params.get("status") or "").strip()
-        if status_param == "pending":
-            qs = qs.exclude(
-                status__in=[Order.Status.DELIVERED, Order.Status.CANCELLED]
-            )
-        elif status_param in Order.Status.values:
-            qs = qs.filter(status=status_param)
-
-        search = (request.query_params.get("search") or "").strip()
-        if search:
-            qs = qs.filter(
-                Q(order_number__icontains=search)
-                | Q(shipping_name__icontains=search)
-                | Q(email__icontains=search)
-            )
-
-        results = [
-            {
-                "order_number": o.order_number,
-                "customer": o.shipping_name or o.email,
-                "status": o.status,
-                "status_display": o.get_status_display(),
-                "payment_method_display": o.get_payment_method_display(),
-                "total_amount": str(o.total_amount),
-                "item_count": o.item_count,
-                "created_at": o.created_at.isoformat(),
-            }
-            for o in qs[:20]
-        ]
-        return Response(
-            {
-                "count": qs.count(),
-                "pending_count": all_orders.exclude(
-                    status__in=[Order.Status.DELIVERED, Order.Status.CANCELLED]
-                ).count(),
-                "results": results,
             }
         )
 
@@ -487,3 +650,187 @@ class AdminProductImageDetailView(APIView):
                 next_image.save()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AdminAnalyticsView(APIView):
+    """Detailed analytics and reporting endpoint.
+
+    Supports ?period=7d|30d|90d|month|year|all (default 30d).
+    Also supports ?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD for custom range.
+    """
+
+    permission_classes = [IsStaffOrAdminUser]
+
+    def get(self, request):
+        now = timezone.now()
+        period = request.query_params.get("period", "30d")
+        start_date_str = request.query_params.get("start_date")
+        end_date_str = request.query_params.get("end_date")
+
+        custom_range = False
+        if start_date_str and end_date_str:
+            try:
+                start_date = timezone.datetime.fromisoformat(start_date_str)
+                end_date = timezone.datetime.fromisoformat(end_date_str)
+                if timezone.is_naive(start_date):
+                    start_date = timezone.make_aware(start_date)
+                if timezone.is_naive(end_date):
+                    end_date = timezone.make_aware(end_date)
+                # Include entire end_date
+                end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+                custom_range = True
+            except ValueError:
+                start_date = now - timedelta(days=30)
+                end_date = now
+        else:
+            end_date = now
+            if period == "7d":
+                start_date = now - timedelta(days=7)
+            elif period == "90d":
+                start_date = now - timedelta(days=90)
+            elif period == "month":
+                start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            elif period == "year":
+                start_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            elif period == "all":
+                first_order = Order.objects.order_by("created_at").first()
+                start_date = first_order.created_at if first_order else now - timedelta(days=30)
+            else:  # default "30d"
+                start_date = now - timedelta(days=30)
+
+        # Baseline queries
+        period_orders = Order.objects.filter(created_at__gte=start_date, created_at__lte=end_date)
+        confirmed_orders = period_orders.exclude(status=Order.Status.CANCELLED)
+
+        # 1. Financial summary
+        gross_sales = float(confirmed_orders.aggregate(total=Sum("total_amount"))["total"] or 0)
+        net_sales = float(confirmed_orders.aggregate(total=Sum("subtotal"))["total"] or 0)
+        total_discount = float(confirmed_orders.aggregate(total=Sum("discount_amount"))["total"] or 0)
+        total_orders_count = period_orders.count()
+        completed_orders_count = period_orders.filter(status=Order.Status.DELIVERED).count()
+        cancelled_orders_count = period_orders.filter(status=Order.Status.CANCELLED).count()
+
+        aov = round(gross_sales / confirmed_orders.count(), 2) if confirmed_orders.exists() else 0.0
+        fulfillment_rate = (
+            round((completed_orders_count / total_orders_count) * 100, 1)
+            if total_orders_count > 0
+            else 0.0
+        )
+        cancellation_rate = (
+            round((cancelled_orders_count / total_orders_count) * 100, 1)
+            if total_orders_count > 0
+            else 0.0
+        )
+
+        # Returning customer rate
+        customer_ids = period_orders.filter(user__isnull=False).values_list("user_id", flat=True)
+        unique_customers = len(set(customer_ids))
+        repeat_customers = (
+            Order.objects.filter(user_id__in=customer_ids)
+            .values("user_id")
+            .annotate(cnt=Count("id"))
+            .filter(cnt__gt=1)
+            .count()
+        )
+        repeat_customer_rate = (
+            round((repeat_customers / unique_customers) * 100, 1) if unique_customers > 0 else 0.0
+        )
+
+        # 2. Timeline Series (day-by-day)
+        num_days = max(1, (end_date.date() - start_date.date()).days + 1)
+        # Cap daily granularity to 90 days, or group by week if larger
+        day_map = {
+            r["created_at__date"]: r
+            for r in confirmed_orders.values("created_at__date").annotate(
+                revenue=Sum("total_amount"),
+                orders=Count("id"),
+            )
+        }
+        timeline = []
+        for i in range(num_days):
+            day = start_date.date() + timedelta(days=i)
+            entry = day_map.get(day)
+            timeline.append({
+                "date": day.isoformat(),
+                "revenue": float(entry["revenue"]) if entry and entry["revenue"] else 0,
+                "orders": entry["orders"] if entry else 0,
+            })
+
+        # 3. Status Distribution
+        status_counts = {
+            s[0]: 0 for s in Order.Status.choices
+        }
+        for row in period_orders.values("status").annotate(count=Count("id")):
+            status_counts[row["status"]] = row["count"]
+
+        status_distribution = [
+            {"status": k, "label": dict(Order.Status.choices).get(k, k), "count": v}
+            for k, v in status_counts.items()
+        ]
+
+        # 4. Payment Method Distribution
+        payment_methods = list(
+            period_orders.values("payment_method")
+            .annotate(count=Count("id"), volume=Sum("total_amount"))
+            .order_by("-count")
+        )
+
+        # 5. Top Revenue Driving Products in period
+        item_rows = (
+            OrderItem.objects.filter(order__in=confirmed_orders)
+            .values("product_id", "product_title")
+            .annotate(
+                units_sold=Sum("quantity"),
+                revenue=Sum(F("unit_price") * F("quantity")),
+            )
+            .order_by("-revenue")[:10]
+        )
+        top_products = [
+            {
+                "product_id": r["product_id"],
+                "title": r["product_title"],
+                "units_sold": r["units_sold"],
+                "revenue": float(r["revenue"] or 0),
+            }
+            for r in item_rows
+        ]
+
+        # 6. Delivery Destinations (Counties & Towns)
+        destinations = list(
+            period_orders.values("county")
+            .annotate(orders=Count("id"), volume=Sum("total_amount"))
+            .order_by("-orders")[:8]
+        )
+
+        # 7. Slow Moving / Dead Stock (products with stock > 0 but 0 units sold in period)
+        sold_product_ids = OrderItem.objects.filter(order__in=confirmed_orders).values_list("product_id", flat=True)
+        dead_stock = list(
+            Product.objects.filter(stock_quantity__gt=0)
+            .exclude(id__in=sold_product_ids)
+            .values("id", "title", "stock_quantity", "base_price")
+            .order_by("-stock_quantity")[:5]
+        )
+
+        return Response({
+            "period": period,
+            "start_date": start_date.date().isoformat(),
+            "end_date": end_date.date().isoformat(),
+            "kpis": {
+                "gross_sales": gross_sales,
+                "net_sales": net_sales,
+                "total_discount": total_discount,
+                "total_orders": total_orders_count,
+                "completed_orders": completed_orders_count,
+                "cancelled_orders": cancelled_orders_count,
+                "aov": aov,
+                "fulfillment_rate": fulfillment_rate,
+                "cancellation_rate": cancellation_rate,
+                "repeat_customer_rate": repeat_customer_rate,
+            },
+            "timeline": timeline,
+            "status_distribution": status_distribution,
+            "payment_methods": payment_methods,
+            "top_products": top_products,
+            "destinations": destinations,
+            "dead_stock": dead_stock,
+        })

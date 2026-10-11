@@ -48,11 +48,11 @@ class Product(models.Model):
     sale_price = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True
     )
-    stock_quantity = models.PositiveIntegerField(default=0)
+    stock_quantity = models.PositiveIntegerField(default=0, db_index=True)
     # Sizes in display order, e.g. ["S", "M", "L"]; empty = one-size.
     sizes = models.JSONField(blank=True, default=list)
     # Merchandising flag - surfaced in the storefront's Featured shelf.
-    is_featured = models.BooleanField(default=False)
+    is_featured = models.BooleanField(default=False, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

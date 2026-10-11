@@ -2,8 +2,8 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .admin_views import (
     AdminOverviewView,
+    AdminAnalyticsView,
     AdminNavCountsView,
-    AdminOrdersView,
     AdminProductViewSet,
     AdminCategoryViewSet,
     AdminProductStockView,
@@ -11,6 +11,7 @@ from .admin_views import (
     AdminProductImageDetailView,
 )
 from accounts.admin_views import AdminCustomerViewSet
+from orders.admin_views import AdminOrdersView, AdminOrderDetailView
 
 router = DefaultRouter()
 router.register(r"products", AdminProductViewSet, basename="admin-products")
@@ -19,11 +20,17 @@ router.register(r"customers", AdminCustomerViewSet, basename="admin-customers")
 
 urlpatterns = [
     path("overview/", AdminOverviewView.as_view(), name="admin-overview"),
+    path("analytics/", AdminAnalyticsView.as_view(), name="admin-analytics"),
     path("nav-counts/", AdminNavCountsView.as_view(), name="admin-nav-counts"),
     path(
         "orders/",
         AdminOrdersView.as_view(),
         name="admin-orders",
+    ),
+    path(
+        "orders/<str:order_number>/",
+        AdminOrderDetailView.as_view(),
+        name="admin-order-detail",
     ),
     path(
         "products/<int:product_id>/adjust-stock/",

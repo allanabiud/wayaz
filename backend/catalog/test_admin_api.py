@@ -86,7 +86,7 @@ class AdminAPITestCase(TestCase):
             subtotal=Decimal("1500.00"),
             shipping_fee=Decimal("600.00"),
             total_amount=Decimal("2100.00"),
-            status=Order.Status.PENDING_PAYMENT,
+            status=Order.Status.PROCESSING,
             payment_method=Order.PaymentMethod.M_PESA,
         )
 
@@ -123,8 +123,8 @@ class AdminAPITestCase(TestCase):
                 payment_method=Order.PaymentMethod.M_PESA,
             )
 
-        amina_pending = make_order(Order.Status.PENDING_PAYMENT, "Amina Ali")
-        make_order(Order.Status.PROCESSING, "Brian Otieno")
+        amina_pending = make_order(Order.Status.PROCESSING, "Amina Ali")
+        make_order(Order.Status.CONFIRMED, "Brian Otieno")
         make_order(Order.Status.DELIVERED, "Amina Ali")
         make_order(Order.Status.CANCELLED, "Brian Otieno")
 
@@ -180,7 +180,7 @@ class AdminAPITestCase(TestCase):
 
         make_order("2500.00", Order.Status.PROCESSING)
         make_order("1000.00", Order.Status.DELIVERED)
-        make_order("900.00", Order.Status.PENDING_PAYMENT)  # excluded from revenue
+        make_order("900.00", Order.Status.CANCELLED)  # excluded from revenue
         make_order("700.00", Order.Status.CANCELLED)  # excluded from revenue
 
         self.client.force_authenticate(user=self.admin_user)
