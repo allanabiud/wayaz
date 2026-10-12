@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -39,6 +39,7 @@ import { ApiError } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import {
   createAddress,
+  fetchAutoCoupon,
   fetchUserAddresses,
   formatKsh,
   initiateMpesaStkPush,
@@ -81,6 +82,9 @@ export function CheckoutView() {
   );
   const [couponBusy, setCouponBusy] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
+  // Once the shopper takes over - typing a code or removing one - the
+  // auto preview stands down and stops overwriting their choice.
+  const couponOverrideRef = useRef(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<StoreOrder | null>(null);
@@ -129,6 +133,28 @@ export function CheckoutView() {
       });
   }, [isAuthenticated, user]);
 
+  // Self-applying coupons: preview whichever auto coupon would claim this
+  // cart so the discount shows up with nothing typed. Re-runs when the
+  // cart or sign-in state changes; the ref stops it dead once the
+  // shopper has made their own choice.
+  const cartSubtotal = cart?.subtotal ?? null;
+  const cartItemCount = cart?.items.length ?? 0;
+  useEffect(() => {
+    if (cartItemCount === 0 || couponOverrideRef.current) return;
+    let cancelled = false;
+    fetchAutoCoupon()
+      .then((preview) => {
+        if (cancelled || couponOverrideRef.current) return;
+        setAppliedCoupon(preview);
+      })
+      .catch(() => {
+        // Non-fatal: the server re-decides when the order is placed.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cartSubtotal, cartItemCount, isAuthenticated]);
+
   // When user picks an existing saved address card
   const handleSelectAddress = (addr: Address) => {
     setSelectedAddressId(addr.id);
@@ -166,6 +192,7 @@ export function CheckoutView() {
           "That code does not take anything off your current cart.",
         );
       } else {
+        couponOverrideRef.current = true;
         setAppliedCoupon(result);
         setCouponInput("");
         toast.success(`Coupon ${result.code} applied`);
@@ -180,6 +207,9 @@ export function CheckoutView() {
   };
 
   const removeCoupon = () => {
+    // Removing is an explicit choice too: tell the server to skip any
+    // auto coupon by sending a blank code rather than omitting the key.
+    couponOverrideRef.current = true;
     setAppliedCoupon(null);
     setCouponError(null);
   };
@@ -206,8 +236,12 @@ export function CheckoutView() {
         town: town.trim(),
         street_address: streetAddress.trim(),
         payment_method: paymentMethod,
-        // The server re-validates and recomputes; this only names the code.
-        coupon_code: appliedCoupon?.code,
+        // The server re-validates and recomputes; this only names the
+        // code. Omitting the key lets an auto coupon claim the order,
+        // while an explicit blank means "no coupon, not even an auto one".
+        coupon_code:
+          appliedCoupon?.code ??
+          (couponOverrideRef.current ? "" : undefined),
       });
 
       // Persist the freshly typed address for faster checkout next time.
@@ -775,6 +809,11 @@ export function CheckoutView() {
                       <Tag className="size-3.5 shrink-0" />
                       <span className="truncate font-medium">
                         {appliedCoupon.code}
+                        {appliedCoupon.auto_applied && (
+                          <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">
+                            auto-applied
+                          </span>
+                        )}
                       </span>
                       <button
                         type="button"

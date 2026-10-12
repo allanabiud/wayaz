@@ -57,6 +57,8 @@ class AdminCouponSerializer(serializers.ModelSerializer):
             "discount_type",
             "discount_value",
             "is_active",
+            "audience",
+            "auto_apply",
             "order_count",
             "created_at",
         )

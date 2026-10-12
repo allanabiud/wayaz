@@ -179,6 +179,10 @@ export interface AdminCoupon {
   discount_type: "percent" | "fixed";
   discount_value: string;
   is_active: boolean;
+  /** Who may use the code: everyone, guest carts, or first-time buyers. */
+  audience: "everyone" | "guests" | "first_order";
+  /** True when the code applies itself at checkout. */
+  auto_apply: boolean;
   order_count: number;
   created_at: string;
 }

@@ -43,6 +43,8 @@ interface CouponForm {
   discount_type: "percent" | "fixed";
   discount_value: string;
   is_active: boolean;
+  audience: AdminCoupon["audience"];
+  auto_apply: boolean;
 }
 
 const emptyForm: CouponForm = {
@@ -51,7 +53,21 @@ const emptyForm: CouponForm = {
   discount_type: "percent",
   discount_value: "",
   is_active: true,
+  audience: "everyone",
+  auto_apply: false,
 };
+
+const AUDIENCE_LABELS: Record<AdminCoupon["audience"], string> = {
+  everyone: "Everyone",
+  guests: "Guests only",
+  first_order: "First-time customers",
+};
+
+/** "Auto-applies · Guests only" - only shown when it adds information. */
+function reachLine(coupon: AdminCoupon): string | null {
+  if (!coupon.auto_apply && coupon.audience === "everyone") return null;
+  return `${coupon.auto_apply ? "Auto-applies" : "Manual"} · ${AUDIENCE_LABELS[coupon.audience]}`;
+}
 
 /** "10" -> "10%" (percent) or "Ksh 500" (fixed). */
 function formatDiscount(coupon: AdminCoupon): string {
@@ -96,6 +112,8 @@ export default function AdminCouponsPage() {
       discount_type: coupon.discount_type,
       discount_value: coupon.discount_value,
       is_active: coupon.is_active,
+      audience: coupon.audience,
+      auto_apply: coupon.auto_apply,
     });
     setFormError(null);
   };
@@ -127,6 +145,8 @@ export default function AdminCouponsPage() {
         discount_type: form.discount_type,
         discount_value: String(value),
         is_active: form.is_active,
+        audience: form.audience,
+        auto_apply: form.auto_apply,
       };
       if (form.id) {
         await api.patch(`/api/v1/admin/orders/coupons/${form.id}/`, payload);
@@ -232,6 +252,11 @@ export default function AdminCouponsPage() {
                       {formatDiscount(coupon)} · used {coupon.order_count}{" "}
                       {coupon.order_count === 1 ? "time" : "times"}
                     </p>
+                    {reachLine(coupon) && (
+                      <p className="text-[11px] text-muted-foreground">
+                        {reachLine(coupon)}
+                      </p>
+                    )}
                   </div>
                   <Badge
                     variant={coupon.is_active ? "secondary" : "outline"}
@@ -304,8 +329,15 @@ export default function AdminCouponsPage() {
                     key={coupon.id}
                     className="transition-colors hover:bg-muted/50"
                   >
-                    <TableCell className="truncate font-mono text-sm font-semibold">
-                      {coupon.code}
+                    <TableCell className="truncate">
+                      <p className="truncate font-mono text-sm font-semibold">
+                        {coupon.code}
+                      </p>
+                      {reachLine(coupon) && (
+                        <p className="truncate text-[10px] text-muted-foreground">
+                          {reachLine(coupon)}
+                        </p>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm tabular-nums">
                       {formatDiscount(coupon)}
@@ -374,8 +406,9 @@ export default function AdminCouponsPage() {
           <DialogHeader>
             <DialogTitle>{form?.id ? "Edit Coupon" : "New Coupon"}</DialogTitle>
             <DialogDescription>
-              Shoppers type the code at checkout. Codes are stored in
-              capitals, so welcome10 and WELCOME10 are the same coupon.
+              Shoppers type the code at checkout - or let it apply itself
+              for the carts you target. Codes are stored in capitals, so
+              welcome10 and WELCOME10 are the same coupon.
             </DialogDescription>
           </DialogHeader>
 
@@ -434,6 +467,52 @@ export default function AdminCouponsPage() {
                     placeholder={form.discount_type === "percent" ? "10" : "500"}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="coupon-audience">Who can use it</Label>
+                <Select
+                  value={form.audience}
+                  onValueChange={(value) =>
+                    setForm({
+                      ...form,
+                      audience: value as CouponForm["audience"],
+                    })
+                  }
+                >
+                  <SelectTrigger id="coupon-audience" className="w-full h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="everyone">Everyone</SelectItem>
+                    <SelectItem value="guests">Guest carts only</SelectItem>
+                    <SelectItem value="first_order">
+                      First-time customers only
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Checked whether the code is typed or applied itself.
+                  First-time means no orders yet - guest carts count as
+                  first-time.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border p-3">
+                <div>
+                  <p className="text-sm font-medium">Apply automatically</p>
+                  <p className="text-xs text-muted-foreground">
+                    Claims eligible carts at checkout, so nobody has to
+                    type it.
+                  </p>
+                </div>
+                <Switch
+                  checked={form.auto_apply}
+                  onCheckedChange={(checked) =>
+                    setForm({ ...form, auto_apply: checked })
+                  }
+                  aria-label="Apply coupon automatically"
+                />
               </div>
 
               <div className="flex items-center justify-between rounded-xl border p-3">

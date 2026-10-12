@@ -13,7 +13,7 @@ from accounts.models import Address
 from catalog.models import Product
 from .delivery import delivery_fee
 from .emails import send_order_confirmation_email
-from .models import Cart, CartItem, Coupon, Order, OrderItem
+from .models import Cart, CartItem, Coupon, Order, OrderItem, auto_coupon_for
 from .serializers import (
     CartSerializer,
     AddToCartSerializer,
@@ -285,17 +285,27 @@ class CheckoutView(APIView):
                 shipping_fee = delivery_fee(data["delivery_method"], subtotal)
                 discount = Decimal("0.00")
                 coupon = None
-                code = (data.get("coupon_code") or "").strip()
-                if code:
-                    coupon = Coupon.objects.filter(
-                        code__iexact=code, is_active=True
-                    ).first()
-                    if coupon is None:
-                        raise ValidationError(
-                            {"coupon_code": "That coupon code is not valid."}
-                        )
-                    # Discounts come off the goods, not the delivery fee.
-                    discount = coupon.discount_for(subtotal)
+                user = request.user if request.user.is_authenticated else None
+                if "coupon_code" in data:
+                    # The shopper named a coupon (blank = explicitly none),
+                    # which overrides anything that would auto-apply.
+                    code = (data["coupon_code"] or "").strip()
+                    if code:
+                        coupon = Coupon.objects.filter(
+                            code__iexact=code, is_active=True
+                        ).first()
+                        if coupon is None or not coupon.eligible_for(user):
+                            raise ValidationError(
+                                {"coupon_code": "That coupon code is not valid."}
+                            )
+                        # Discounts come off the goods, not the delivery fee.
+                        discount = coupon.discount_for(subtotal)
+                else:
+                    # No opinion from the client: let an auto-applying
+                    # coupon claim the order if this shopper qualifies.
+                    coupon = auto_coupon_for(user, subtotal)
+                    if coupon is not None:
+                        discount = coupon.discount_for(subtotal)
                 total = subtotal + shipping_fee - discount
 
                 # New order begins in PROCESSING pipeline stage - staff
@@ -372,33 +382,49 @@ class CheckoutView(APIView):
 
 
 class CouponValidateView(APIView):
-    """POST /api/v1/orders/coupons/validate/ - dry-run a code against the
+    """POST /api/v1/orders/coupons/validate/ - dry-run a coupon against the
     caller's current cart so checkout can show the discount before the
     order is placed. Guests use the same X-Cart-ID resolution as the cart
-    endpoints, so coupons work without an account."""
+    endpoints, so coupons work without an account.
+
+    With a `code` it checks that specific coupon; with no code it answers
+    "what would auto-apply here?" - how checkout previews a self-applying
+    promotion. `auto_applied` reports which of the two happened."""
 
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         serializer = CouponValidateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        code = serializer.validated_data["code"]
-
-        try:
-            coupon = Coupon.objects.get(code__iexact=code, is_active=True)
-        except Coupon.DoesNotExist:
-            return Response(
-                {"detail": "That coupon code is not valid."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        code = (serializer.validated_data.get("code") or "").strip()
 
         cart = get_or_create_cart(request)
         subtotal = sum(item.line_total for item in cart.items.all())
+        user = request.user if request.user.is_authenticated else None
+
+        if code:
+            try:
+                coupon = Coupon.objects.get(code__iexact=code, is_active=True)
+            except Coupon.DoesNotExist:
+                coupon = None
+            if coupon is None or not coupon.eligible_for(user):
+                return Response(
+                    {"detail": "That coupon code is not valid."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            auto_applied = False
+        else:
+            coupon = auto_coupon_for(user, subtotal)
+            auto_applied = True
+
         return Response(
             {
-                "code": coupon.code,
-                "discount_type": coupon.discount_type,
-                "discount_amount": str(coupon.discount_for(subtotal)),
+                "code": coupon.code if coupon else None,
+                "discount_type": coupon.discount_type if coupon else None,
+                "discount_amount": str(
+                    coupon.discount_for(subtotal) if coupon else Decimal("0.00")
+                ),
                 "cart_subtotal": str(subtotal),
+                "auto_applied": auto_applied,
             }
         )

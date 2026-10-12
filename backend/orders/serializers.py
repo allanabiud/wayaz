@@ -139,9 +139,16 @@ class MergeCartSerializer(serializers.Serializer):
 
 
 class CouponValidateSerializer(serializers.Serializer):
-    """Dry-run request for CouponValidateView (no cart maths here)."""
+    """Dry-run request for CouponValidateView (no cart maths here).
 
-    code = serializers.CharField(max_length=40)
+    Omitting (or blanking) the code asks for the best auto-applying
+    coupon instead - that is how checkout previews one without the
+    shopper typing anything.
+    """
+
+    code = serializers.CharField(
+        max_length=40, required=False, allow_blank=True
+    )
 
 
 class CheckoutSerializer(serializers.Serializer):
@@ -166,8 +173,10 @@ class CheckoutSerializer(serializers.Serializer):
     )
     # Optional; validated against the Coupon table inside the checkout
     # transaction so the discount can never be forged by the client.
+    # Key absent = no opinion, let an auto-applying coupon claim the
+    # order; blank string = the shopper explicitly wants no coupon.
     coupon_code = serializers.CharField(
-        max_length=40, required=False, allow_blank=True, default=""
+        max_length=40, required=False, allow_blank=True
     )
 
 

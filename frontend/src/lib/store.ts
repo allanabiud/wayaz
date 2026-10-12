@@ -305,6 +305,8 @@ export interface CouponValidation {
   /** Discount for the cart as it stands right now. */
   discount_amount: string;
   cart_subtotal: string;
+  /** False when the shopper typed the code; true for an auto preview. */
+  auto_applied: boolean;
 }
 
 /** Dry-run a coupon against the caller's cart (guests included). */
@@ -314,6 +316,24 @@ export function validateCoupon(code: string): Promise<CouponValidation> {
     { code },
     { headers: cartHeaders() },
   );
+}
+
+/**
+ * The coupon that would apply itself to the caller's cart right now, or
+ * null when nothing qualifies (empty cart, no matching promotion, ...).
+ */
+export function fetchAutoCoupon(): Promise<CouponValidation | null> {
+  return api
+    .post<CouponValidation & { code: string | null }>(
+      "/api/v1/orders/coupons/validate/",
+      {},
+      { headers: cartHeaders() },
+    )
+    .then((preview) =>
+      preview.code === null || Number(preview.discount_amount) <= 0
+        ? null
+        : (preview as CouponValidation),
+    );
 }
 
 export function submitCheckout(payload: CheckoutPayload): Promise<StoreOrder> {

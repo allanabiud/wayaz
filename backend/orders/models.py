@@ -107,14 +107,20 @@ def generate_order_number():
 class Coupon(models.Model):
     """A checkout code that takes money off an order.
 
-    Deliberately minimal - a percent or fixed amount, on or off. No expiry
-    dates, usage caps or spend thresholds; those can wait until there is
-    real usage data to justify them.
+    Deliberately minimal - a percent or fixed amount, on or off, plus who
+    may use it and whether it applies itself at checkout. No expiry dates,
+    usage caps or spend thresholds; those can wait until there is real
+    usage data to justify them.
     """
 
     class DiscountType(models.TextChoices):
         PERCENT = "percent", "Percentage"
         FIXED = "fixed", "Fixed amount"
+
+    class Audience(models.TextChoices):
+        EVERYONE = "everyone", "Everyone"
+        GUESTS = "guests", "Guests only"
+        FIRST_ORDER = "first_order", "First-time customers"
 
     code = models.CharField(max_length=40, unique=True)
     discount_type = models.CharField(
@@ -122,6 +128,13 @@ class Coupon(models.Model):
     )
     discount_value = models.DecimalField(max_digits=10, decimal_places=2)
     is_active = models.BooleanField(default=True)
+    # Who the code is for; checked whether the shopper types it or it
+    # applies itself.
+    audience = models.CharField(
+        max_length=16, choices=Audience.choices, default=Audience.EVERYONE
+    )
+    # Applies itself at checkout for eligible carts - no code typing.
+    auto_apply = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -131,6 +144,18 @@ class Coupon(models.Model):
         # Codes are typed by humans; normalise so WELCOME10 == welcome10.
         self.code = self.code.strip().upper()
         super().save(*args, **kwargs)
+
+    def eligible_for(self, user):
+        """Whether `user` (None = a guest cart) may use this coupon now."""
+        if self.audience == self.Audience.EVERYONE:
+            return True
+        if self.audience == self.Audience.GUESTS:
+            return user is None
+        # First order: guests have no order history we can check, so a
+        # guest cart counts as a first-time customer too.
+        if user is None:
+            return True
+        return not Order.objects.filter(user=user).exists()
 
     def discount_for(self, amount):
         """Discount for a pre-discount `amount`, clamped so it is never
@@ -144,6 +169,25 @@ class Coupon(models.Model):
 
     def __str__(self):
         return self.code
+
+
+def auto_coupon_for(user, subtotal):
+    """The best auto-applying coupon for this shopper, or None.
+
+    "Best" means the largest discount on `subtotal` among active,
+    auto-applying codes the shopper is eligible for; ties go to the most
+    recently created. An empty cart (subtotal 0) never matches - every
+    discount is worth zero there anyway.
+    """
+    best = None
+    best_discount = Decimal("0.00")
+    for coupon in Coupon.objects.filter(is_active=True, auto_apply=True):
+        if not coupon.eligible_for(user):
+            continue
+        discount = coupon.discount_for(subtotal)
+        if discount > best_discount:
+            best, best_discount = coupon, discount
+    return best
 
 
 class Order(models.Model):

@@ -126,13 +126,15 @@ REVIEW_COMMENTS = {
     ],
 }
 
-# Codes shoppers can try at checkout: one of each discount kind, plus an
+# Codes shoppers can try at checkout: a self-applying welcome offer for
+# first-timers, one for guest carts, a plain type-it code, and an
 # inactive one so the dashboard toggle has something to show. Existing
 # codes (including any staff created) are left alone.
 DEMO_COUPONS = [
-    ("WELCOME10", Coupon.DiscountType.PERCENT, "10", True),
-    ("TAKE500", Coupon.DiscountType.FIXED, "500", True),
-    ("ENDOFSEASON", Coupon.DiscountType.PERCENT, "25", False),
+    ("WELCOME10", Coupon.DiscountType.PERCENT, "10", True, Coupon.Audience.FIRST_ORDER, True),
+    ("GUEST5", Coupon.DiscountType.PERCENT, "5", True, Coupon.Audience.GUESTS, True),
+    ("TAKE500", Coupon.DiscountType.FIXED, "500", True, Coupon.Audience.EVERYONE, False),
+    ("ENDOFSEASON", Coupon.DiscountType.PERCENT, "25", False, Coupon.Audience.EVERYONE, False),
 ]
 
 
@@ -345,13 +347,15 @@ class Command(BaseCommand):
         )
 
         coupon_rows = 0
-        for code, discount_type, value, active in DEMO_COUPONS:
+        for code, discount_type, value, active, audience, auto_apply in DEMO_COUPONS:
             _, created = Coupon.objects.get_or_create(
                 code=code,
                 defaults={
                     "discount_type": discount_type,
                     "discount_value": Decimal(value),
                     "is_active": active,
+                    "audience": audience,
+                    "auto_apply": auto_apply,
                 },
             )
             coupon_rows += int(created)

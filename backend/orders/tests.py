@@ -614,6 +614,136 @@ class CouponCheckoutTestCase(TestCase):
         self.assertEqual(order.discount_amount, Decimal("500.00"))
         self.assertEqual(order.total_amount, Decimal("5500.00"))
 
+    # ---- Auto-applying coupons ----------------------------------------
+
+    @staticmethod
+    def make_auto(code, percent, audience=Coupon.Audience.EVERYONE, **kwargs):
+        return Coupon.objects.create(
+            code=code,
+            discount_type=Coupon.DiscountType.PERCENT,
+            discount_value=Decimal(str(percent)),
+            audience=audience,
+            auto_apply=True,
+            **kwargs,
+        )
+
+    def test_auto_coupon_applies_without_a_code(self):
+        self.make_auto("AUTO10", "10")
+        # The payload deliberately has no coupon_code key at all.
+        res = self.checkout()
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["coupon_code"], "AUTO10")
+        self.assertEqual(Decimal(str(res.data["discount_amount"])), Decimal("600.00"))
+        self.assertEqual(Decimal(str(res.data["total_amount"])), Decimal("5400.00"))
+
+    def test_a_blank_code_opts_out_of_auto_apply(self):
+        # The shopper saw the auto coupon and pressed Remove.
+        self.make_auto("AUTO10", "10")
+        res = self.checkout("")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertIsNone(res.data["coupon_code"])
+        self.assertEqual(Decimal(str(res.data["discount_amount"])), Decimal("0.00"))
+
+    def test_a_typed_code_beats_auto_apply(self):
+        self.make_auto("AUTO10", "10")
+        res = self.checkout("TAKE500")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["coupon_code"], "TAKE500")
+        self.assertEqual(Decimal(str(res.data["discount_amount"])), Decimal("500.00"))
+
+    def test_the_largest_auto_discount_wins(self):
+        self.make_auto("AUTO10", "10")  # worth 600 on this cart
+        self.make_auto("AUTOFIVE", "5")  # worth 300
+        res = self.checkout()
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["coupon_code"], "AUTO10")
+        self.assertEqual(Decimal(str(res.data["discount_amount"])), Decimal("600.00"))
+
+    def test_inactive_auto_coupon_is_never_applied(self):
+        self.make_auto("SLEEPING", "10", is_active=False)
+        res = self.checkout()
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertIsNone(res.data["coupon_code"])
+        self.assertEqual(Decimal(str(res.data["discount_amount"])), Decimal("0.00"))
+
+    def test_guests_only_coupon_never_touches_signed_in_shoppers(self):
+        self.make_auto("GUEST5", "5", audience=Coupon.Audience.GUESTS)
+        # A guest cart gets it...
+        res = self.checkout()
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["coupon_code"], "GUEST5")
+
+        # ...an account holder neither auto-receives it nor may type it.
+        shopper = User.objects.create_user(
+            username="guestless",
+            email="guestless@example.com",
+            password="Password123!",
+            role=User.Role.CUSTOMER,
+        )
+        own_cart = Cart.objects.create(user=shopper)
+        CartItem.objects.create(cart=own_cart, product=self.product, quantity=2)
+        self.client.force_authenticate(user=shopper)
+
+        # Typing it is refused outright (the 400 rolls back, so the cart
+        # is still full for the next attempt)...
+        res = self.checkout("GUEST5", cart=own_cart)
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("coupon_code", res.data)
+
+        # ...and without a code it simply stays off the order.
+        res = self.checkout(cart=own_cart)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertIsNone(res.data["coupon_code"])
+
+    def test_first_order_coupon_ignores_returning_customers(self):
+        self.make_auto(
+            "FIRST10", "10", audience=Coupon.Audience.FIRST_ORDER
+        )
+        returning = User.objects.create_user(
+            username="returning",
+            email="returning@example.com",
+            password="Password123!",
+            role=User.Role.CUSTOMER,
+        )
+        Order.objects.create(
+            user=returning,
+            guest_id="",
+            email=returning.email,
+            phone_number="+254712345678",
+            shipping_name="Returning Shopper",
+            county="Nairobi",
+            town="Kilimani",
+            street_address="12 Riara Road",
+            subtotal=Decimal("2500.00"),
+            total_amount=Decimal("2500.00"),
+        )
+        seen_cart = Cart.objects.create(user=returning)
+        CartItem.objects.create(cart=seen_cart, product=self.product, quantity=2)
+        self.client.force_authenticate(user=returning)
+        res = self.checkout(cart=seen_cart)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertIsNone(res.data["coupon_code"])
+
+        # A brand-new account qualifies...
+        newbie = User.objects.create_user(
+            username="newbie",
+            email="newbie@example.com",
+            password="Password123!",
+            role=User.Role.CUSTOMER,
+        )
+        fresh_cart = Cart.objects.create(user=newbie)
+        CartItem.objects.create(cart=fresh_cart, product=self.product, quantity=2)
+        self.client.force_authenticate(user=newbie)
+        res = self.checkout(cart=fresh_cart)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["coupon_code"], "FIRST10")
+
+        # ...and so does a guest cart, whose history we cannot know.
+        self.client.force_authenticate(user=None)
+        res = self.checkout()
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["coupon_code"], "FIRST10")
+
 
 class CouponValidateAPITestCase(TestCase):
     """The checkout preview: dry-run a code against the current cart."""
@@ -676,6 +806,60 @@ class CouponValidateAPITestCase(TestCase):
         res = self.validate("TAKE500", cart=empty)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(Decimal(str(res.data["discount_amount"])), Decimal("0.00"))
+
+    # ---- Auto-apply previews (no code in the request) ------------------
+
+    def auto_validate(self, cart=None):
+        return self.client.post(
+            "/api/v1/orders/coupons/validate/",
+            {},
+            format="json",
+            **{"HTTP_X_CART_ID": str((cart or self.cart).id)},
+        )
+
+    def test_no_code_previews_the_auto_applying_coupon(self):
+        Coupon.objects.create(
+            code="AUTO10",
+            discount_type=Coupon.DiscountType.PERCENT,
+            discount_value=Decimal("10"),
+            auto_apply=True,
+        )
+        res = self.auto_validate()
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["code"], "AUTO10")
+        self.assertTrue(res.data["auto_applied"])
+        self.assertEqual(Decimal(str(res.data["discount_amount"])), Decimal("600.00"))
+        self.assertEqual(Decimal(str(res.data["cart_subtotal"])), Decimal("6000.00"))
+
+    def test_no_auto_coupon_returns_a_null_code(self):
+        res = self.auto_validate()
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIsNone(res.data["code"])
+        self.assertIsNone(res.data["discount_type"])
+        self.assertTrue(res.data["auto_applied"])
+        self.assertEqual(Decimal(str(res.data["discount_amount"])), Decimal("0.00"))
+
+    def test_typed_codes_report_auto_applied_false(self):
+        res = self.validate("take500")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertFalse(res.data["auto_applied"])
+
+    def test_audience_ineligibility_reads_like_an_unknown_code(self):
+        Coupon.objects.create(
+            code="GUESTONLY",
+            discount_type=Coupon.DiscountType.PERCENT,
+            discount_value=Decimal("5"),
+            audience=Coupon.Audience.GUESTS,
+        )
+        shopper = User.objects.create_user(
+            username="no_guests",
+            email="no_guests@example.com",
+            password="Password123!",
+            role=User.Role.CUSTOMER,
+        )
+        self.client.force_authenticate(user=shopper)
+        res = self.validate("GUESTONLY")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
 
 class AdminCouponAPITestCase(TestCase):
@@ -780,3 +964,54 @@ class AdminCouponAPITestCase(TestCase):
         res = self.client.delete(f"{self.list_url}{self.used.id}/")
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Coupon.objects.filter(id=self.used.id).exists())
+
+    def test_audience_and_auto_apply_round_trip(self):
+        self.client.force_authenticate(user=self.staff)
+        res = self.client.post(
+            self.list_url,
+            {
+                "code": "WELCOME20",
+                "discount_type": "percent",
+                "discount_value": "20",
+                "audience": "first_order",
+                "auto_apply": True,
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["audience"], "first_order")
+        self.assertTrue(res.data["auto_apply"])
+
+        patched = self.client.patch(
+            f"{self.list_url}{res.data['id']}/",
+            {"auto_apply": False, "audience": "everyone"},
+            format="json",
+        )
+        self.assertEqual(patched.status_code, status.HTTP_200_OK)
+        self.assertFalse(patched.data["auto_apply"])
+        self.assertEqual(patched.data["audience"], "everyone")
+
+    def test_audience_and_auto_apply_default_to_the_widest_reach(self):
+        self.client.force_authenticate(user=self.staff)
+        res = self.client.post(
+            self.list_url,
+            {"code": "PLAIN", "discount_type": "fixed", "discount_value": "100"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["audience"], "everyone")
+        self.assertFalse(res.data["auto_apply"])
+
+    def test_an_unknown_audience_is_rejected(self):
+        self.client.force_authenticate(user=self.staff)
+        res = self.client.post(
+            self.list_url,
+            {
+                "code": "ALIENS",
+                "discount_type": "percent",
+                "discount_value": "10",
+                "audience": "aliens",
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
