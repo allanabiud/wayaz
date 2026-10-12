@@ -516,6 +516,9 @@ class AdminNavCountsView(APIView):
                 "categories": Category.objects.count(),
                 "reviews": ProductReview.objects.count(),
                 "coupons": Coupon.objects.count(),
+                "team": User.objects.filter(
+                    role__in=[User.Role.ADMIN, User.Role.STAFF]
+                ).count(),
                 "customers": User.objects.filter(role="customer").count(),
             }
         )

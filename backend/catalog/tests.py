@@ -309,3 +309,16 @@ class ProductPriceFilterTestCase(TestCase):
             titles,
             ["On Sale Jean", "Plain Jean", "Cheap Sale Jean"],
         )
+
+
+class SeedShopGuardTestCase(TestCase):
+    """Demo data must never land on a real database by accident."""
+
+    def test_seeding_refuses_to_run_with_debug_off(self):
+        from django.core.management import call_command
+        from django.core.management.base import CommandError
+        from django.test import override_settings
+
+        with override_settings(DEBUG=False):
+            with self.assertRaises(CommandError):
+                call_command("seed_shop")

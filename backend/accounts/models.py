@@ -1,5 +1,19 @@
 from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import UserManager as DjangoUserManager
 from django.db import models
+
+
+class UserManager(DjangoUserManager):
+    """`manage.py createsuperuser` must not leave the account a customer.
+
+    Django's default manager lets `role` fall back to its model default, so
+    a superuser made that way landed in the customers list and inflated the
+    dashboard's customer count. Superusers are admins unless told
+    otherwise."""
+
+    def create_superuser(self, username, email=None, password=None, **extra_fields):
+        extra_fields.setdefault("role", self.model.Role.ADMIN)
+        return super().create_superuser(username, email, password, **extra_fields)
 
 
 class User(AbstractUser):
@@ -13,6 +27,8 @@ class User(AbstractUser):
     role = models.CharField(
         max_length=20, choices=Role.choices, default=Role.CUSTOMER
     )
+
+    objects = UserManager()
 
     class Meta:
         db_table = "accounts_user"

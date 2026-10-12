@@ -123,6 +123,7 @@ export interface NavCounts {
   categories: number;
   reviews: number;
   coupons: number;
+  team: number;
   customers: number;
 }
 
@@ -180,6 +181,22 @@ export interface AdminCoupon {
   is_active: boolean;
   order_count: number;
   created_at: string;
+}
+
+/** A dashboard account on the team page. Passwords never round-trip. */
+export interface AdminTeamMember {
+  id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone_number: string | null;
+  role: UserRole;
+  role_display: string;
+  display_name: string;
+  is_active: boolean;
+  last_login: string | null;
+  date_joined: string;
 }
 
 export interface ProductImage {

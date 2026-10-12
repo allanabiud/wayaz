@@ -19,6 +19,7 @@ import uuid
 from datetime import timedelta
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
@@ -200,8 +201,18 @@ class Command(BaseCommand):
             action="store_true",
             help="Do not create a demo admin account.",
         )
+        parser.add_argument(
+            "--force",
+            action="store_true",
+            help="Allow seeding when DEBUG is off (i.e. a real database).",
+        )
 
     def handle(self, *args, **options):
+        if not settings.DEBUG and not options["force"]:
+            raise CommandError(
+                "Refusing to seed with DEBUG off - this looks like a real "
+                "database. Re-run with --force if you really mean it."
+            )
         customers_count = options["customers"]
         if customers_count < 1 or customers_count > len(CUSTOMER_NAMES):
             raise CommandError(

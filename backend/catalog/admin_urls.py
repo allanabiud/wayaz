@@ -11,13 +11,14 @@ from .admin_views import (
     AdminProductImageUploadView,
     AdminProductImageDetailView,
 )
-from accounts.admin_views import AdminCustomerViewSet
+from accounts.admin_views import AdminCustomerViewSet, AdminTeamViewSet
 
 router = DefaultRouter()
 router.register(r"products", AdminProductViewSet, basename="admin-products")
 router.register(r"categories", AdminCategoryViewSet, basename="admin-categories")
 router.register(r"reviews", AdminReviewViewSet, basename="admin-reviews")
 router.register(r"customers", AdminCustomerViewSet, basename="admin-customers")
+router.register(r"team", AdminTeamViewSet, basename="admin-team")
 
 urlpatterns = [
     path("overview/", AdminOverviewView.as_view(), name="admin-overview"),
