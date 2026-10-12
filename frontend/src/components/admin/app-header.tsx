@@ -62,7 +62,7 @@ import {
 } from "@/components/ui/select";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { api } from "@/lib/api";
+import { api, login, tokenStore } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import type { AdminOrdersResponse, Paginated, Product } from "@/lib/types";
 
@@ -259,6 +259,16 @@ export function AppHeader() {
         old_password: oldPassword,
         new_password: newPassword,
       });
+      // The change stamps password_changed_at, which retires the tokens
+      // this session holds - re-mint them with the new password so the
+      // person who just changed it isn't logged out on their next click.
+      if (user) {
+        const session = await login(user.username, newPassword);
+        tokenStore.save({
+          access: session.access,
+          refresh: session.refresh,
+        });
+      }
       toast.success("Password changed successfully!");
       setOldPassword("");
       setNewPassword("");

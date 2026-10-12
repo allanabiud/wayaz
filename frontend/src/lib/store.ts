@@ -445,6 +445,28 @@ export function changePassword(
   });
 }
 
+/** POST /api/v1/auth/forgot-password/ - asks for a mailed reset link.
+ * Answers identically whether or not the address exists. */
+export function forgotPassword(email: string): Promise<{ detail: string }> {
+  return api.post<{ detail: string }>("/api/v1/auth/forgot-password/", {
+    email,
+  });
+}
+
+/** POST /api/v1/auth/reset-password/ - exchanges a mailed link for a new
+ * password. Succeeding retires every session issued before the change. */
+export function resetPassword(
+  uidb64: string,
+  token: string,
+  new_password: string,
+): Promise<{ detail: string }> {
+  return api.post<{ detail: string }>("/api/v1/auth/reset-password/", {
+    uidb64,
+    token,
+    new_password,
+  });
+}
+
 // ---- Favourites (device-local) ----------------------------------------
 
 const WISHLIST_KEY = "wayaz.wishlist";

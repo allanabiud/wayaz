@@ -183,6 +183,15 @@ function LoginForm() {
             </div>
           </div>
 
+          <div className="flex justify-end">
+            <Link
+              href="/forgot-password"
+              className="text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
+
           {error && (
             <p
               role="alert"

@@ -1,5 +1,13 @@
+import re
+import time
+
 from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
+from django.core import mail
 from django.test import TestCase
+from django.utils import timezone
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import status
 from rest_framework.test import APIClient
 from catalog.models import Category, Product
@@ -285,3 +293,209 @@ class AdminTeamAPITestCase(TestCase):
         res = self.client.delete(f"{self.list_url}{self.staff.id}/")
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(User.objects.filter(id=self.staff.id).exists())
+
+
+class PasswordResetAPITestCase(TestCase):
+    """The forgot/reset pair: link in the mail, password on the way back."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            username="reset_me",
+            email="RESET_ME@example.com",
+            password="OldPassword123!",
+        )
+        self.forgot_url = "/api/v1/auth/forgot-password/"
+        self.reset_url = "/api/v1/auth/reset-password/"
+
+    def request_link(self, email):
+        return self.client.post(
+            self.forgot_url, {"email": email}, format="json"
+        )
+
+    def mint_link(self):
+        uidb64 = urlsafe_base64_encode(force_bytes(self.user.pk))
+        token = default_token_generator.make_token(self.user)
+        return uidb64, token
+
+    def reset(self, uidb64, token, new_password="FreshPassword456!"):
+        return self.client.post(
+            self.reset_url,
+            {"uidb64": uidb64, "token": token, "new_password": new_password},
+            format="json",
+        )
+
+    def test_known_address_gets_a_working_link(self):
+        res = self.request_link("reset_me@example.com")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(mail.outbox), 1)
+
+        match = re.search(r"uidb64=([^&]+)&token=([^&\s]+)", mail.outbox[0].body)
+        self.assertIsNotNone(match, mail.outbox[0].body)
+        uidb64, token = match.groups()
+        self.assertEqual(
+            force_str(urlsafe_base64_decode(uidb64)), str(self.user.pk)
+        )
+        self.assertTrue(default_token_generator.check_token(self.user, token))
+
+    def test_unknown_and_known_addresses_answer_identically(self):
+        known = self.request_link("reset_me@example.com")
+        unknown = self.request_link("nobody@example.com")
+        self.assertEqual(known.status_code, status.HTTP_200_OK)
+        self.assertEqual(unknown.status_code, status.HTTP_200_OK)
+        # Same body either way - no fishing for who has an account.
+        self.assertEqual(known.json(), unknown.json())
+        self.assertEqual(len(mail.outbox), 1)  # only the known one
+
+    def test_reset_with_the_mailed_link(self):
+        uidb64, token = self.mint_link()
+        res = self.reset(uidb64, token)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("FreshPassword456!"))
+        self.assertFalse(self.user.check_password("OldPassword123!"))
+        self.assertIsNotNone(self.user.password_changed_at)
+
+        # And the new password actually signs in.
+        res = self.client.post(
+            "/api/v1/auth/token/",
+            {"username": "reset_me", "password": "FreshPassword456!"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+    def test_a_used_link_cannot_be_reused(self):
+        uidb64, token = self.mint_link()
+        self.assertEqual(
+            self.reset(uidb64, token).status_code, status.HTTP_200_OK
+        )
+        # The token embeds the password hash, so the same link dies the
+        # moment the password changes.
+        res = self.reset(uidb64, token, new_password="AnotherOne789!")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("FreshPassword456!"))
+
+    def test_tampered_or_unknown_links_are_refused(self):
+        uidb64, token = self.mint_link()
+        cases = (
+            (uidb64, token + "x"),
+            ("not-a-uid", token),
+            (urlsafe_base64_encode(force_bytes(99999)), token),
+        )
+        for bad_uid, bad_token in cases:
+            res = self.reset(bad_uid, bad_token)
+            self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST, res.data)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("OldPassword123!"))
+
+    def test_weak_passwords_are_refused(self):
+        uidb64, token = self.mint_link()
+        res = self.reset(uidb64, token, new_password="123")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("OldPassword123!"))
+
+
+class PasswordChangeInvalidationTestCase(TestCase):
+    """Changing a password retires every token issued before it."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            username="session_holder",
+            email="sessions@example.com",
+            password="OldPassword123!",
+            role=User.Role.STAFF,
+        )
+        res = self.client.post(
+            "/api/v1/auth/token/",
+            {"username": "session_holder", "password": "OldPassword123!"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.access = res.data["access"]
+        self.refresh = res.data["refresh"]
+
+        # JWT iat is whole-second precision; step past the current second
+        # so the tokens above are definitively "older" than the change.
+        time.sleep(1.1)
+
+    def authed(self, token=None):
+        return self.client.get(
+            "/api/v1/auth/me/",
+            HTTP_AUTHORIZATION=f"Bearer {token or self.access}",
+        )
+
+    def test_old_access_token_stops_authenticating_after_a_change(self):
+        self.assertEqual(self.authed().status_code, status.HTTP_200_OK)
+
+        self.user.change_password("NewPassword123!")
+
+        res = self.authed()
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_old_refresh_token_cannot_be_traded_after_a_change(self):
+        self.user.change_password("NewPassword123!")
+        res = self.client.post(
+            "/api/v1/auth/token/refresh/", {"refresh": self.refresh}, format="json"
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_new_tokens_work_normally(self):
+        # No password change - the pair must keep trading.
+        res = self.client.post(
+            "/api/v1/auth/token/refresh/", {"refresh": self.refresh}, format="json"
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn("access", res.data)
+
+        # And after a change, signing in afresh issues usable tokens.
+        self.user.change_password("NewPassword123!")
+        res = self.client.post(
+            "/api/v1/auth/token/",
+            {"username": "session_holder", "password": "NewPassword123!"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(self.authed(res.data["access"]).status_code, status.HTTP_200_OK)
+        res = self.client.post(
+            "/api/v1/auth/token/refresh/",
+            {"refresh": res.data["refresh"]},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+    def test_change_password_endpoint_stamps_the_timestamp(self):
+        res = self.client.post(
+            "/api/v1/auth/change-password/",
+            {"old_password": "OldPassword123!", "new_password": "NewPassword123!"},
+            format="json",
+            HTTP_AUTHORIZATION=f"Bearer {self.access}",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        self.user.refresh_from_db()
+        self.assertIsNotNone(self.user.password_changed_at)
+        self.assertTrue(self.user.check_password("NewPassword123!"))
+
+        # The password this very request used no longer authenticates
+        # anywhere else - that is the point of the timestamp.
+        self.assertEqual(self.authed().status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_accounts_that_never_changed_are_unaffected(self):
+        untouched = User.objects.create_user(
+            username="never_changed", email="untouched@example.com", password="Password123!"
+        )
+        res = self.client.post(
+            "/api/v1/auth/token/",
+            {"username": "never_changed", "password": "Password123!"},
+            format="json",
+        )
+        access = res.data["access"]
+        res = self.client.get(
+            "/api/v1/auth/me/", HTTP_AUTHORIZATION=f"Bearer {access}"
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["username"], untouched.username)

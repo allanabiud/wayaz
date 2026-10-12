@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ export function LoginDialog({
   onSuccess,
 }: Props) {
   const { signIn } = useAuth();
+  const router = useRouter();
   const [mode, setMode] = useState<"login" | "register">("login");
 
   // Login state
@@ -209,6 +211,21 @@ export function LoginDialog({
                   )}
                 </Button>
               </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                className="text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                onClick={() => {
+                  // Close first - the reset flow is a full page, not a
+                  // step inside this dialog.
+                  onOpenChange(false);
+                  router.push("/forgot-password");
+                }}
+              >
+                Forgot password?
+              </button>
             </div>
 
             {error && (

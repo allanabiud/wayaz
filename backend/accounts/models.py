@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import UserManager as DjangoUserManager
 from django.db import models
+from django.utils import timezone
 
 
 class UserManager(DjangoUserManager):
@@ -27,6 +28,9 @@ class User(AbstractUser):
     role = models.CharField(
         max_length=20, choices=Role.choices, default=Role.CUSTOMER
     )
+    # Tokens issued before this moment are refused (access on the next
+    # request, refresh on the next trade). NULL = never changed here.
+    password_changed_at = models.DateTimeField(null=True, blank=True)
 
     objects = UserManager()
 
@@ -37,6 +41,16 @@ class User(AbstractUser):
     def display_name(self):
         full = self.get_full_name()
         return full if full else self.username
+
+    def change_password(self, raw_password):
+        """Set a new password and retire every token issued before now.
+
+        The stamp is truncated to whole seconds to match the `iat` claim
+        on JWTs - otherwise a sign-in in the same second as the change
+        would look older than the change itself."""
+        self.set_password(raw_password)
+        self.password_changed_at = timezone.now().replace(microsecond=0)
+        self.save(update_fields=["password", "password_changed_at"])
 
     def __str__(self):
         return f"{self.display_name} ({self.get_role_display()})"
