@@ -102,7 +102,7 @@ function LoginForm() {
         <div className="flex flex-col items-center text-center space-y-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/waynz_logo.jpg"
+            src="/wayaz_logo.jpeg"
             alt="Wayaz Collection"
             className="h-16 w-auto rounded-2xl shadow-md border border-border/60 object-contain"
           />

@@ -132,7 +132,7 @@ export function StoreHeader() {
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/waynz_logo.jpg"
+            src="/wayaz_logo.jpeg"
             alt="Wayaz Collection"
             className="h-auto max-h-9 w-auto sm:h-full sm:max-h-full"
           />

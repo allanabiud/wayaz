@@ -96,7 +96,7 @@ export function AppSidebar() {
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/waynz_logo.jpg"
+            src="/wayaz_logo.jpeg"
             alt="Wayaz Collection"
             className="block h-full w-full object-cover"
           />

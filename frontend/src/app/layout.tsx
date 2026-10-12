@@ -20,6 +20,7 @@ export const metadata: Metadata = {
     template: "%s · Wayaz Admin",
   },
   description: "Wayaz admin management dashboard.",
+  icons: { icon: "/wayaz_favicon.jpeg" },
   robots: { index: false, follow: false },
 };
 

@@ -145,7 +145,7 @@ export function LoginDialog({
         <DialogHeader className="text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/waynz_logo.jpg"
+            src="/wayaz_logo.jpeg"
             alt="Wayaz Collection"
             className="mx-auto h-10 w-auto mb-2"
           />
