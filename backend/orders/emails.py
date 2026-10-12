@@ -8,6 +8,22 @@ from django.conf import settings
 from django.core.mail import send_mail
 
 
+def _summary_lines(order):
+    """Money lines for a receipt body: subtotal, coupon, delivery, total.
+
+    The coupon line only appears when a discount was actually taken, so
+    the numbers a shopper sees always add up to the total they paid.
+    """
+    lines = [f"Subtotal: Ksh {order.subtotal}\n"]
+    if order.discount_amount > 0:
+        code = f" ({order.coupon.code})" if order.coupon else ""
+        lines.append(f"Coupon{code}: -Ksh {order.discount_amount}\n")
+    if order.shipping_fee > 0:
+        lines.append(f"Delivery: Ksh {order.shipping_fee}\n")
+    lines.append(f"Total: Ksh {order.total_amount}\n")
+    return "".join(lines)
+
+
 def send_order_confirmation_email(order):
     subject = f"Wayaz order {order.order_number} received"
     body = (
@@ -18,7 +34,8 @@ def send_order_confirmation_email(order):
         f"Items: {order.item_count}\n"
         f"Delivery: {order.get_delivery_method_display()} to "
         f"{order.town}, {order.county}\n"
-        f"Total: Ksh {order.total_amount}\n\n"
+        + _summary_lines(order)
+        + "\n"
         f"Reply to this email or message us on WhatsApp for help:\n"
         f"{order.whatsapp_link}\n\n"
         f"- Wayaz Collection"
@@ -41,8 +58,8 @@ def send_payment_received_email(order):
     body = (
         f"Hi {order.shipping_name},\n\n"
         f"We've received your M-Pesa payment for order {order.order_number}.\n\n"
-        f"Total paid: Ksh {order.total_amount}\n"
-        f"Order status: {order.get_status_display()}\n\n"
+        + _summary_lines(order)
+        + f"Order status: {order.get_status_display()}\n\n"
         f"Our team will review and confirm your order shortly. "
         f"You'll get another email once it's confirmed.\n\n"
         f"Reply to this email or message us on WhatsApp for help:\n"
@@ -71,8 +88,8 @@ def send_order_confirmed_email(order):
         f"Items: {order.item_count}\n"
         f"Delivery: {order.get_delivery_method_display()} to "
         f"{order.town}, {order.county}\n"
-        f"Total: Ksh {order.total_amount}\n"
-        f"Payment: {order.get_payment_status_display()}\n\n"
+        + _summary_lines(order)
+        + f"Payment: {order.get_payment_status_display()}\n\n"
         f"Reply to this email or message us on WhatsApp for help:\n"
         f"{order.whatsapp_link}\n\n"
         f"- Wayaz Collection"
