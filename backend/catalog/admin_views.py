@@ -22,6 +22,23 @@ from .admin_serializers import (
 User = get_user_model()
 
 
+def _order_counts_by_day(since, dates):
+    """Order counts bucketed by local calendar day, bounded by `since`.
+
+    The bound matches the query behind the matching KPI (all statuses), so
+    the bars always sum to the number shown beside the chart.
+    """
+    rows = (
+        Order.objects.filter(created_at__gte=since)
+        .values("created_at__date")
+        .annotate(n=Count("id"))
+    )
+    counts = {row["created_at__date"]: row["n"] for row in rows}
+    return [
+        {"date": day.isoformat(), "orders": counts.get(day, 0)} for day in dates
+    ]
+
+
 class AdminOverviewView(APIView):
     permission_classes = [IsStaffOrAdminUser]
 
@@ -41,8 +58,10 @@ class AdminOverviewView(APIView):
         total_categories = Category.objects.count()
         total_customers = User.objects.filter(role="customer").count()
 
-        # Time anchors for period-based KPIs (Today, This Week, This Month)
-        now = timezone.now()
+        # Time anchors for period-based KPIs (Today, This Week, This Month).
+        # Local time, not UTC: TIME_ZONE is Africa/Nairobi, so a UTC-based
+        # "today" would start at 03:00 local and drop early-morning orders.
+        now = timezone.localtime()
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         yesterday_start = today_start - timedelta(days=1)
 
@@ -188,7 +207,7 @@ class AdminOverviewView(APIView):
                 units_sold=Sum("quantity"),
                 revenue=Sum(F("unit_price") * F("quantity")),
             )
-            .order_by("-revenue", "-units_sold")[:6]
+            .order_by("-revenue", "-units_sold")[:5]
         )
         sales_products = Product.objects.in_bulk(
             [row["product_id"] for row in sales_rows]
@@ -208,7 +227,7 @@ class AdminOverviewView(APIView):
         wishlist_rows = list(
             WishlistItem.objects.values("product_id")
             .annotate(saves=Count("id"))
-            .order_by("-saves")[:6]
+            .order_by("-saves")[:5]
         )
         wishlist_products = Product.objects.in_bulk(
             [row["product_id"] for row in wishlist_rows]
@@ -368,6 +387,31 @@ class AdminOverviewView(APIView):
             for i in range(weeks_count)
         ]
 
+        # Bucketed order counts for the dashboard's Today / This Week /
+        # This Month bar chart. Unlike revenue, these count every order, so
+        # each series sums to its time_metrics.orders KPI.
+        hour_rows = (
+            Order.objects.filter(created_at__gte=today_start)
+            .values("created_at__hour")
+            .annotate(n=Count("id"))
+        )
+        hour_counts = {row["created_at__hour"]: row["n"] for row in hour_rows}
+        orders_series_today = [
+            {"date": f"{hour:02d}:00", "orders": hour_counts.get(hour, 0)}
+            for hour in range(24)
+        ]
+        orders_series_week = _order_counts_by_day(
+            week_start,
+            [week_start.date() + timedelta(days=d) for d in range(7)],
+        )
+        orders_series_month = _order_counts_by_day(
+            month_start,
+            [
+                month_start.date() + timedelta(days=d)
+                for d in range(days_in_month)
+            ],
+        )
+
         # Stock share per category
         stock_by_category = [
             {
@@ -436,6 +480,9 @@ class AdminOverviewView(APIView):
                 "revenue_series_month": revenue_series_month,
                 "revenue_summary": revenue_summary,
                 "orders_series": orders_series,
+                "orders_series_today": orders_series_today,
+                "orders_series_week": orders_series_week,
+                "orders_series_month": orders_series_month,
                 "stock_by_category": stock_by_category,
                 "recent_activity": activity[:10],
                 "low_stock_alerts": [
@@ -662,7 +709,9 @@ class AdminAnalyticsView(APIView):
     permission_classes = [IsStaffOrAdminUser]
 
     def get(self, request):
-        now = timezone.now()
+        # Local time so "This Month"/"This Year" start at local midnight
+        # rather than 03:00 (TIME_ZONE is Africa/Nairobi).
+        now = timezone.localtime()
         period = request.query_params.get("period", "30d")
         start_date_str = request.query_params.get("start_date")
         end_date_str = request.query_params.get("end_date")
@@ -694,7 +743,11 @@ class AdminAnalyticsView(APIView):
                 start_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
             elif period == "all":
                 first_order = Order.objects.order_by("created_at").first()
-                start_date = first_order.created_at if first_order else now - timedelta(days=30)
+                start_date = (
+                    timezone.localtime(first_order.created_at)
+                    if first_order
+                    else now - timedelta(days=30)
+                )
             else:  # default "30d"
                 start_date = now - timedelta(days=30)
 

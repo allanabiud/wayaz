@@ -83,8 +83,11 @@ export default function AnalyticsPage() {
     ? `/api/v1/admin/analytics/?start_date=${customStart}&end_date=${customEnd}`
     : `/api/v1/admin/analytics/?period=${period}`;
 
-  const { data, error, loading, refetch } = useQuery<AnalyticsData>(() =>
-    api.get<AnalyticsData>(queryUrl),
+  // deps: refetch whenever the period (or range) changes; without them the
+  // selector would update state but never re-request the data.
+  const { data, error, loading, refetch } = useQuery<AnalyticsData>(
+    () => api.get<AnalyticsData>(queryUrl),
+    [queryUrl],
   );
 
   const kpis = data?.kpis;
@@ -193,7 +196,14 @@ export default function AnalyticsPage() {
       )}
 
       {kpis && data && (
-        <>
+        // Wrapping the whole report keeps the previous numbers visible while
+        // a new period loads; the dimmed state confirms the filter applied.
+        <div
+          aria-busy={loading}
+          className={`space-y-6 transition-opacity ${
+            loading ? "opacity-60" : "opacity-100"
+          }`}
+        >
           {/* KPI Summary Cards */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Card>
@@ -617,7 +627,7 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
           )}
-        </>
+        </div>
       )}
     </div>
   );

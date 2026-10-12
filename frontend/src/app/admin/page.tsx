@@ -127,15 +127,16 @@ function OrdersTooltip({
   payload,
 }: {
   active?: boolean;
-  payload?: Array<{ payload?: { week_start?: string; orders?: number } }>;
+  payload?: Array<{ payload?: { date?: string; orders?: number } }>;
 }) {
   if (!active || !payload?.length || !payload[0]?.payload) return null;
   const point = payload[0].payload;
+  // Buckets are "14:00" for Today and a YYYY-MM-DD day otherwise.
+  const bucket = point.date ?? "";
+  const label = bucket.includes(":") ? bucket : bucket ? formatDay(bucket) : "";
   return (
     <div className="rounded-lg border border-border/60 bg-popover px-3 py-2 text-xs shadow-lg">
-      <p className="mb-1 font-medium text-foreground">
-        Week of {point.week_start ? formatDay(point.week_start) : ""}
-      </p>
+      <p className="mb-1 font-medium text-foreground">{label}</p>
       <p className="text-muted-foreground">
         <span className="font-semibold text-foreground">{point.orders ?? 0}</span> order
         {(point.orders ?? 0) === 1 ? "" : "s"}
@@ -191,7 +192,13 @@ export default function AdminOverviewPage() {
   const topWishlisted = data?.top_wishlisted ?? [];
   const salesSummary = data?.sales_summary;
   const revenueSummary = data?.revenue_summary;
-  const ordersSeries = data?.orders_series ?? [];
+  // Order bars follow the period filter: hourly for Today, daily otherwise.
+  const activeOrdersSeries =
+    ordersPeriod === "today"
+      ? (data?.orders_series_today ?? [])
+      : ordersPeriod === "week"
+        ? (data?.orders_series_week ?? [])
+        : (data?.orders_series_month ?? []);
   const stockByCategory = data?.stock_by_category ?? [];
   const stockUnitsByCategory = stockByCategory.reduce((sum, cat) => sum + cat.units, 0);
 
@@ -667,24 +674,26 @@ export default function AdminOverviewPage() {
                   </span>
                 </p>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex flex-1 flex-col">
                 {!revenueSummary || revenueSummary.orders_total === 0 ? (
                   <EmptyState
                     icon={ClipboardList}
                     title="No orders yet"
-                    description="Weekly order volumes appear once checkout goes live."
+                    description="Order volume appears here once checkout goes live."
                   />
                 ) : (
-                  <div className="h-56 w-full">
+                  // flex-1 so the bars fill the card even when the Top
+                  // Products list beside it stretches this row taller.
+                  <div className="min-h-56 w-full flex-1">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
-                        data={ordersSeries}
+                        data={activeOrdersSeries}
                         margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
                       >
                         <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
                         <XAxis
-                          dataKey="week_start"
-                          tickFormatter={formatDay}
+                          dataKey="date"
+                          tickFormatter={(d: string) => (d.includes(":") ? d : formatDay(d))}
                           minTickGap={32}
                           tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                           tickLine={false}
@@ -805,7 +814,7 @@ function EmptyState({
   description: string;
 }) {
   return (
-    <div className="flex h-56 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-muted/30 px-8 text-center">
+    <div className="flex min-h-56 flex-1 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-muted/30 px-8 text-center">
       <div className="mb-1 flex size-10 items-center justify-center rounded-full bg-gold/15 text-gold">
         <Icon className="size-5" />
       </div>

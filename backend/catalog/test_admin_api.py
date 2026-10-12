@@ -2,9 +2,11 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 from catalog.models import Category, Product
+from accounts.models import WishlistItem
 from orders.models import Order, OrderItem
 
 User = get_user_model()
@@ -73,6 +75,18 @@ class AdminAPITestCase(TestCase):
         self.assertIn("orders_series", res.data)
         self.assertEqual(len(res.data["orders_series"]), 8)
         self.assertEqual(res.data["orders_series"][-1]["orders"], 0)
+
+        # Period series for the dashboard bar chart's time filter.
+        for key, length in (
+            ("orders_series_today", 24),
+            ("orders_series_week", 7),
+            ("orders_series_month", timezone.localdate().day),
+        ):
+            self.assertIn(key, res.data)
+            self.assertEqual(len(res.data[key]), length)
+            self.assertTrue(
+                all(point["orders"] == 0 for point in res.data[key])
+            )
 
     def test_admin_nav_counts(self):
         Order.objects.create(
@@ -210,6 +224,21 @@ class AdminAPITestCase(TestCase):
         self.assertEqual(orders_series[-1]["orders"], 4)
         self.assertEqual(sum(point["orders"] for point in orders_series), 4)
 
+        # The period series drive the dashboard's time filter, so each one
+        # must sum to the matching time_metrics KPI shown beside it.
+        metrics = res.data["time_metrics"]["orders"]
+        for key, period in (
+            ("orders_series_today", "today"),
+            ("orders_series_week", "week"),
+            ("orders_series_month", "month"),
+        ):
+            series = res.data[key]
+            self.assertEqual(
+                sum(point["orders"] for point in series),
+                metrics[period]["current"],
+            )
+            self.assertEqual(metrics[period]["current"], 4)
+
     def _make_sale(
         self,
         product,
@@ -264,6 +293,31 @@ class AdminAPITestCase(TestCase):
         self.assertEqual(top[1]["units_sold"], 2)
         self.assertEqual(top[1]["revenue"], 6000.0)
         self.assertEqual(res.data["sales_summary"]["units_sold"], 7)
+
+    def test_admin_overview_top_lists_capped_at_five(self):
+        # Six products, each outselling the last, so the cap drops the
+        # lowest-ranked one rather than an arbitrary row.
+        for i in range(6):
+            product = Product.objects.create(
+                title=f"Runner {i}",
+                category=self.category,
+                base_price=1000.00,
+                stock_quantity=10,
+            )
+            self._make_sale(product, i + 1, Decimal("1000.00"))
+            WishlistItem.objects.create(user=self.customer, product=product)
+
+        self.client.force_authenticate(user=self.admin_user)
+        res = self.client.get("/api/v1/admin/overview/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        top = res.data["top_products"]
+        self.assertEqual(len(top), 5)
+        self.assertEqual(top[0]["title"], "Runner 5")
+        self.assertEqual(top[-1]["title"], "Runner 1")
+
+        # The wishlist ranking is capped the same way.
+        self.assertEqual(len(res.data["top_wishlisted"]), 5)
 
     def test_admin_overview_top_products_excludes_cancelled(self):
         self._make_sale(

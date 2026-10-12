@@ -79,6 +79,9 @@ export interface Overview {
   revenue_series_month?: RevenuePoint[];
   revenue_summary: RevenueSummary;
   orders_series: OrdersWeek[];
+  orders_series_today?: OrderPoint[];
+  orders_series_week?: OrderPoint[];
+  orders_series_month?: OrderPoint[];
 }
 
 export interface TopProduct {
@@ -105,6 +108,12 @@ export interface RevenueSummary {
 
 export interface OrdersWeek {
   week_start: string;
+  orders: number;
+}
+
+/** Bucketed order counts driving the dashboard bar chart's time filter. */
+export interface OrderPoint {
+  date: string;
   orders: number;
 }
 
