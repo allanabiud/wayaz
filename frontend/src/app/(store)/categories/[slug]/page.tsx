@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { CategoryView } from "@/components/store/category-view";
+import { parseCatalogFilters, toProductQuery } from "@/lib/catalog-filters";
 import type { StoreProduct } from "@/lib/store";
 import type { Category, Paginated } from "@/lib/types";
 
@@ -10,7 +11,7 @@ const PAGE_SIZE = 20;
 
 interface PageProps {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 /** Shared by generateMetadata and the page - React cache dedupes the call. */
@@ -45,18 +46,23 @@ export default async function CategoryPage({
   searchParams,
 }: PageProps) {
   const { slug } = await params;
-  const { page: pageParam } = await searchParams;
+  const query = await searchParams;
 
-  const page = Number(pageParam ?? "1");
+  const rawPage = Array.isArray(query.page) ? query.page[0] : query.page;
+  const page = Number(rawPage ?? "1");
   if (!Number.isInteger(page) || page < 1) notFound();
+
+  const filters = parseCatalogFilters(query);
 
   const category = await fetchCategory(slug);
   if (!category) notFound();
 
   let listing: Paginated<StoreProduct>;
   try {
+    const filterQuery = toProductQuery(filters);
     listing = await api.get<Paginated<StoreProduct>>(
-      `/api/v1/catalog/products/?category=${encodeURIComponent(slug)}&page_size=${PAGE_SIZE}&page=${page}`,
+      `/api/v1/catalog/products/?category=${encodeURIComponent(slug)}&page_size=${PAGE_SIZE}&page=${page}` +
+        (filterQuery ? `&${filterQuery}` : ""),
     );
   } catch (err) {
     // DRF 404s pages beyond the last one; malformed input is treated alike.
@@ -75,6 +81,7 @@ export default async function CategoryPage({
       count={listing.count}
       page={page}
       pages={pages}
+      filters={filters}
     />
   );
 }

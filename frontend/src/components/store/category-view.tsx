@@ -4,9 +4,16 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/admin/states";
+import { CatalogToolbar } from "@/components/store/catalog-toolbar";
 import { PaginationBar } from "@/components/store/pagination-bar";
 import { ProductCard } from "@/components/store/product-card";
 import { useStore } from "@/components/store/store-context";
+import {
+  buildCatalogHref,
+  DEFAULT_FILTERS,
+  hasActiveFilters,
+  type CatalogFilters,
+} from "@/lib/catalog-filters";
 import type { StoreProduct } from "@/lib/store";
 import type { Category } from "@/lib/types";
 
@@ -17,21 +24,23 @@ interface CategoryViewProps {
   count: number;
   page: number;
   pages: number;
+  /** Sort/price state mirrored in the URL. */
+  filters: CatalogFilters;
 }
 
-function pageHref(slug: string, page: number): string {
-  return page <= 1 ? `/categories/${slug}` : `/categories/${slug}?page=${page}`;
-}
-
-/** Dedicated category listing: breadcrumb, header, grid, pagination. */
+/** Dedicated category listing: breadcrumb, header, filters, grid, pagination. */
 export function CategoryView({
   category,
   products,
   count,
   page,
   pages,
+  filters,
 }: CategoryViewProps) {
   const { addingId, addProduct, cartProductIds, openCart } = useStore();
+
+  const base = `/categories/${category.slug}`;
+  const filtered = hasActiveFilters(filters);
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
@@ -70,15 +79,30 @@ export function CategoryView({
         </p>
       )}
 
+      <CatalogToolbar filters={filters} basePath={base} />
+
       {products.length === 0 ? (
         <div className="mt-8">
           <EmptyState
-            title="Nothing here yet"
-            hint={`New ${category.name.toLowerCase()} pieces will appear here soon - meanwhile, browse the full collection.`}
+            title={filtered ? "No items match those filters" : "Nothing here yet"}
+            hint={
+              filtered
+                ? "Try widening the price range, or clear the filters to see everything."
+                : `New ${category.name.toLowerCase()} pieces will appear here soon - meanwhile, browse the full collection.`
+            }
             action={
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/">Browse the collection</Link>
-              </Button>
+              filtered ? (
+                // A plain link: dropping every filter returns to the clean URL.
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={buildCatalogHref(base, DEFAULT_FILTERS)}>
+                    Clear filters
+                  </Link>
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/">Browse the collection</Link>
+                </Button>
+              )
             }
           />
         </div>
@@ -100,7 +124,7 @@ export function CategoryView({
       <PaginationBar
         page={page}
         pages={pages}
-        hrefFor={(target) => pageHref(category.slug, target)}
+        hrefFor={(target) => buildCatalogHref(base, filters, { page: target })}
       />
     </main>
   );

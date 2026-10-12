@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import Q, F, Avg, Count
+from django.db.models import Q, F, Avg, Count, Case, DecimalField, When
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -10,6 +10,16 @@ from .serializers import (
     ProductListSerializer,
     ProductDetailSerializer,
     ProductReviewSerializer,
+)
+
+# What the shopper actually pays: the sale price while a sale is live,
+# otherwise the base price. Filtering and sorting on this rather than
+# base_price keeps sale items correct - a Ksh 3,000 sale piece has to show
+# up under "up to Ksh 4,000" and sort before a Ksh 4,000 full-price one.
+EFFECTIVE_PRICE = Case(
+    When(sale_price__isnull=False, sale_price__lt=F("base_price"), then=F("sale_price")),
+    default=F("base_price"),
+    output_field=DecimalField(max_digits=10, decimal_places=2),
 )
 
 
@@ -108,7 +118,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(rating_payload(product, request.user))
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().annotate(effective_price=EFFECTIVE_PRICE)
         params = self.request.query_params
 
         category_slug = params.get("category")
@@ -121,14 +131,14 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         min_price = params.get("min_price")
         if min_price:
             try:
-                qs = qs.filter(base_price__gte=float(min_price))
+                qs = qs.filter(effective_price__gte=float(min_price))
             except ValueError:
                 pass
 
         max_price = params.get("max_price")
         if max_price:
             try:
-                qs = qs.filter(base_price__lte=float(max_price))
+                qs = qs.filter(effective_price__lte=float(max_price))
             except ValueError:
                 pass
 
@@ -141,14 +151,16 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
         ordering = params.get("ordering")
+        # `-created_at` rides along as a tiebreaker so pages stay stable when
+        # several products share a price.
         if ordering == "price_asc":
-            qs = qs.order_by("base_price")
+            qs = qs.order_by("effective_price", "-created_at")
         elif ordering == "price_desc":
-            qs = qs.order_by("-base_price")
+            qs = qs.order_by("-effective_price", "-created_at")
         elif ordering == "newest":
             qs = qs.order_by("-created_at")
         elif ordering == "title":
-            qs = qs.order_by("title")
+            qs = qs.order_by("title", "-created_at")
 
         return qs
 

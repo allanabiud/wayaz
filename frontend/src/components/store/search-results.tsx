@@ -5,9 +5,16 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/admin/states";
+import { CatalogToolbar } from "@/components/store/catalog-toolbar";
 import { PaginationBar } from "@/components/store/pagination-bar";
 import { ProductCard } from "@/components/store/product-card";
 import { useStore } from "@/components/store/store-context";
+import {
+  buildCatalogHref,
+  DEFAULT_FILTERS,
+  hasActiveFilters,
+  type CatalogFilters,
+} from "@/lib/catalog-filters";
 import { rememberSearch, type StoreProduct } from "@/lib/store";
 
 interface SearchResultsProps {
@@ -17,20 +24,18 @@ interface SearchResultsProps {
   count: number;
   page: number;
   pages: number;
+  /** Sort/price state mirrored in the URL. */
+  filters: CatalogFilters;
 }
 
-function searchHref(query: string, page: number): string {
-  const base = `/search?q=${encodeURIComponent(query)}`;
-  return page <= 1 ? base : `${base}&page=${page}`;
-}
-
-/** Dedicated results page: breadcrumb, gold header, grid, pagination. */
+/** Dedicated results page: breadcrumb, gold header, filters, grid, pagination. */
 export function SearchResults({
   query,
   products,
   count,
   page,
   pages,
+  filters,
 }: SearchResultsProps) {
   const { addingId, addProduct, cartProductIds, openCart } = useStore();
 
@@ -90,38 +95,64 @@ export function SearchResults({
             }
           />
         </div>
-      ) : count === 0 ? (
-        <div className="mt-8">
-          <EmptyState
-            title={`No results for “${query}”`}
-            hint="Try another word, or browse everything we have in stock."
-            action={
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/">Browse the collection</Link>
-              </Button>
-            }
-          />
-        </div>
       ) : (
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-          {products.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              adding={addingId === product.id}
-              inCart={cartProductIds.has(product.id)}
-              onAdd={(p) => void addProduct(p)}
-              onOpenCart={openCart}
-            />
-          ))}
-        </div>
+        <>
+          <CatalogToolbar filters={filters} basePath="/search" search={query} />
+
+          {count === 0 ? (
+            <div className="mt-8">
+              {hasActiveFilters(filters) ? (
+                <EmptyState
+                  title={`No results for “${query}” with those filters`}
+                  hint="Try widening the price range, or clear the filters to see every match."
+                  action={
+                    <Button variant="outline" size="sm" asChild>
+                      <Link
+                        href={buildCatalogHref("/search", DEFAULT_FILTERS, {
+                          q: query,
+                        })}
+                      >
+                        Clear filters
+                      </Link>
+                    </Button>
+                  }
+                />
+              ) : (
+                <EmptyState
+                  title={`No results for “${query}”`}
+                  hint="Try another word, or browse everything we have in stock."
+                  action={
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href="/">Browse the collection</Link>
+                    </Button>
+                  }
+                />
+              )}
+            </div>
+          ) : (
+            <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+              {products.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  adding={addingId === product.id}
+                  inCart={cartProductIds.has(product.id)}
+                  onAdd={(p) => void addProduct(p)}
+                  onOpenCart={openCart}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {query && (
         <PaginationBar
           page={page}
           pages={pages}
-          hrefFor={(target) => searchHref(query, target)}
+          hrefFor={(target) =>
+            buildCatalogHref("/search", filters, { q: query, page: target })
+          }
         />
       )}
     </main>

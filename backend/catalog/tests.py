@@ -150,3 +150,71 @@ class ProductReviewAPITestCase(TestCase):
             f"/api/v1/catalog/products/{self.product.slug}/"
         )
         self.assertEqual(as_owner.data["user_rating"], 4)
+
+
+class ProductPriceFilterTestCase(TestCase):
+    """min_price / max_price / ordering work off the price actually charged
+    (sale price while a sale is live), not the pre-sale sticker price."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.category = Category.objects.create(name="Denim", slug="denim")
+        # Costs 4,200 today; the sticker says 5,000.
+        self.on_sale = Product.objects.create(
+            title="On Sale Jean",
+            category=self.category,
+            base_price=5000.00,
+            sale_price=4200.00,
+            stock_quantity=5,
+        )
+
+    def list(self, query):
+        response = self.client.get(f"/api/v1/catalog/products/?{query}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        return response.data.get("results", response.data)
+
+    def test_max_price_accepts_the_sale_price(self):
+        # 4,200 fits the budget even though the sticker price does not.
+        results = self.list("max_price=4500")
+        self.assertEqual([p["id"] for p in results], [self.on_sale.id])
+
+    def test_max_price_still_hides_pricier_items(self):
+        self.assertEqual(self.list("max_price=4000"), [])
+
+    def test_min_price_uses_the_sale_price(self):
+        # Its 4,200 sale price sits below the floor, so it drops out.
+        self.assertEqual(self.list("min_price=4300"), [])
+        self.assertEqual(len(self.list("min_price=4100")), 1)
+
+    def test_non_numeric_price_is_ignored(self):
+        # Garbage in the query string must not blow up the listing.
+        self.assertEqual(len(self.list("min_price=free")), 1)
+
+    def test_price_sort_ignores_the_sticker_price(self):
+        # Current prices: Cheap Sale 2,500 / Plain 4,000 / On Sale 4,200.
+        # The sticker prices claim the opposite order (5,000 vs 4,000).
+        Product.objects.create(
+            title="Cheap Sale Jean",
+            category=self.category,
+            base_price=5000.00,
+            sale_price=2500.00,
+            stock_quantity=5,
+        )
+        Product.objects.create(
+            title="Plain Jean",
+            category=self.category,
+            base_price=4000.00,
+            stock_quantity=5,
+        )
+
+        titles = [p["title"] for p in self.list("ordering=price_asc")]
+        self.assertEqual(
+            titles,
+            ["Cheap Sale Jean", "Plain Jean", "On Sale Jean"],
+        )
+
+        titles = [p["title"] for p in self.list("ordering=price_desc")]
+        self.assertEqual(
+            titles,
+            ["On Sale Jean", "Plain Jean", "Cheap Sale Jean"],
+        )
