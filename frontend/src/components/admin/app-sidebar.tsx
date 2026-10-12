@@ -10,6 +10,7 @@ import {
   MessageSquare,
   ShoppingBag,
   Tags,
+  Ticket,
   Users,
 } from "lucide-react";
 import {
@@ -59,6 +60,7 @@ const navGroups: NavGroup[] = [
       { title: "Products", icon: ShoppingBag, href: "/admin/products", countKey: "products" },
       { title: "Categories", icon: Tags, href: "/admin/categories", countKey: "categories" },
       { title: "Reviews", icon: MessageSquare, href: "/admin/reviews", countKey: "reviews" },
+      { title: "Coupons", icon: Ticket, href: "/admin/coupons", countKey: "coupons" },
       { title: "Customers", icon: Users, href: "/admin/customers", countKey: "customers" },
     ],
   },

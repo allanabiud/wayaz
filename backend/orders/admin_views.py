@@ -1,11 +1,13 @@
-from django.db.models import Q
-from rest_framework import status
-from rest_framework.response import Response
+from django.db.models import Q, Count
+from rest_framework import status, viewsets
 from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from accounts.permissions import IsStaffOrAdminUser
 from .emails import send_order_confirmed_email
-from .models import Order
+from .models import Coupon, Order
+from .admin_serializers import AdminCouponSerializer
 
 
 class AdminOrdersView(APIView):
@@ -159,3 +161,16 @@ class AdminOrderDetailView(APIView):
                 "payment_status": order.payment_status,
             }
         )
+
+
+class AdminCouponViewSet(viewsets.ModelViewSet):
+    """CRUD for checkout coupons, annotated with how many orders used each.
+
+    Deleting a coupon is safe for history: Order.coupon is SET_NULL, so
+    past orders keep their discount_amount - only the label is lost.
+    """
+
+    queryset = Coupon.objects.annotate(order_count=Count("orders")).all()
+    serializer_class = AdminCouponSerializer
+    permission_classes = [IsStaffOrAdminUser]
+    lookup_field = "id"

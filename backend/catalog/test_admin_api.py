@@ -114,6 +114,7 @@ class AdminAPITestCase(TestCase):
                 "products": 1,
                 "categories": 1,
                 "reviews": 0,
+                "coupons": 0,
                 "customers": 1,
             },
         )

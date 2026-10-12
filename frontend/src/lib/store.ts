@@ -114,6 +114,8 @@ export interface StoreOrder {
   discount_amount: string;
   shipping_fee: string;
   total_amount: string;
+  /** Code of the coupon that produced discount_amount, if any. */
+  coupon_code: string | null;
   item_count: number;
   items: StoreOrderItem[];
   whatsapp_link: string;
@@ -291,6 +293,25 @@ export interface CheckoutPayload {
   delivery_method?: string;
   payment_method?: "cod" | "mpesa";
   guest_id?: string;
+  coupon_code?: string;
+}
+
+/** What POST .../coupons/validate/ says a code is worth on the current cart. */
+export interface CouponValidation {
+  code: string;
+  discount_type: "percent" | "fixed";
+  /** Discount for the cart as it stands right now. */
+  discount_amount: string;
+  cart_subtotal: string;
+}
+
+/** Dry-run a coupon against the caller's cart (guests included). */
+export function validateCoupon(code: string): Promise<CouponValidation> {
+  return api.post<CouponValidation>(
+    "/api/v1/orders/coupons/validate/",
+    { code },
+    { headers: cartHeaders() },
+  );
 }
 
 export function submitCheckout(payload: CheckoutPayload): Promise<StoreOrder> {

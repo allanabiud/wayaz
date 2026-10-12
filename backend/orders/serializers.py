@@ -138,6 +138,12 @@ class MergeCartSerializer(serializers.Serializer):
     guest_cart_id = serializers.UUIDField()
 
 
+class CouponValidateSerializer(serializers.Serializer):
+    """Dry-run request for CouponValidateView (no cart maths here)."""
+
+    code = serializers.CharField(max_length=40)
+
+
 class CheckoutSerializer(serializers.Serializer):
     """Customer details, delivery selection, and payment method (Step 6.4)."""
 
@@ -157,6 +163,11 @@ class CheckoutSerializer(serializers.Serializer):
     )
     guest_id = serializers.CharField(
         max_length=64, required=False, allow_blank=True, default=""
+    )
+    # Optional; validated against the Coupon table inside the checkout
+    # transaction so the discount can never be forged by the client.
+    coupon_code = serializers.CharField(
+        max_length=40, required=False, allow_blank=True, default=""
     )
 
 
@@ -185,6 +196,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     whatsapp_link = serializers.SerializerMethodField()
+    coupon_code = serializers.SerializerMethodField()
     item_count = serializers.IntegerField(read_only=True)
     # Human-readable labels so the storefront never re-learns backend choices.
     status_display = serializers.CharField(
@@ -216,6 +228,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "delivery_method",
             "delivery_method_display",
             "subtotal",
+            "coupon_code",
             "discount_amount",
             "shipping_fee",
             "total_amount",
@@ -224,6 +237,9 @@ class OrderSerializer(serializers.ModelSerializer):
             "whatsapp_link",
             "created_at",
         )
+
+    def get_coupon_code(self, obj):
+        return obj.coupon.code if obj.coupon else None
 
     def get_whatsapp_link(self, obj):
         return obj.whatsapp_link

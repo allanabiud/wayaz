@@ -5,7 +5,7 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 from catalog.models import Category, Product
-from orders.models import Cart, CartItem, Order, OrderItem
+from orders.models import Cart, CartItem, Coupon, Order, OrderItem
 
 User = get_user_model()
 
@@ -499,3 +499,284 @@ class AdminOrderConfirmTestCase(TestCase):
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.order.refresh_from_db()
         self.assertEqual(self.order.status, Order.Status.PROCESSING)
+
+
+class CouponCheckoutTestCase(TestCase):
+    """Coupons at checkout: the maths is server-side, guests included."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.category = Category.objects.create(name="Jeans", slug="jeans")
+        self.product = Product.objects.create(
+            title="Wide-Leg Jeans",
+            category=self.category,
+            base_price=3000.00,
+            stock_quantity=10,
+        )
+        self.cart = Cart.objects.create()
+        CartItem.objects.create(cart=self.cart, product=self.product, quantity=2)
+        self.percent = Coupon.objects.create(
+            code="welcome10",
+            discount_type=Coupon.DiscountType.PERCENT,
+            discount_value=Decimal("10"),
+        )
+        self.fixed = Coupon.objects.create(
+            code="TAKE500",
+            discount_type=Coupon.DiscountType.FIXED,
+            discount_value=Decimal("500"),
+        )
+        self.paused = Coupon.objects.create(
+            code="PAUSED",
+            discount_type=Coupon.DiscountType.PERCENT,
+            discount_value=Decimal("50"),
+            is_active=False,
+        )
+        self.payload = {
+            "email": "shopper@example.com",
+            "phone_number": "+254712345678",
+            "full_name": "Jane Wanjiku",
+            "county": "Nairobi",
+            "town": "Kilimani",
+            "street_address": "12 Riara Road",
+            "payment_method": "cod",
+        }
+
+    def checkout(self, coupon_code=None, cart=None):
+        payload = dict(self.payload)
+        if coupon_code is not None:
+            payload["coupon_code"] = coupon_code
+        cart_id = str((cart or self.cart).id)
+        return self.client.post(
+            "/api/v1/orders/checkout/",
+            payload,
+            format="json",
+            **{"HTTP_X_CART_ID": cart_id},
+        )
+
+    def test_percent_coupon_reduces_the_total(self):
+        res = self.checkout("welcome10")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        # 2 x 3000 = 6000 subtotal; 10% comes off the goods, not delivery.
+        self.assertEqual(Decimal(str(res.data["subtotal"])), Decimal("6000.00"))
+        self.assertEqual(Decimal(str(res.data["discount_amount"])), Decimal("600.00"))
+        self.assertEqual(Decimal(str(res.data["total_amount"])), Decimal("5400.00"))
+        self.assertEqual(res.data["coupon_code"], "WELCOME10")
+
+    def test_fixed_coupon_subtracts_its_amount(self):
+        res = self.checkout("TAKE500")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Decimal(str(res.data["discount_amount"])), Decimal("500.00"))
+        self.assertEqual(Decimal(str(res.data["total_amount"])), Decimal("5500.00"))
+
+    def test_code_matching_is_case_insensitive_and_normalised(self):
+        # Codes are stored uppercase; shoppers may type them any which way.
+        res = self.checkout("WeLcOmE10")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        order = Order.objects.get(order_number=res.data["order_number"])
+        self.assertEqual(order.coupon.code, "WELCOME10")
+
+    def test_discount_never_exceeds_the_goods_total(self):
+        Coupon.objects.create(
+            code="HALFOFF",
+            discount_type=Coupon.DiscountType.FIXED,
+            discount_value=Decimal("99999"),
+        )
+        res = self.checkout("HALFOFF")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Decimal(str(res.data["discount_amount"])), Decimal("6000.00"))
+        self.assertEqual(Decimal(str(res.data["total_amount"])), Decimal("0.00"))
+
+    def test_invalid_or_inactive_code_rejects_the_whole_order(self):
+        for code in ("NOPE", "PAUSED"):
+            res = self.checkout(code)
+            self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn("coupon_code", res.data)
+        # Nothing was ordered and no stock was committed.
+        self.assertEqual(Order.objects.count(), 0)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock_quantity, 10)
+
+    def test_checkout_without_a_coupon_is_unaffected(self):
+        res = self.checkout()
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Decimal(str(res.data["discount_amount"])), Decimal("0.00"))
+        self.assertIsNone(res.data["coupon_code"])
+        self.assertEqual(Decimal(str(res.data["total_amount"])), Decimal("6000.00"))
+
+    def test_deleting_a_coupon_keeps_past_orders_intact(self):
+        res = self.checkout("TAKE500")
+        order = Order.objects.get(order_number=res.data["order_number"])
+
+        self.fixed.delete()
+
+        order.refresh_from_db()
+        self.assertIsNone(order.coupon)
+        self.assertEqual(order.discount_amount, Decimal("500.00"))
+        self.assertEqual(order.total_amount, Decimal("5500.00"))
+
+
+class CouponValidateAPITestCase(TestCase):
+    """The checkout preview: dry-run a code against the current cart."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.category = Category.objects.create(name="Jeans", slug="jeans")
+        self.product = Product.objects.create(
+            title="Wide-Leg Jeans",
+            category=self.category,
+            base_price=3000.00,
+            stock_quantity=10,
+        )
+        self.cart = Cart.objects.create()
+        CartItem.objects.create(cart=self.cart, product=self.product, quantity=2)
+        self.coupon = Coupon.objects.create(
+            code="TAKE500",
+            discount_type=Coupon.DiscountType.FIXED,
+            discount_value=Decimal("500"),
+        )
+        Coupon.objects.create(
+            code="PAUSED",
+            discount_type=Coupon.DiscountType.PERCENT,
+            discount_value=Decimal("10"),
+            is_active=False,
+        )
+
+    def validate(self, code, cart=None):
+        return self.client.post(
+            "/api/v1/orders/coupons/validate/",
+            {"code": code},
+            format="json",
+            **{"HTTP_X_CART_ID": str((cart or self.cart).id)},
+        )
+
+    def test_valid_code_returns_the_cart_discount(self):
+        res = self.validate("take500")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["code"], "TAKE500")
+        self.assertEqual(Decimal(str(res.data["discount_amount"])), Decimal("500.00"))
+        self.assertEqual(Decimal(str(res.data["cart_subtotal"])), Decimal("6000.00"))
+
+    def test_unknown_or_inactive_code_is_rejected(self):
+        self.assertEqual(self.validate("NOPE").status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self.validate("PAUSED").status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_guest_cart_id_is_all_that_is_needed(self):
+        # No signed-in user anywhere in this request - exactly how the
+        # guest checkout flow calls it.
+        res = self.client.post(
+            "/api/v1/orders/coupons/validate/",
+            {"code": "TAKE500"},
+            format="json",
+            **{"HTTP_X_CART_ID": str(self.cart.id)},
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+    def test_discount_on_an_empty_cart_is_zero(self):
+        empty = Cart.objects.create()
+        res = self.validate("TAKE500", cart=empty)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(Decimal(str(res.data["discount_amount"])), Decimal("0.00"))
+
+
+class AdminCouponAPITestCase(TestCase):
+    """Staff manage coupons from the dashboard."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.staff = User.objects.create_user(
+            username="coupon_manager",
+            email="coupons@example.com",
+            password="Password123!",
+            role=User.Role.STAFF,
+        )
+        self.customer = User.objects.create_user(
+            username="coupon_buyer",
+            email="coupon_buyer@example.com",
+            password="Password123!",
+            role=User.Role.CUSTOMER,
+        )
+        self.used = Coupon.objects.create(
+            code="TAKE500",
+            discount_type=Coupon.DiscountType.FIXED,
+            discount_value=Decimal("500"),
+        )
+        self.list_url = "/api/v1/admin/orders/coupons/"
+
+    def test_customer_cannot_manage_coupons(self):
+        self.client.force_authenticate(user=self.customer)
+        self.assertIn(
+            self.client.get(self.list_url).status_code,
+            (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN),
+        )
+        res = self.client.post(
+            self.list_url,
+            {"code": "NOPE", "discount_type": "percent", "discount_value": "10"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_staff_creates_a_normalised_percent_coupon(self):
+        self.client.force_authenticate(user=self.staff)
+        res = self.client.post(
+            self.list_url,
+            {"code": " welcome10 ", "discount_type": "percent", "discount_value": "10"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["code"], "WELCOME10")
+        self.assertTrue(res.data["is_active"])
+        self.assertEqual(res.data["order_count"], 0)
+
+    def test_coupon_values_are_policed(self):
+        self.client.force_authenticate(user=self.staff)
+        for payload in (
+            {"code": "OVER", "discount_type": "percent", "discount_value": "150"},
+            {"code": "ZERO", "discount_type": "fixed", "discount_value": "0"},
+            {"code": "NEG", "discount_type": "fixed", "discount_value": "-5"},
+        ):
+            res = self.client.post(self.list_url, payload, format="json")
+            self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST, payload)
+
+    def test_duplicate_codes_are_rejected(self):
+        self.client.force_authenticate(user=self.staff)
+        res = self.client.post(
+            self.list_url,
+            {"code": "take500", "discount_type": "fixed", "discount_value": "500"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_toggle_is_active(self):
+        self.client.force_authenticate(user=self.staff)
+        res = self.client.patch(
+            f"{self.list_url}{self.used.id}/", {"is_active": False}, format="json"
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.used.refresh_from_db()
+        self.assertFalse(self.used.is_active)
+
+    def test_list_reports_order_counts(self):
+        Order.objects.create(
+            user=self.customer,
+            email=self.customer.email,
+            phone_number="+254712345678",
+            shipping_name="Coupon Buyer",
+            county="Nairobi",
+            town="Kilimani",
+            street_address="12 Riara Road",
+            subtotal=Decimal("6000.00"),
+            coupon=self.used,
+            discount_amount=Decimal("500.00"),
+            total_amount=Decimal("5500.00"),
+        )
+        self.client.force_authenticate(user=self.staff)
+        res = self.client.get(self.list_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        row = next(r for r in res.data["results"] if r["id"] == self.used.id)
+        self.assertEqual(row["order_count"], 1)
+
+    def test_delete_coupon(self):
+        self.client.force_authenticate(user=self.staff)
+        res = self.client.delete(f"{self.list_url}{self.used.id}/")
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Coupon.objects.filter(id=self.used.id).exists())

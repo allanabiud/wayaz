@@ -1,7 +1,23 @@
 from django.urls import path
-from .admin_views import AdminOrdersView, AdminOrderDetailView
+from rest_framework.routers import SimpleRouter
+
+from .admin_views import (
+    AdminOrdersView,
+    AdminOrderDetailView,
+    AdminCouponViewSet,
+)
+
+router = SimpleRouter()
+router.register(r"coupons", AdminCouponViewSet, basename="admin-coupons")
 
 urlpatterns = [
+    # The router must come first: the order-detail pattern below would
+    # otherwise swallow "coupons/" as an order_number.
+    *router.urls,
     path("", AdminOrdersView.as_view(), name="admin-orders"),
-    path("<str:order_number>/", AdminOrderDetailView.as_view(), name="admin-order-detail"),
+    path(
+        "<str:order_number>/",
+        AdminOrderDetailView.as_view(),
+        name="admin-order-detail",
+    ),
 ]

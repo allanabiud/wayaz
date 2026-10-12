@@ -10,12 +10,14 @@ import {
   ChevronRight,
   CreditCard,
   ExternalLink,
+  Loader2,
   Lock,
   Package,
   Pencil,
   Plus,
   ShoppingBag,
   Smartphone,
+  Tag,
   Truck,
 } from "lucide-react";
 
@@ -41,6 +43,8 @@ import {
   formatKsh,
   initiateMpesaStkPush,
   submitCheckout,
+  validateCoupon,
+  type CouponValidation,
   type StoreOrder,
 } from "@/lib/store";
 import type { Address } from "@/lib/types";
@@ -68,6 +72,15 @@ export function CheckoutView() {
   const [town, setTown] = useState("");
   const [streetAddress, setStreetAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "mpesa">("cod");
+
+  // Coupon: validated against the cart before the order exists, so the
+  // discount in the summary is the one the server will actually take.
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidation | null>(
+    null,
+  );
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<StoreOrder | null>(null);
@@ -141,6 +154,36 @@ export function CheckoutView() {
     setEditingAddress(true);
   };
 
+  const applyCoupon = async () => {
+    const code = couponInput.trim();
+    if (!code || couponBusy) return;
+    setCouponBusy(true);
+    setCouponError(null);
+    try {
+      const result = await validateCoupon(code);
+      if (Number(result.discount_amount) <= 0) {
+        setCouponError(
+          "That code does not take anything off your current cart.",
+        );
+      } else {
+        setAppliedCoupon(result);
+        setCouponInput("");
+        toast.success(`Coupon ${result.code} applied`);
+      }
+    } catch (err) {
+      setCouponError(
+        err instanceof ApiError ? err.message : "That coupon code is not valid.",
+      );
+    } finally {
+      setCouponBusy(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponError(null);
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!cart || cart.items.length === 0) {
@@ -163,6 +206,8 @@ export function CheckoutView() {
         town: town.trim(),
         street_address: streetAddress.trim(),
         payment_method: paymentMethod,
+        // The server re-validates and recomputes; this only names the code.
+        coupon_code: appliedCoupon?.code,
       });
 
       // Persist the freshly typed address for faster checkout next time.
@@ -282,6 +327,21 @@ export function CheckoutView() {
                 Free
               </span>
             </div>
+            {Number(completedOrder.discount_amount) > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">
+                  Coupon{" "}
+                  {completedOrder.coupon_code && (
+                    <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                      {completedOrder.coupon_code}
+                    </span>
+                  )}:
+                </span>
+                <span className="font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
+                  - Ksh {formatKsh(completedOrder.discount_amount)}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between border-t pt-2 font-semibold">
               <span>Total:</span>
               <span className="tabular-nums">
@@ -708,6 +768,62 @@ export function CheckoutView() {
                     Ksh {formatKsh(cart.subtotal)}
                   </span>
                 </div>
+
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                      <Tag className="size-3.5 shrink-0" />
+                      <span className="truncate font-medium">
+                        {appliedCoupon.code}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={removeCoupon}
+                        className="shrink-0 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </span>
+                    <span className="shrink-0 font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
+                      - Ksh {formatKsh(appliedCoupon.discount_amount)}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="flex gap-2">
+                      <Input
+                        value={couponInput}
+                        onChange={(e) => {
+                          setCouponInput(e.target.value);
+                          setCouponError(null);
+                        }}
+                        placeholder="Coupon code"
+                        aria-label="Coupon code"
+                        className="h-9 flex-1 uppercase text-xs"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-9 px-3 text-xs"
+                        disabled={couponBusy || !couponInput.trim()}
+                        onClick={() => void applyCoupon()}
+                      >
+                        {couponBusy ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          "Apply"
+                        )}
+                      </Button>
+                    </div>
+                    {couponError && (
+                      <p role="alert" className="text-xs text-destructive">
+                        {couponError}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Shipping</span>
                   <span className="font-medium text-emerald-600 dark:text-emerald-400">
@@ -717,7 +833,13 @@ export function CheckoutView() {
                 <div className="flex justify-between border-t pt-2 text-base font-bold">
                   <span>Total</span>
                   <span className="tabular-nums">
-                    Ksh {formatKsh(cart.subtotal)}
+                    Ksh{" "}
+                    {formatKsh(
+                      Math.round(
+                        Number(cart.subtotal) -
+                          Number(appliedCoupon?.discount_amount ?? 0),
+                      ),
+                    )}
                   </span>
                 </div>
               </div>

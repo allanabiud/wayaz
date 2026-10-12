@@ -104,6 +104,48 @@ def generate_order_number():
     raise RuntimeError("Could not generate a unique order number")  # pragma: no cover
 
 
+class Coupon(models.Model):
+    """A checkout code that takes money off an order.
+
+    Deliberately minimal - a percent or fixed amount, on or off. No expiry
+    dates, usage caps or spend thresholds; those can wait until there is
+    real usage data to justify them.
+    """
+
+    class DiscountType(models.TextChoices):
+        PERCENT = "percent", "Percentage"
+        FIXED = "fixed", "Fixed amount"
+
+    code = models.CharField(max_length=40, unique=True)
+    discount_type = models.CharField(
+        max_length=16, choices=DiscountType.choices, default=DiscountType.PERCENT
+    )
+    discount_value = models.DecimalField(max_digits=10, decimal_places=2)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        # Codes are typed by humans; normalise so WELCOME10 == welcome10.
+        self.code = self.code.strip().upper()
+        super().save(*args, **kwargs)
+
+    def discount_for(self, amount):
+        """Discount for a pre-discount `amount`, clamped so it is never
+        worth more than what it comes off."""
+        amount = Decimal(amount)  # an empty sum() is a plain int 0
+        if self.discount_type == self.DiscountType.PERCENT:
+            discount = amount * self.discount_value / Decimal("100")
+        else:
+            discount = self.discount_value
+        return min(discount, amount).quantize(Decimal("0.01"))
+
+    def __str__(self):
+        return self.code
+
+
 class Order(models.Model):
     class Status(models.TextChoices):
         PROCESSING = "PROCESSING", "Processing"
@@ -150,6 +192,9 @@ class Order(models.Model):
     # Financials
     subtotal = models.DecimalField(
         max_digits=10, decimal_places=2, default=Decimal("0.00")
+    )
+    coupon = models.ForeignKey(
+        Coupon, null=True, blank=True, on_delete=models.SET_NULL, related_name="orders"
     )
     discount_amount = models.DecimalField(
         max_digits=10, decimal_places=2, default=Decimal("0.00")

@@ -122,6 +122,7 @@ export interface NavCounts {
   products: number;
   categories: number;
   reviews: number;
+  coupons: number;
   customers: number;
 }
 
@@ -168,6 +169,17 @@ export interface AdminReview {
   is_approved: boolean;
   created_at: string;
   updated_at: string;
+}
+
+/** Row for the coupons dashboard. */
+export interface AdminCoupon {
+  id: number;
+  code: string;
+  discount_type: "percent" | "fixed";
+  discount_value: string;
+  is_active: boolean;
+  order_count: number;
+  created_at: string;
 }
 
 export interface ProductImage {

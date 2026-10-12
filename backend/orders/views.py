@@ -13,11 +13,12 @@ from accounts.models import Address
 from catalog.models import Product
 from .delivery import delivery_fee
 from .emails import send_order_confirmation_email
-from .models import Cart, CartItem, Order, OrderItem
+from .models import Cart, CartItem, Coupon, Order, OrderItem
 from .serializers import (
     CartSerializer,
     AddToCartSerializer,
     CheckoutSerializer,
+    CouponValidateSerializer,
     OrderSerializer,
     UpdateCartItemSerializer,
     MergeCartSerializer,
@@ -223,6 +224,7 @@ class OrderListView(generics.ListAPIView):
     def get_queryset(self):
         return (
             Order.objects.filter(user=self.request.user)
+            .select_related("coupon")
             .prefetch_related("items")
             .order_by("-created_at")
         )
@@ -282,6 +284,18 @@ class CheckoutView(APIView):
                 subtotal = sum(item.line_total for item in items)
                 shipping_fee = delivery_fee(data["delivery_method"], subtotal)
                 discount = Decimal("0.00")
+                coupon = None
+                code = (data.get("coupon_code") or "").strip()
+                if code:
+                    coupon = Coupon.objects.filter(
+                        code__iexact=code, is_active=True
+                    ).first()
+                    if coupon is None:
+                        raise ValidationError(
+                            {"coupon_code": "That coupon code is not valid."}
+                        )
+                    # Discounts come off the goods, not the delivery fee.
+                    discount = coupon.discount_for(subtotal)
                 total = subtotal + shipping_fee - discount
 
                 # New order begins in PROCESSING pipeline stage - staff
@@ -301,6 +315,7 @@ class CheckoutView(APIView):
                     delivery_method=data["delivery_method"],
                     shipping_fee=shipping_fee,
                     subtotal=subtotal,
+                    coupon=coupon,
                     discount_amount=discount,
                     total_amount=total,
                     status=order_status,
@@ -354,3 +369,36 @@ class CheckoutView(APIView):
         send_order_confirmation_email(order)
 
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+
+
+class CouponValidateView(APIView):
+    """POST /api/v1/orders/coupons/validate/ - dry-run a code against the
+    caller's current cart so checkout can show the discount before the
+    order is placed. Guests use the same X-Cart-ID resolution as the cart
+    endpoints, so coupons work without an account."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = CouponValidateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        code = serializer.validated_data["code"]
+
+        try:
+            coupon = Coupon.objects.get(code__iexact=code, is_active=True)
+        except Coupon.DoesNotExist:
+            return Response(
+                {"detail": "That coupon code is not valid."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cart = get_or_create_cart(request)
+        subtotal = sum(item.line_total for item in cart.items.all())
+        return Response(
+            {
+                "code": coupon.code,
+                "discount_type": coupon.discount_type,
+                "discount_amount": str(coupon.discount_for(subtotal)),
+                "cart_subtotal": str(subtotal),
+            }
+        )

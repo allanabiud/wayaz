@@ -11,7 +11,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from accounts.models import WishlistItem
 from accounts.permissions import IsStaffOrAdminUser
-from orders.models import Order, OrderItem
+from orders.models import Coupon, Order, OrderItem
 from .models import Category, Product, ProductImage, ProductReview
 from .admin_serializers import (
     AdminCategorySerializer,
@@ -515,6 +515,7 @@ class AdminNavCountsView(APIView):
                 "products": Product.objects.count(),
                 "categories": Category.objects.count(),
                 "reviews": ProductReview.objects.count(),
+                "coupons": Coupon.objects.count(),
                 "customers": User.objects.filter(role="customer").count(),
             }
         )

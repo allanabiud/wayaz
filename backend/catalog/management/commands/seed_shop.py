@@ -25,7 +25,7 @@ from django.utils import timezone
 
 from accounts.models import Address, WishlistItem
 from catalog.models import Product, ProductReview
-from orders.models import Cart, CartItem, Order, OrderItem
+from orders.models import Cart, CartItem, Coupon, Order, OrderItem
 
 User = get_user_model()
 
@@ -124,6 +124,15 @@ REVIEW_COMMENTS = {
         "Ordered two, one arrived damaged. Still waiting on a refund.",
     ],
 }
+
+# Codes shoppers can try at checkout: one of each discount kind, plus an
+# inactive one so the dashboard toggle has something to show. Existing
+# codes (including any staff created) are left alone.
+DEMO_COUPONS = [
+    ("WELCOME10", Coupon.DiscountType.PERCENT, "10", True),
+    ("TAKE500", Coupon.DiscountType.FIXED, "500", True),
+    ("ENDOFSEASON", Coupon.DiscountType.PERCENT, "25", False),
+]
 
 
 def pick_status(days_ago: int, rng: random.Random) -> str:
@@ -323,6 +332,19 @@ class Command(BaseCommand):
         self.stdout.write(
             f"  Created {wishlist_rows} wishlist saves and {review_rows} reviews."
         )
+
+        coupon_rows = 0
+        for code, discount_type, value, active in DEMO_COUPONS:
+            _, created = Coupon.objects.get_or_create(
+                code=code,
+                defaults={
+                    "discount_type": discount_type,
+                    "discount_value": Decimal(value),
+                    "is_active": active,
+                },
+            )
+            coupon_rows += int(created)
+        self.stdout.write(f"  Created {coupon_rows} demo coupon codes.")
 
         self.stdout.write(
             self.style.SUCCESS(
