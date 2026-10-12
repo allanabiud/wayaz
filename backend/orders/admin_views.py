@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import IsStaffOrAdminUser
+from .emails import send_order_confirmed_email
 from .models import Order
 
 
@@ -114,14 +115,41 @@ class AdminOrderDetailView(APIView):
             )
 
         new_status = request.data.get("status")
-        if new_status and new_status in Order.Status.values:
-            order.status = new_status
+        if new_status and new_status not in Order.Status.values:
+            return Response(
+                {"detail": f"Invalid status '{new_status}'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         new_payment_status = request.data.get("payment_status")
-        if new_payment_status and new_payment_status in Order.PaymentStatus.values:
+        if new_payment_status and new_payment_status not in Order.PaymentStatus.values:
+            return Response(
+                {"detail": f"Invalid payment status '{new_payment_status}'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if new_payment_status:
             order.payment_status = new_payment_status
 
-        order.save()
+        status_changed = bool(new_status) and new_status != order.status
+
+        if status_changed and new_status == Order.Status.CANCELLED:
+            # Flips status and restores reserved stock.
+            order.cancel()
+            order.save()  # persist any payment_status tweak alongside it
+        else:
+            if status_changed:
+                order.status = new_status
+            order.save()
+
+        if status_changed and new_status == Order.Status.CONFIRMED:
+            # Admin/staff sign-off - this is when the customer gets the
+            # "order confirmed" email (M-Pesa orders were only PAID +
+            # PROCESSING until this point).
+            try:
+                send_order_confirmed_email(order)
+            except Exception:
+                pass
 
         return Response(
             {

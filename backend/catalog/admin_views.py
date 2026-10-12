@@ -553,7 +553,7 @@ class AdminProductViewSet(viewsets.ModelViewSet):
 
 
 class AdminCategoryViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Category.objects.all()
+    queryset = Category.objects.annotate(product_count=Count("products")).all()
     serializer_class = CategorySerializer
     permission_classes = [IsStaffOrAdminUser]
     lookup_field = "id"

@@ -207,9 +207,10 @@ class CheckoutAPITestCase(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn(res.data["order_number"], mail.outbox[0].subject)
 
-        # COD carries the manual verification flag
+        # COD starts in the pipeline awaiting staff confirmation.
         order = Order.objects.get(order_number=res.data["order_number"])
-        self.assertTrue(order.requires_manual_verification)
+        self.assertEqual(order.status, Order.Status.PROCESSING)
+        self.assertEqual(order.payment_status, Order.PaymentStatus.PENDING)
         self.assertEqual(order.guest_id, str(self.cart.id))
 
     def test_checkout_delivery_fee_applied_below_threshold(self):
@@ -246,8 +247,6 @@ class CheckoutAPITestCase(TestCase):
         res = self.checkout(payload)
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertEqual(res.data["status"], Order.Status.PROCESSING)
-        order = Order.objects.get(order_number=res.data["order_number"])
-        self.assertFalse(order.requires_manual_verification)
         # Stock stays reserved while processing.
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock_quantity, 3)
@@ -394,3 +393,109 @@ class OrderHistoryAPITestCase(TestCase):
         self.assertEqual(res.data["count"], 2)
         self.assertEqual(len(res.data["results"]), 1)
         self.assertIsNotNone(res.data["next"])
+
+
+class AdminOrderConfirmTestCase(TestCase):
+    """Staff sign-off from the dashboard: PROCESSING -> CONFIRMED + email.
+
+    M-Pesa payment only marks the order PAID; it stays PROCESSING until a
+    staff member confirms it, and that transition is what emails the
+    customer."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.category = Category.objects.create(name="Denim", slug="denim")
+        self.product = Product.objects.create(
+            title="Selvedge Jeans",
+            category=self.category,
+            base_price=4000.00,
+            stock_quantity=4,  # one unit already reserved for the order below
+        )
+        self.staff = User.objects.create_user(
+            username="shop_manager",
+            email="manager@example.com",
+            password="Password123!",
+            role=User.Role.STAFF,
+        )
+        self.customer = User.objects.create_user(
+            username="confirm_buyer",
+            email="confirm_buyer@example.com",
+            password="Password123!",
+        )
+        self.order = Order.objects.create(
+            user=self.customer,
+            email=self.customer.email,
+            phone_number="+254712345678",
+            shipping_name="Jane Wanjiku",
+            county="Nairobi",
+            town="Kilimani",
+            street_address="12 Riara Road",
+            delivery_method="nairobi_doorstep",
+            subtotal=Decimal("4000.00"),
+            total_amount=Decimal("4000.00"),
+            status=Order.Status.PROCESSING,
+            payment_method=Order.PaymentMethod.M_PESA,
+            payment_status=Order.PaymentStatus.PAID,
+        )
+        OrderItem.objects.create(
+            order=self.order,
+            product=self.product,
+            product_title="Selvedge Jeans",
+            unit_price=Decimal("4000.00"),
+            quantity=1,
+        )
+        self.url = f"/api/v1/admin/orders/{self.order.order_number}/"
+
+    def patch(self, payload, user=None):
+        self.client.force_authenticate(user=user or self.staff)
+        return self.client.patch(self.url, payload, format="json")
+
+    def test_confirming_paid_order_sends_confirmation_email(self):
+        res = self.patch({"status": Order.Status.CONFIRMED})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.CONFIRMED)
+        # The sign-off changes fulfillment state only, never payment state.
+        self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(self.order.order_number, mail.outbox[0].subject)
+        self.assertEqual(mail.outbox[0].to, [self.order.email])
+
+    def test_confirm_email_fires_only_on_transition(self):
+        # Re-saving at the same status must not re-email the customer.
+        self.patch({"status": Order.Status.CONFIRMED})
+        res = self.patch({"status": Order.Status.CONFIRMED})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_non_confirm_status_change_sends_no_confirmation_email(self):
+        res = self.patch({"status": Order.Status.DELIVERED})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.DELIVERED)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_cancelling_from_dashboard_restores_stock(self):
+        res = self.patch({"status": Order.Status.CANCELLED})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.CANCELLED)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock_quantity, 5)
+        # Cancelling is not the confirmation event - no confirm email.
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_customer_cannot_update_order_status(self):
+        res = self.patch({"status": Order.Status.CONFIRMED}, user=self.customer)
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.PROCESSING)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_invalid_status_rejected(self):
+        res = self.patch({"status": "SHIPPED"})
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.PROCESSING)

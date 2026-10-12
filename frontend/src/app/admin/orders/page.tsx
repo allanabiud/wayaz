@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { ClipboardList, Search, X } from "lucide-react";
+import { CheckCircle2, ClipboardList, Search, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,13 @@ const STATUS_BADGE_VARIANT: Record<
   CANCELLED: "destructive",
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  PROCESSING: "Processing",
+  CONFIRMED: "Confirmed",
+  DELIVERED: "Delivered",
+  CANCELLED: "Cancelled",
+};
+
 function formatDate(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
@@ -93,7 +100,9 @@ export default function AdminOrdersPage() {
       await api.patch(`/api/v1/admin/orders/${orderNumber}/`, {
         status: nextStatus,
       });
-      toast.success(`Order ${orderNumber} updated to ${nextStatus}.`);
+      toast.success(
+        `Order ${orderNumber} updated to ${STATUS_LABELS[nextStatus] ?? nextStatus}.`,
+      );
       if (selectedOrder && selectedOrder.order_number === orderNumber) {
         setSelectedOrder((prev) =>
           prev ? { ...prev, status: nextStatus, status_display: nextStatus } : null,
@@ -374,16 +383,34 @@ export default function AdminOrdersPage() {
               <Label className="text-xs font-semibold text-muted-foreground uppercase">
                 Update Order Status
               </Label>
+
+              {/* One-click confirm for orders still in the queue */}
+              {selectedOrder.status === "PROCESSING" && (
+                <div className="mt-3 flex flex-col gap-3 rounded-xl border border-emerald-600/30 bg-emerald-600/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    {selectedOrder.payment_method === "mpesa"
+                      ? selectedOrder.payment_status === "PAID"
+                        ? "M-Pesa payment received. Confirm to accept this order."
+                        : "M-Pesa payment not received yet — confirm only if you have verified payment."
+                      : "Confirm to accept this cash-on-delivery order."}
+                  </p>
+                  <Button
+                    size="sm"
+                    disabled={updatingStatus}
+                    onClick={() =>
+                      handleStatusChange(selectedOrder.order_number, "CONFIRMED")
+                    }
+                    className="gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
+                  >
+                    <CheckCircle2 className="size-4" />
+                    Confirm Order
+                  </Button>
+                </div>
+              )}
+
               <div className="mt-2 flex flex-wrap gap-2">
                 {(
-                  [
-                    "PENDING_PAYMENT",
-                    "PAID",
-                    "PROCESSING",
-                    "SHIPPED",
-                    "DELIVERED",
-                    "CANCELLED",
-                  ] as const
+                  ["PROCESSING", "CONFIRMED", "DELIVERED", "CANCELLED"] as const
                 ).map((st) => (
                   <Button
                     key={st}
@@ -391,9 +418,9 @@ export default function AdminOrdersPage() {
                     variant={selectedOrder.status === st ? "default" : "outline"}
                     disabled={updatingStatus || selectedOrder.status === st}
                     onClick={() => handleStatusChange(selectedOrder.order_number, st)}
-                    className="capitalize text-xs cursor-pointer"
+                    className="text-xs cursor-pointer"
                   >
-                    {st.replace("_", " ").toLowerCase()}
+                    {STATUS_LABELS[st]}
                   </Button>
                 ))}
               </div>

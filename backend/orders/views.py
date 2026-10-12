@@ -52,6 +52,13 @@ class CartDetailView(APIView):
 
     def get(self, request):
         cart = get_or_create_cart(request)
+        # Prefetch cart items, products, and images to prevent N+1 queries during serialization
+        cart = (
+            Cart.objects.filter(pk=cart.pk)
+            .prefetch_related("items__product__images", "items__product__category")
+            .first()
+            or cart
+        )
         serializer = CartSerializer(cart, context={"request": request})
         response = Response(serializer.data)
         response["X-Cart-ID"] = str(cart.id)
@@ -277,9 +284,9 @@ class CheckoutView(APIView):
                 discount = Decimal("0.00")
                 total = subtotal + shipping_fee - discount
 
-                # New order begins in PROCESSING pipeline stage
+                # New order begins in PROCESSING pipeline stage - staff
+                # confirm it from the dashboard once it is ready.
                 order_status = Order.Status.PROCESSING
-                requires_manual = data["payment_method"] == Order.PaymentMethod.COD
 
                 order = Order.objects.create(
                     user=request.user if request.user.is_authenticated else None,
@@ -298,7 +305,6 @@ class CheckoutView(APIView):
                     total_amount=total,
                     status=order_status,
                     payment_method=data["payment_method"],
-                    requires_manual_verification=requires_manual,
                 )
 
                 for item in items:

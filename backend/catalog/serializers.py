@@ -3,7 +3,14 @@ from .models import Category, Product, ProductImage, ProductReview
 
 
 class CategorySerializer(serializers.ModelSerializer):
-    product_count = serializers.IntegerField(source="products.count", read_only=True)
+    product_count = serializers.SerializerMethodField()
+
+    def get_product_count(self, obj):
+        # Use annotated value if present (O(1)), else fallback
+        count = getattr(obj, "product_count", None)
+        if count is not None:
+            return count
+        return obj.products.count()
 
     class Meta:
         model = Category

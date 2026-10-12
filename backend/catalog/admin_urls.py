@@ -11,7 +11,6 @@ from .admin_views import (
     AdminProductImageDetailView,
 )
 from accounts.admin_views import AdminCustomerViewSet
-from orders.admin_views import AdminOrdersView, AdminOrderDetailView
 
 router = DefaultRouter()
 router.register(r"products", AdminProductViewSet, basename="admin-products")
@@ -22,16 +21,7 @@ urlpatterns = [
     path("overview/", AdminOverviewView.as_view(), name="admin-overview"),
     path("analytics/", AdminAnalyticsView.as_view(), name="admin-analytics"),
     path("nav-counts/", AdminNavCountsView.as_view(), name="admin-nav-counts"),
-    path(
-        "orders/",
-        AdminOrdersView.as_view(),
-        name="admin-orders",
-    ),
-    path(
-        "orders/<str:order_number>/",
-        AdminOrderDetailView.as_view(),
-        name="admin-order-detail",
-    ),
+    path("orders/", include("orders.admin_urls")),
     path(
         "products/<int:product_id>/adjust-stock/",
         AdminProductStockView.as_view(),

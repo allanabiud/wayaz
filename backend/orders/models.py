@@ -171,7 +171,6 @@ class Order(models.Model):
     payment_status = models.CharField(
         max_length=16, choices=PaymentStatus.choices, default=PaymentStatus.PENDING
     )
-    requires_manual_verification = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

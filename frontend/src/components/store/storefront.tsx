@@ -100,12 +100,14 @@ function TopShelf({
         </h2>
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-        {products.map((product) => (
+        {products.map((product, index) => (
           <ProductCard
             key={product.id}
             product={product}
             adding={addingId === product.id}
             inCart={cartProductIds.has(product.id)}
+            // First shelf, first row: this is the homepage LCP candidate.
+            eager={index < 4}
             onAdd={(item) => void addProduct(item)}
             onOpenCart={openCart}
           />
@@ -115,10 +117,14 @@ function TopShelf({
   );
 }
 
+interface StorefrontProps {
+  initialCatalog?: StorefrontCatalog | null;
+}
+
 /** Home page content: brand banner + one section per category. */
-export function Storefront() {
+export function Storefront({ initialCatalog }: StorefrontProps) {
   const {
-    catalog,
+    catalog: contextCatalog,
     catalogLoading,
     catalogError,
     refetchCatalog,
@@ -128,6 +134,9 @@ export function Storefront() {
     openCart,
   } = useStore();
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+
+  // Prefer context catalog once loaded/refetched, otherwise fall back to SSR initialCatalog
+  const catalog = contextCatalog ?? initialCatalog ?? null;
 
   const sections = useMemo(
     () => (catalog ? buildSections(catalog) : []),

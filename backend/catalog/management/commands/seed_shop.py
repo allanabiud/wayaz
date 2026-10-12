@@ -361,7 +361,6 @@ class Command(BaseCommand):
             status=status,
             payment_method=method,
             payment_status=payment_status_for(status, method),
-            requires_manual_verification=(status == "CANCELLED" and method == "mpesa"),
         )
 
         for product, quantity, unit_price in items:

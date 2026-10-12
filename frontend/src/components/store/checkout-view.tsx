@@ -39,11 +39,13 @@ import {
   createAddress,
   fetchUserAddresses,
   formatKsh,
+  initiateMpesaStkPush,
   submitCheckout,
   type StoreOrder,
 } from "@/lib/store";
 import type { Address } from "@/lib/types";
 import { KENYAN_COUNTIES } from "@/lib/locations";
+import { MpesaPaymentModal } from "@/components/store/mpesa-modal";
 
 export function CheckoutView() {
   const { user, isAuthenticated } = useAuth();
@@ -69,6 +71,21 @@ export function CheckoutView() {
 
   const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<StoreOrder | null>(null);
+
+  // M-Pesa STK Push Modal State
+  const [mpesaModal, setMpesaModal] = useState<{
+    open: boolean;
+    order: StoreOrder | null;
+    checkoutRequestId: string;
+    phoneNumber: string;
+    isMock?: boolean;
+  }>({
+    open: false,
+    order: null,
+    checkoutRequestId: "",
+    phoneNumber: "",
+    isMock: false,
+  });
 
   // Load saved addresses when authenticated. State updates happen in the
   // async callbacks, never synchronously in the effect body.
@@ -164,6 +181,28 @@ export function CheckoutView() {
         }
       }
 
+      // If Lipa na M-Pesa is chosen, trigger STK Push immediately
+      if (paymentMethod === "mpesa") {
+        try {
+          const stkRes = await initiateMpesaStkPush(order.order_number, phone.trim());
+          setMpesaModal({
+            open: true,
+            order,
+            checkoutRequestId: stkRes.checkout_request_id,
+            phoneNumber: stkRes.phone_number,
+            isMock: stkRes.is_mock,
+          });
+          return;
+        } catch (stkErr) {
+          toast.error(
+            stkErr instanceof ApiError
+              ? stkErr.message
+              : "Failed to dispatch M-Pesa STK Push. You can pay on delivery.",
+          );
+          // Fall through to show order completed with payment pending
+        }
+      }
+
       clearCart();
       setCompletedOrder(order);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -186,10 +225,11 @@ export function CheckoutView() {
           </div>
 
           <h1 className="mt-4 font-heading text-2xl font-bold sm:text-3xl">
-            Order Confirmed!
+            Order Received!
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Thank you for shopping with Wayaz. Your order has been placed.
+            Thank you for shopping with Wayaz. Your order has been placed and
+            will be confirmed by our team shortly.
           </p>
 
           <div className="mt-6 rounded-2xl bg-muted/50 p-4 text-left space-y-2 text-sm">
@@ -216,6 +256,24 @@ export function CheckoutView() {
                 {completedOrder.payment_method === "mpesa"
                   ? "Lipa na M-Pesa"
                   : completedOrder.payment_method_display}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Payment Status:</span>
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                  completedOrder.payment_status === "PAID"
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                    : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                }`}
+              >
+                {completedOrder.payment_status === "PAID" ? "Paid" : "Pending"}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Order Status:</span>
+              <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                Processing — awaiting confirmation
               </span>
             </div>
             <div className="flex justify-between">
@@ -680,6 +738,39 @@ export function CheckoutView() {
           </Card>
         </div>
       </form>
+
+      {/* M-Pesa STK Push Polling & Simulation Modal */}
+      {mpesaModal.order && (
+        <MpesaPaymentModal
+          open={mpesaModal.open}
+          orderNumber={mpesaModal.order.order_number}
+          checkoutRequestId={mpesaModal.checkoutRequestId}
+          phoneNumber={mpesaModal.phoneNumber}
+          amount={formatKsh(mpesaModal.order.total_amount)}
+          isMock={mpesaModal.isMock}
+          onSuccess={(receipt) => {
+            clearCart();
+            const finalizedOrder = {
+              ...mpesaModal.order!,
+              payment_status: "PAID",
+              status: "PROCESSING" as const,
+              status_display: "Processing",
+            };
+            setMpesaModal((prev) => ({ ...prev, open: false }));
+            setCompletedOrder(finalizedOrder);
+            toast.success(`Payment received! Receipt: ${receipt}`);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          onCancelOrFailed={() => {
+            // Shopper dismissed modal or failed: complete order as pending payment
+            clearCart();
+            const pendingOrder = mpesaModal.order!;
+            setMpesaModal((prev) => ({ ...prev, open: false }));
+            setCompletedOrder(pendingOrder);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+        />
+      )}
     </div>
   );
 }

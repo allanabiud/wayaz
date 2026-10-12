@@ -79,7 +79,13 @@ export function useStore(): StoreContextValue {
 const EMPTY_WISHLIST_IDS: number[] = [];
 
 /** Store state: guest cart sessions, the account-tied wishlist, and shared catalog. */
-export function StoreProvider({ children }: { children: ReactNode }) {
+export function StoreProvider({
+  children,
+  initialCatalog,
+}: {
+  children: ReactNode;
+  initialCatalog?: StorefrontCatalog | null;
+}) {
   const { isAuthenticated } = useAuth();
   const [cart, setCart] = useState<Cart | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
@@ -93,7 +99,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     error: catalogError,
     loading: catalogLoading,
     refetch: refetchCatalog,
-  } = useQuery<StorefrontCatalog>(fetchStorefrontCatalog, []);
+  } = useQuery<StorefrontCatalog>(
+    fetchStorefrontCatalog,
+    [],
+    initialCatalog ? { initialData: initialCatalog } : undefined,
+  );
 
   // 1. Initial cart load (guest session from stored cart id).
   useEffect(() => {

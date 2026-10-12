@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   Check,
   Heart,
@@ -17,6 +18,12 @@ interface ProductCardProps {
   adding: boolean;
   /** True while this product sits in the guest cart (shows "In Cart"). */
   inCart: boolean;
+  /**
+   * Loads the image eagerly instead of lazily - set it for cards above the
+   * fold so the LCP image isn't delayed by IntersectionObserver. (Next 16
+   * deprecated `priority`; `loading="eager"` is the replacement.)
+   */
+  eager?: boolean;
   onAdd: (product: StoreProduct) => void;
   /** Opens the cart sheet - bound to the "In Cart" button. */
   onOpenCart: () => void;
@@ -26,6 +33,7 @@ export function ProductCard({
   product,
   adding,
   inCart,
+  eager = false,
   onAdd,
   onOpenCart,
 }: ProductCardProps) {
@@ -44,13 +52,13 @@ export function ProductCard({
         className="relative block aspect-[3/4] w-full overflow-hidden bg-muted outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
       >
         {image ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
+          <Image
             src={image}
             alt={product.title}
-            loading="lazy"
-            decoding="async"
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            loading={eager ? "eager" : "lazy"}
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center">

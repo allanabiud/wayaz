@@ -40,6 +40,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -79,6 +80,7 @@ DATABASES = {
         "PASSWORD": os.environ.get("DB_PASSWORD", "wayaz_secret"),
         "HOST": os.environ.get("DB_HOST", "localhost"),
         "PORT": os.environ.get("DB_PORT", "5433"),
+        "CONN_MAX_AGE": int(os.environ.get("DB_CONN_MAX_AGE", "60")),
     }
 }
 
@@ -107,6 +109,15 @@ USE_TZ = True
 # Static & Media Files
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -171,3 +182,16 @@ DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "Wayaz <orders@wayaz.c
 
 # WhatsApp support line used for order confirmation/dispatch links.
 WHATSAPP_SUPPORT_NUMBER = os.environ.get("WHATSAPP_SUPPORT_NUMBER", "254700000000")
+
+# M-Pesa Daraja Gateway Configuration
+MPESA_ENVIRONMENT = os.environ.get("MPESA_ENVIRONMENT", "mock").lower()  # "mock" | "sandbox" | "production"
+MPESA_CONSUMER_KEY = os.environ.get("MPESA_CONSUMER_KEY", "")
+MPESA_CONSUMER_SECRET = os.environ.get("MPESA_CONSUMER_SECRET", "")
+MPESA_SHORTCODE = os.environ.get("MPESA_SHORTCODE", "174379")
+MPESA_PASSKEY = os.environ.get(
+    "MPESA_PASSKEY",
+    "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919",
+)
+MPESA_CALLBACK_URL = os.environ.get(
+    "MPESA_CALLBACK_URL", "https://api.wayaz.co.ke/api/v1/payments/mpesa/callback/"
+)

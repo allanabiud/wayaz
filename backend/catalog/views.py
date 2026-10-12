@@ -31,10 +31,21 @@ def rating_payload(product, user):
 
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Category.objects.all()
+    queryset = Category.objects.annotate(product_count=Count("products")).all()
     serializer_class = CategorySerializer
     permission_classes = [permissions.AllowAny]
     lookup_field = "slug"
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        # 5 minutes browser/edge caching with stale-while-revalidate for snappy storefront loads
+        response["Cache-Control"] = "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
+        return response
+
+    def retrieve(self, request, *args, **kwargs):
+        response = super().retrieve(request, *args, **kwargs)
+        response["Cache-Control"] = "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
+        return response
 
 
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
@@ -45,6 +56,21 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     )
     permission_classes = [permissions.AllowAny]
     lookup_field = "slug"
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        # Products list caching (1 min fresh, 5 min edge)
+        response["Cache-Control"] = "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
+        return response
+
+    def retrieve(self, request, *args, **kwargs):
+        response = super().retrieve(request, *args, **kwargs)
+        # Anonymous product details can be cached, authenticated requests vary
+        if not request.user.is_authenticated:
+            response["Cache-Control"] = "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
+        else:
+            response["Cache-Control"] = "private, no-cache"
+        return response
 
     def get_serializer_class(self):
         if self.action == "retrieve":

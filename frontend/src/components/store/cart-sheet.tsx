@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { toast } from "sonner";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -83,13 +84,14 @@ export function CartSheet({
                     key={item.id}
                     className="flex gap-3 rounded-xl border bg-card p-2"
                   >
-                    <div className="h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-muted">
+                    <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-muted">
                       {thumbnail && (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
+                        <Image
                           src={thumbnail}
                           alt={item.product.product_title}
-                          className="h-full w-full object-cover"
+                          fill
+                          sizes="56px"
+                          className="object-cover"
                         />
                       )}
                     </div>

@@ -9,6 +9,7 @@ import {
   type PointerEvent,
 } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowLeft,
   Check,
@@ -324,13 +325,14 @@ export function ProductDetail({ product }: ProductDetailProps) {
             onPointerCancel={() => setZoom(null)}
           >
             {current?.image ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
+              <Image
                 key={current.id}
                 src={mediaUrl(current.image)}
                 alt={current.alt_text || product.title}
-                decoding="async"
-                className="h-full w-full object-cover transition-transform duration-150 ease-out"
+                fill
+                loading="eager"
+                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 360px, 480px"
+                className="object-cover transition-transform duration-150 ease-out"
                 style={
                   zoom
                     ? {
@@ -387,18 +389,18 @@ export function ProductDetail({ product }: ProductDetailProps) {
                     setActiveImage(index);
                     setZoom(null);
                   }}
-                  className={`size-16 shrink-0 overflow-hidden rounded-lg border-2 outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 ${
+                  className={`relative size-16 shrink-0 overflow-hidden rounded-lg border-2 outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 ${
                     index === activeImage
                       ? "border-primary"
                       : "border-transparent hover:border-border"
                   }`}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <Image
                     src={mediaUrl(image.image)}
                     alt=""
-                    loading="lazy"
-                    className="h-full w-full object-cover"
+                    fill
+                    sizes="64px"
+                    className="object-cover"
                   />
                 </button>
               ))}
@@ -717,10 +719,12 @@ export function ProductDetail({ product }: ProductDetailProps) {
           {/* Product context: thumbnail + title + price */}
           <div className="flex min-w-0 items-center gap-3">
             {current?.image ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
+              <Image
                 src={mediaUrl(current.image)}
                 alt=""
+                width={56}
+                height={56}
+                loading="eager"
                 className="size-12 shrink-0 rounded-xl border object-cover sm:size-14"
               />
             ) : (

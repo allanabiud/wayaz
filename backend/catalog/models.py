@@ -44,7 +44,7 @@ class Product(models.Model):
         Category, on_delete=models.CASCADE, related_name="products"
     )
     description = models.TextField(blank=True)
-    base_price = models.DecimalField(max_digits=10, decimal_places=2)
+    base_price = models.DecimalField(max_digits=10, decimal_places=2, db_index=True)
     sale_price = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True
     )
@@ -53,11 +53,15 @@ class Product(models.Model):
     sizes = models.JSONField(blank=True, default=list)
     # Merchandising flag - surfaced in the storefront's Featured shelf.
     is_featured = models.BooleanField(default=False, db_index=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["category", "-created_at"], name="cat_prod_cat_created_idx"),
+            models.Index(fields=["is_featured", "-created_at"], name="cat_prod_feat_created_idx"),
+        ]
 
     def save(self, *args, **kwargs):
         if not self.slug:

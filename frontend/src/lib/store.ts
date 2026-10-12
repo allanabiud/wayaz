@@ -278,6 +278,54 @@ export function submitCheckout(payload: CheckoutPayload): Promise<StoreOrder> {
     });
 }
 
+// ---- M-Pesa Payment Helpers -------------------------------------------
+
+export interface MpesaInitiateResponse {
+  detail: string;
+  checkout_request_id: string;
+  order_number: string;
+  amount: string;
+  phone_number: string;
+  is_mock?: boolean;
+}
+
+export interface PaymentStatusResponse {
+  checkout_request_id: string;
+  order_number: string;
+  status: "PENDING" | "COMPLETED" | "FAILED" | "CANCELLED";
+  payment_status: "PENDING" | "PAID" | "FAILED";
+  mpesa_receipt_number: string | null;
+  result_desc: string;
+}
+
+export function initiateMpesaStkPush(
+  order_number: string,
+  phone_number: string,
+): Promise<MpesaInitiateResponse> {
+  return api.post<MpesaInitiateResponse>("/api/v1/payments/mpesa/stk-push/", {
+    order_number,
+    phone_number,
+  });
+}
+
+export function pollPaymentStatus(
+  checkout_request_id: string,
+): Promise<PaymentStatusResponse> {
+  return api.get<PaymentStatusResponse>(
+    `/api/v1/payments/status/${encodeURIComponent(checkout_request_id)}/`,
+  );
+}
+
+export function simulateMockPayment(
+  checkout_request_id: string,
+  action: "success" | "fail" = "success",
+): Promise<{ detail: string; status: string; mpesa_receipt_number?: string }> {
+  return api.post("/api/v1/payments/mock-simulate/", {
+    checkout_request_id,
+    action,
+  });
+}
+
 // ---- Customer Saved Addresses ----------------------------------------
 
 export function fetchUserAddresses(): Promise<Paginated<Address>> {
