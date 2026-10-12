@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListPagination } from "@/components/ui/list-pagination";
 import {
   Select,
   SelectContent,
@@ -59,9 +60,16 @@ function formatDiscount(coupon: AdminCoupon): string {
   return coupon.discount_type === "percent" ? `${pretty}%` : `Ksh ${pretty}`;
 }
 
+const PAGE_SIZE = 10;
+
 export default function AdminCouponsPage() {
+  const [page, setPage] = useState(1);
   const { data, error, loading, refetch } = useQuery<Paginated<AdminCoupon>>(
-    () => api.get<Paginated<AdminCoupon>>("/api/v1/admin/orders/coupons/?page_size=100"),
+    () =>
+      api.get<Paginated<AdminCoupon>>(
+        `/api/v1/admin/orders/coupons/?page=${page}&page_size=${PAGE_SIZE}`,
+      ),
+    [page],
   );
 
   // null = dialog closed; otherwise the row being created (id null) or edited.
@@ -156,6 +164,8 @@ export default function AdminCouponsPage() {
     try {
       await api.delete(`/api/v1/admin/orders/coupons/${pendingDelete.id}/`);
       setPendingDelete(null);
+      // Don't strand the view on an emptied trailing page.
+      if (coupons.length === 1 && page > 1) setPage(page - 1);
       refetch();
     } catch (err) {
       setDeleteError(
@@ -312,7 +322,7 @@ export default function AdminCouponsPage() {
                       {coupon.order_count}
                     </TableCell>
                     <TableCell>
-                      <div className="flex justify-end gap-1">
+                      <div className="flex items-center justify-end gap-1">
                         <Switch
                           checked={coupon.is_active}
                           disabled={togglingId === coupon.id}
@@ -347,6 +357,14 @@ export default function AdminCouponsPage() {
               </TableBody>
             </Table>
           </div>
+
+          <ListPagination
+            page={page}
+            count={data?.count ?? 0}
+            pageSize={PAGE_SIZE}
+            itemCount={coupons.length}
+            onPageChange={setPage}
+          />
         </>
       )}
 

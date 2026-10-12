@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListPagination } from "@/components/ui/list-pagination";
 import {
   Select,
   SelectContent,
@@ -81,13 +82,20 @@ function formatDate(iso: string | null): string {
       });
 }
 
+const PAGE_SIZE = 10;
+
 export default function AdminTeamPage() {
   const { user: me } = useAuth();
   // Only admins may change the team; staff get a read-only view.
   const canManage = Boolean(me && (me.role === "admin" || me.is_superuser));
 
+  const [page, setPage] = useState(1);
   const { data, error, loading, refetch } = useQuery<Paginated<AdminTeamMember>>(
-    () => api.get<Paginated<AdminTeamMember>>("/api/v1/admin/team/?page_size=100"),
+    () =>
+      api.get<Paginated<AdminTeamMember>>(
+        `/api/v1/admin/team/?page=${page}&page_size=${PAGE_SIZE}`,
+      ),
+    [page],
   );
 
   const [form, setForm] = useState<MemberForm | null>(null);
@@ -196,6 +204,8 @@ export default function AdminTeamPage() {
     try {
       await api.delete(`/api/v1/admin/team/${pendingDelete.id}/`);
       setPendingDelete(null);
+      // Don't strand the view on an emptied trailing page.
+      if (members.length === 1 && page > 1) setPage(page - 1);
       refetch();
     } catch (err) {
       setDeleteError(
@@ -441,6 +451,14 @@ export default function AdminTeamPage() {
               </TableBody>
             </Table>
           </div>
+
+          <ListPagination
+            page={page}
+            count={data?.count ?? 0}
+            pageSize={PAGE_SIZE}
+            itemCount={members.length}
+            onPageChange={setPage}
+          />
         </>
       )}
 

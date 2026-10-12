@@ -29,14 +29,12 @@ import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/store/product-card";
 import { ProductReviews } from "@/components/store/product-reviews";
 import { useStore } from "@/components/store/store-context";
-import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { mediaUrl } from "@/lib/media";
 import {
   fetchProductRating,
   formatKsh,
   productWhatsappLink,
-  submitProductRating,
   waLink,
   type ProductRatingSummary,
   type StoreProductDetail,
@@ -71,7 +69,6 @@ export function ProductDetail({ product }: ProductDetailProps) {
     openCart,
     wishlist,
     toggleWishlist,
-    openLogin,
   } = useStore();
   const { isAuthenticated } = useAuth();
   const [activeImage, setActiveImage] = useState(0);
@@ -81,15 +78,14 @@ export function ProductDetail({ product }: ProductDetailProps) {
   const [zoom, setZoom] = useState<{ x: number; y: number } | null>(null);
   const wishlisted = wishlist.has(product.id);
 
-  // SSR only has aggregates; the viewer's rating refreshes once auth is known
-  // (and is replaced by the POST response after each submission).
+  // SSR only has aggregates; the viewer's own rating refreshes once auth is
+  // known (the review form below feeds new submissions back in). The header
+  // only ever shows the average - shoppers rate from the review form.
   const [rating, setRating] = useState<ProductRatingSummary>({
     average_rating: product.average_rating,
     rating_count: product.rating_count,
     user_rating: product.user_rating,
   });
-  const [hoverStar, setHoverStar] = useState<number | null>(null);
-  const [ratingBusy, setRatingBusy] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -244,38 +240,6 @@ export function ProductDetail({ product }: ProductDetailProps) {
     }
   };
 
-  const handleRate = async (value: number) => {
-    if (ratingBusy) return;
-    if (!isAuthenticated) {
-      toast("Sign in to rate this product");
-      openLogin();
-      return;
-    }
-    const previous = rating;
-    setRating({
-      average_rating: rating.average_rating,
-      rating_count:
-        rating.user_rating === null ? rating.rating_count + 1 : rating.rating_count,
-      user_rating: value,
-    });
-    setRatingBusy(true);
-    try {
-      const summary = await submitProductRating(product.slug, value);
-      setRating(summary);
-      toast.success("Thanks for rating!");
-    } catch (err) {
-      setRating(previous);
-      toast.error(
-        err instanceof ApiError ? err.message : "Could not save your rating",
-      );
-    } finally {
-      setRatingBusy(false);
-    }
-  };
-
-  // Your own rating once left, the average otherwise; hover previews a click.
-  const displayStarValue =
-    hoverStar ?? rating.user_rating ?? rating.average_rating ?? 0;
   const addedAt = new Date(product.created_at).toLocaleDateString("en-KE", {
     day: "numeric",
     month: "short",
@@ -418,37 +382,26 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 {product.title}
               </h1>
 
-              {/* Stars are interactive: click/tap a star to rate */}
+              {/* Read-only average - shoppers leave their own rating in the
+                  review form further down the page, so the header stars are
+                  display only (never buttons). */}
               <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span
-                  className="inline-flex items-center"
-                  onMouseLeave={() => setHoverStar(null)}
+                  role="img"
+                  aria-label={`Rated ${rating.average_rating ?? 0} out of 5`}
+                  className="inline-flex items-center gap-0.5"
                 >
                   {[1, 2, 3, 4, 5].map((star) => (
-                    <button
+                    <StarGlyph
                       key={star}
-                      type="button"
-                      aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
-                      aria-pressed={rating.user_rating === star}
-                      disabled={ratingBusy}
-                      onClick={() => void handleRate(star)}
-                      onMouseEnter={() => setHoverStar(star)}
-                      onFocus={() => setHoverStar(star)}
-                      onBlur={() => setHoverStar(null)}
-                      className="rounded-sm p-0.5 outline-none transition-transform hover:scale-110 focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none"
-                    >
-                      <StarGlyph
-                        fill={Math.min(
-                          Math.max(displayStarValue - (star - 1), 0),
-                          1,
-                        )}
-                      />
-                    </button>
+                      fill={Math.min(
+                        Math.max((rating.average_rating ?? 0) - (star - 1), 0),
+                        1,
+                      )}
+                    />
                   ))}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  {rating.user_rating !== null &&
-                    `You rated ${rating.user_rating}/5 · `}
                   {rating.rating_count > 0
                     ? `${rating.average_rating} avg from ${rating.rating_count} rating${rating.rating_count === 1 ? "" : "s"}`
                     : "No ratings yet"}
@@ -683,10 +636,10 @@ export function ProductDetail({ product }: ProductDetailProps) {
         </div>
       </div>
 
-      {/* Written reviews: list + the shopper's own form. Posts feed back into
-          the header rating summary, so tapping a star up there stays in
-          sync with what this section shows. */}
+      {/* Written reviews: the list (10 per page) plus the shopper's own
+          form. New posts feed the aggregate back into the header average. */}
       <ProductReviews
+        key={product.slug}
         slug={product.slug}
         rating={rating}
         onRatingChange={setRating}

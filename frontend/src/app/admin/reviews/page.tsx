@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { ListPagination } from "@/components/ui/list-pagination";
 import {
   Select,
   SelectContent,
@@ -78,7 +79,6 @@ export default function AdminReviewsPage() {
   );
 
   const reviews = data?.results ?? [];
-  const totalPages = Math.max(1, Math.ceil((data?.count ?? 0) / PAGE_SIZE));
   const filtersActive = Boolean(appliedSearch) || status !== ALL;
 
   const resetFilters = () => {
@@ -330,38 +330,13 @@ export default function AdminReviewsPage() {
           </ul>
 
           {/* Pagination: Showing x–y of z (left) · Previous 1/3 Next (right) */}
-          {data && data.count > 0 && (
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-              <p className="text-xs text-muted-foreground tabular-nums">
-                Showing {(page - 1) * PAGE_SIZE + 1}–
-                {(page - 1) * PAGE_SIZE + reviews.length} of{" "}
-                {data.count.toLocaleString()}
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                  className="h-8 text-xs cursor-pointer"
-                >
-                  Previous
-                </Button>
-                <span className="min-w-10 text-center text-xs font-medium text-muted-foreground tabular-nums">
-                  {page}/{totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                  className="h-8 text-xs cursor-pointer"
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
+          <ListPagination
+            page={page}
+            count={data?.count ?? 0}
+            pageSize={PAGE_SIZE}
+            itemCount={reviews.length}
+            onPageChange={setPage}
+          />
         </>
       )}
 

@@ -156,12 +156,14 @@ export interface ProductReview {
   created_at: string;
 }
 
-/** Approved reviews for a product, newest first (first page). */
+/** Approved reviews for a product, newest first, 10 per page. */
 export function fetchProductReviews(
   slug: string,
+  page = 1,
+  pageSize = 10,
 ): Promise<Paginated<ProductReview>> {
   return api.get(
-    `/api/v1/catalog/products/${encodeURIComponent(slug)}/reviews/`,
+    `/api/v1/catalog/products/${encodeURIComponent(slug)}/reviews/?page=${page}&page_size=${pageSize}`,
   );
 }
 

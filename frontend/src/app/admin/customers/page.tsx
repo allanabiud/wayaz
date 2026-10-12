@@ -11,9 +11,9 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ListPagination } from "@/components/ui/list-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -28,7 +28,7 @@ import { api } from "@/lib/api";
 import { useQuery } from "@/lib/use-query";
 import type { Customer, Paginated } from "@/lib/types";
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 10;
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -56,7 +56,10 @@ export default function CustomersPage() {
   const [page, setPage] = useState(1);
 
   const { data, error, loading, refetch } = useQuery<Paginated<Customer>>(
-    () => api.get<Paginated<Customer>>(`/api/v1/admin/customers/?page=${page}`),
+    () =>
+      api.get<Paginated<Customer>>(
+        `/api/v1/admin/customers/?page=${page}&page_size=${PAGE_SIZE}`,
+      ),
     [page],
   );
 
@@ -67,8 +70,6 @@ export default function CustomersPage() {
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(needle));
   });
-
-  const totalPages = Math.max(1, Math.ceil((data?.count ?? 0) / PAGE_SIZE));
 
   return (
     <div className="space-y-5">
@@ -250,33 +251,13 @@ export default function CustomersPage() {
             </Table>
           </div>
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-2">
-              <p className="text-xs text-muted-foreground">
-                Showing page {page} of {totalPages}
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                  className="h-8 text-xs cursor-pointer"
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                  className="h-8 text-xs cursor-pointer"
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
+          <ListPagination
+            page={page}
+            count={data?.count ?? 0}
+            pageSize={PAGE_SIZE}
+            itemCount={rows.length}
+            onPageChange={setPage}
+          />
         </>
       )}
     </div>

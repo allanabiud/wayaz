@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListPagination } from "@/components/ui/list-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -43,9 +44,16 @@ const emptyForm: CategoryForm = {
   display_order: "0",
 };
 
+const PAGE_SIZE = 10;
+
 export default function AdminCategoriesPage() {
-  const { data, error, loading, refetch } = useQuery<Paginated<Category>>(() =>
-    api.get<Paginated<Category>>("/api/v1/admin/categories/?page_size=100"),
+  const [page, setPage] = useState(1);
+  const { data, error, loading, refetch } = useQuery<Paginated<Category>>(
+    () =>
+      api.get<Paginated<Category>>(
+        `/api/v1/admin/categories/?page=${page}&page_size=${PAGE_SIZE}`,
+      ),
+    [page],
   );
 
   // null = dialog closed; otherwise the row being created (id null) or edited.
@@ -119,6 +127,9 @@ export default function AdminCategoriesPage() {
     try {
       await api.delete(`/api/v1/admin/categories/${pendingDelete.id}/`);
       setPendingDelete(null);
+      // If the last row on this page just went, step back a page rather
+      // than leaving an empty one behind.
+      if (categories.length === 1 && page > 1) setPage(page - 1);
       refetch();
     } catch (err) {
       setDeleteError(
@@ -285,6 +296,14 @@ export default function AdminCategoriesPage() {
               </TableBody>
             </Table>
           </div>
+
+          <ListPagination
+            page={page}
+            count={data?.count ?? 0}
+            pageSize={PAGE_SIZE}
+            itemCount={categories.length}
+            onPageChange={setPage}
+          />
         </>
       )}
 

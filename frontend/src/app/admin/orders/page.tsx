@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListPagination } from "@/components/ui/list-pagination";
 import {
   Select,
   SelectContent,
@@ -31,7 +32,7 @@ import { formatKsh } from "@/lib/store";
 import { useQuery } from "@/lib/use-query";
 import type { AdminOrder, AdminOrdersResponse } from "@/lib/types";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 const STATUS_OPTIONS = [
   { value: "all", label: "All Statuses" },
@@ -117,8 +118,6 @@ export default function AdminOrdersPage() {
       setUpdatingStatus(false);
     }
   };
-
-  const totalPages = Math.max(1, Math.ceil((data?.count ?? 0) / PAGE_SIZE));
 
   return (
     <div className="space-y-5">
@@ -324,33 +323,13 @@ export default function AdminOrdersPage() {
           </div>
 
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-2">
-              <p className="text-xs text-muted-foreground">
-                Showing page {page} of {totalPages}
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                  className="h-8 text-xs cursor-pointer"
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                  className="h-8 text-xs cursor-pointer"
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
+          <ListPagination
+            page={page}
+            count={data?.count ?? 0}
+            pageSize={PAGE_SIZE}
+            itemCount={data?.results.length ?? 0}
+            onPageChange={setPage}
+          />
         </>
       )}
 

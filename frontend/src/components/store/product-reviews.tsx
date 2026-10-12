@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useStore } from "@/components/store/store-context";
 import { ApiError } from "@/lib/api";
+import { ListPagination } from "@/components/ui/list-pagination";
 import { useAuth } from "@/lib/auth-context";
 import {
   fetchProductReviews,
@@ -23,6 +24,7 @@ interface ProductReviewsProps {
 }
 
 const MAX_COMMENT = 2000;
+const PAGE_SIZE = 10;
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -71,6 +73,7 @@ export function ProductReviews({
 
   const [reviews, setReviews] = useState<ProductReview[] | null>(null);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [listError, setListError] = useState<string | null>(null);
 
   const [picked, setPicked] = useState<number | null>(null);
@@ -82,27 +85,27 @@ export function ProductReviews({
   // `.then` callbacks (like useQuery) rather than await-then-setState, so
   // the state updates are clearly deferred out of the effect's body.
   const load = useCallback((): Promise<void> => {
-    return fetchProductReviews(slug)
-      .then((page) => {
-        setReviews(page.results);
-        setTotal(page.count);
+    return fetchProductReviews(slug, page, PAGE_SIZE)
+      .then((result) => {
+        setReviews(result.results);
+        setTotal(result.count);
         setListError(null);
         // Pre-fill the box with the viewer's own review the first time we
         // can see it, so returning shoppers edit instead of overwriting
         // blind. (The `mine` flag only appears once auth has resolved,
-        // hence the refetch when it does.)
+        // hence the refetch when it does.) Keep whatever they have typed.
         if (!prefillRef.current) {
-          const mine = page.results.find((review) => review.mine);
+          const mine = result.results.find((review) => review.mine);
           if (mine) {
             prefillRef.current = true;
-            setComment(mine.comment);
+            setComment((current) => current || mine.comment);
           }
         }
       })
       .catch(() => {
         setListError("Could not load reviews.");
       });
-  }, [slug]);
+  }, [slug, page]);
 
   useEffect(() => {
     void load();
@@ -130,7 +133,13 @@ export function ProductReviews({
       onRatingChange(summary);
       setPicked(null);
       toast.success("Thanks for your review!");
-      await load();
+      // New reviews lead the list, so hop back to page 1 to show it
+      // (unless we are already there - then just refresh).
+      if (page === 1) {
+        await load();
+      } else {
+        setPage(1);
+      }
     } catch (err) {
       toast.error(
         err instanceof ApiError ? err.message : "Could not post your review",
@@ -277,10 +286,15 @@ export function ProductReviews({
         </ul>
       )}
 
-      {reviews !== null && total > reviews.length && (
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          Showing {reviews.length} of {total} reviews
-        </p>
+      {reviews !== null && total > PAGE_SIZE && (
+        <ListPagination
+          page={page}
+          count={total}
+          pageSize={PAGE_SIZE}
+          itemCount={reviews.length}
+          onPageChange={setPage}
+          className="mt-4"
+        />
       )}
     </section>
   );
