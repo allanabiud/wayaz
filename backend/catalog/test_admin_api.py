@@ -5,7 +5,7 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
-from catalog.models import Category, Product
+from catalog.models import Category, Product, ProductReview
 from accounts.models import WishlistItem
 from orders.models import Order, OrderItem
 
@@ -109,7 +109,13 @@ class AdminAPITestCase(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(
             res.data,
-            {"orders": 1, "products": 1, "categories": 1, "customers": 1},
+            {
+                "orders": 1,
+                "products": 1,
+                "categories": 1,
+                "reviews": 0,
+                "customers": 1,
+            },
         )
 
     def test_admin_orders_forbidden_for_customers(self):
@@ -455,3 +461,128 @@ class AdminCategoryAPITestCase(TestCase):
         res = self.client.delete(f"{self.list_url}{empty.id}/")
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Category.objects.filter(id=empty.id).exists())
+
+
+class AdminReviewAPITestCase(TestCase):
+    """Staff moderate reviews: list/search them, hide, restore or delete."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.staff = User.objects.create_user(
+            username="review_manager",
+            email="reviews@example.com",
+            password="Password123!",
+            role=User.Role.STAFF,
+        )
+        self.customer = User.objects.create_user(
+            username="review_buyer",
+            email="review_buyer@example.com",
+            password="Password123!",
+            role=User.Role.CUSTOMER,
+        )
+        self.category = Category.objects.create(name="Denim", slug="denim")
+        self.product = Product.objects.create(
+            title="Wide-Leg Jeans",
+            category=self.category,
+            base_price=3000.00,
+            stock_quantity=4,
+        )
+        self.approved = ProductReview.objects.create(
+            product=self.product,
+            user=self.customer,
+            rating=5,
+            comment="Perfect fit",
+        )
+        self.hidden = ProductReview.objects.create(
+            product=self.product,
+            user=self.staff,
+            rating=1,
+            comment="Rude rant",
+            is_approved=False,
+        )
+        self.list_url = "/api/v1/admin/reviews/"
+
+    def test_customer_cannot_moderate_reviews(self):
+        self.client.force_authenticate(user=self.customer)
+        self.assertIn(
+            self.client.get(self.list_url).status_code,
+            (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN),
+        )
+        res = self.client.patch(
+            f"{self.list_url}{self.approved.id}/",
+            {"is_approved": False},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_list_filters_by_status_and_search(self):
+        self.client.force_authenticate(user=self.staff)
+
+        res = self.client.get(self.list_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["count"], 2)
+
+        res = self.client.get(f"{self.list_url}?status=hidden")
+        self.assertEqual(res.data["count"], 1)
+        self.assertEqual(res.data["results"][0]["id"], self.hidden.id)
+
+        res = self.client.get(f"{self.list_url}?status=approved")
+        self.assertEqual(res.data["count"], 1)
+        self.assertEqual(res.data["results"][0]["id"], self.approved.id)
+
+        # Comment text...
+        res = self.client.get(f"{self.list_url}?search=fit")
+        self.assertEqual(res.data["count"], 1)
+        # ...and product title both match.
+        res = self.client.get(f"{self.list_url}?search=Wide-Leg")
+        self.assertEqual(res.data["count"], 2)
+
+    def test_hide_and_restore_review(self):
+        self.client.force_authenticate(user=self.staff)
+
+        res = self.client.patch(
+            f"{self.list_url}{self.approved.id}/",
+            {"is_approved": False},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.approved.refresh_from_db()
+        self.assertFalse(self.approved.is_approved)
+
+        res = self.client.patch(
+            f"{self.list_url}{self.approved.id}/",
+            {"is_approved": True},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.approved.refresh_from_db()
+        self.assertTrue(self.approved.is_approved)
+
+    def test_moderation_cannot_rewrite_the_review(self):
+        # Hide or delete, never edit: the text stays the shopper's.
+        self.client.force_authenticate(user=self.staff)
+        res = self.client.patch(
+            f"{self.list_url}{self.approved.id}/",
+            {"is_approved": True, "comment": "edited by staff", "rating": 1},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.approved.refresh_from_db()
+        self.assertEqual(self.approved.comment, "Perfect fit")
+        self.assertEqual(self.approved.rating, 5)
+
+    def test_reviews_cannot_be_created_from_the_admin_api(self):
+        self.client.force_authenticate(user=self.staff)
+        res = self.client.post(
+            self.list_url,
+            {"product": self.product.id, "user": self.customer.id, "rating": 5},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertEqual(ProductReview.objects.count(), 2)
+
+    def test_delete_review(self):
+        self.client.force_authenticate(user=self.staff)
+        res = self.client.delete(f"{self.list_url}{self.hidden.id}/")
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(ProductReview.objects.filter(id=self.hidden.id).exists())

@@ -117,10 +117,28 @@ class ProductDetailSerializer(serializers.ModelSerializer):
 
 
 class ProductReviewSerializer(serializers.ModelSerializer):
-    """Write serializer for the nested review endpoint (product + user are set
-    by the view, so only the rating itself comes from the payload)."""
+    """Write serializer for the nested review endpoint (product and user are
+    set by the view). `comment` is optional: a bare star rating is still a
+    valid submission, and omitting it leaves any existing comment untouched."""
 
     class Meta:
         model = ProductReview
-        fields = ("id", "rating", "created_at", "updated_at")
+        fields = ("id", "rating", "comment", "created_at", "updated_at")
         read_only_fields = ("id", "created_at", "updated_at")
+
+
+class ProductReviewListSerializer(serializers.ModelSerializer):
+    """Public read model for the storefront review list."""
+
+    reviewer = serializers.CharField(source="user.display_name", read_only=True)
+    mine = serializers.SerializerMethodField()
+
+    def get_mine(self, obj):
+        # Lets a signed-in author spot (and re-open) their own review.
+        user = self.context.get("request").user if self.context.get("request") else None
+        return bool(user and user.is_authenticated and obj.user_id == user.id)
+
+    class Meta:
+        model = ProductReview
+        fields = ("id", "rating", "comment", "reviewer", "mine", "created_at")
+        read_only_fields = fields

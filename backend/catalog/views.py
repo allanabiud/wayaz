@@ -9,6 +9,7 @@ from .serializers import (
     CategorySerializer,
     ProductListSerializer,
     ProductDetailSerializer,
+    ProductReviewListSerializer,
     ProductReviewSerializer,
 )
 
@@ -24,8 +25,13 @@ EFFECTIVE_PRICE = Case(
 
 
 def rating_payload(product, user):
-    """Rating summary for a product plus the viewer's own rating (if any)."""
-    agg = product.reviews.aggregate(avg=Avg("rating"), count=Count("id"))
+    """Rating summary for a product plus the viewer's own rating (if any).
+
+    Hidden (unapproved) reviews are excluded from the aggregate but a viewer
+    still sees the rating they personally left."""
+    agg = product.reviews.filter(is_approved=True).aggregate(
+        avg=Avg("rating"), count=Count("id")
+    )
     user_rating = None
     if user is not None and user.is_authenticated:
         user_rating = (
@@ -105,17 +111,36 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["get", "post"], url_path="review")
     def review(self, request, slug=None):
         """GET the rating summary (incl. the caller's own rating) or POST a
-        1-5 star rating; repeating the POST overwrites the caller's rating."""
+        1-5 star rating plus an optional written comment; repeating the POST
+        overwrites the caller's review. A payload without `comment` leaves
+        any existing comment alone - the PDP's quick star row sends only the
+        rating, so tapping a star can never wipe written feedback."""
         product = self.get_object()
         if request.method == "POST":
             serializer = ProductReviewSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
+            defaults = {"rating": serializer.validated_data["rating"]}
+            if "comment" in serializer.validated_data:
+                defaults["comment"] = serializer.validated_data["comment"]
+            # New rows pick up is_approved=True (auto-publish); an existing
+            # hidden review stays hidden - re-approving is the staff's call.
             ProductReview.objects.update_or_create(
                 product=product,
                 user=request.user,
-                defaults={"rating": serializer.validated_data["rating"]},
+                defaults=defaults,
             )
         return Response(rating_payload(product, request.user))
+
+    @action(detail=True, methods=["get"], url_path="reviews")
+    def reviews(self, request, slug=None):
+        """Approved reviews for this product, newest first."""
+        product = self.get_object()
+        qs = product.reviews.filter(is_approved=True).select_related("user")
+        page = self.paginate_queryset(qs)
+        serializer = ProductReviewListSerializer(
+            page, many=True, context={"request": request}
+        )
+        return self.get_paginated_response(serializer.data)
 
     def get_queryset(self):
         qs = super().get_queryset().annotate(effective_price=EFFECTIVE_PRICE)

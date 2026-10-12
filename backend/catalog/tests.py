@@ -152,6 +152,97 @@ class ProductReviewAPITestCase(TestCase):
         self.assertEqual(as_owner.data["user_rating"], 4)
 
 
+    def list_url(self):
+        return f"/api/v1/catalog/products/{self.product.slug}/reviews/"
+
+    def test_review_list_returns_comments_and_flags_own_review(self):
+        self.client.force_authenticate(self.alice)
+        self.client.post(
+            self.review_url(),
+            {"rating": 5, "comment": "Great fit"},
+            format="json",
+        )
+        self.client.force_authenticate(self.bob)
+        self.client.post(
+            self.review_url(),
+            {"rating": 2, "comment": "Too tight"},
+            format="json",
+        )
+
+        res = self.client.get(self.list_url())
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["count"], 2)
+        rows = {row["reviewer"]: row for row in res.data["results"]}
+        self.assertEqual(rows["alice"]["comment"], "Great fit")
+        self.assertEqual(rows["alice"]["rating"], 5)
+        # Own review is flagged so the PDP can re-open it for editing.
+        self.assertTrue(rows["bob"]["mine"])
+        self.assertFalse(rows["alice"]["mine"])
+
+    def test_anonymous_review_list_never_flags_mine(self):
+        ProductReview.objects.create(
+            product=self.product, user=self.alice, rating=4, comment="Lovely"
+        )
+        res = self.client.get(self.list_url())
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["count"], 1)
+        self.assertEqual(res.data["results"][0]["reviewer"], "alice")
+        self.assertFalse(res.data["results"][0]["mine"])
+
+    def test_rating_only_post_preserves_the_written_comment(self):
+        # The PDP's quick star row sends just {rating}; tapping a star must
+        # never wipe written feedback left through the review form.
+        self.client.force_authenticate(self.alice)
+        self.client.post(
+            self.review_url(),
+            {"rating": 5, "comment": "Great fit"},
+            format="json",
+        )
+        res = self.client.post(self.review_url(), {"rating": 4}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        review = ProductReview.objects.get(user=self.alice, product=self.product)
+        self.assertEqual(review.rating, 4)
+        self.assertEqual(review.comment, "Great fit")
+
+        # An explicitly empty comment still clears it.
+        self.client.post(
+            self.review_url(), {"rating": 4, "comment": ""}, format="json"
+        )
+        review.refresh_from_db()
+        self.assertEqual(review.comment, "")
+
+    def test_new_reviews_publish_immediately(self):
+        self.client.force_authenticate(self.alice)
+        self.client.post(
+            self.review_url(), {"rating": 5, "comment": "Nice"}, format="json"
+        )
+        review = ProductReview.objects.get(user=self.alice, product=self.product)
+        self.assertTrue(review.is_approved)
+
+    def test_hidden_reviews_leave_the_public_views(self):
+        ProductReview.objects.create(
+            product=self.product, user=self.alice, rating=5, comment="Spam"
+        )
+        ProductReview.objects.create(
+            product=self.product,
+            user=self.bob,
+            rating=1,
+            comment="Hidden rant",
+            is_approved=False,
+        )
+
+        # The aggregate counts approved reviews only...
+        res = self.client.get(self.review_url())
+        self.assertEqual(res.data["rating_count"], 1)
+        self.assertEqual(res.data["average_rating"], 5.0)
+
+        # ...and so does the public list.
+        listing = self.client.get(self.list_url())
+        self.assertEqual(listing.data["count"], 1)
+        self.assertEqual(listing.data["results"][0]["comment"], "Spam")
+
+
 class ProductPriceFilterTestCase(TestCase):
     """min_price / max_price / ordering work off the price actually charged
     (sale price while a sale is live), not the pre-sale sticker price."""

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Product, ProductImage
+from .models import Category, Product, ProductImage, ProductReview
 
 
 class AdminCategorySerializer(serializers.ModelSerializer):
@@ -80,3 +80,36 @@ class AdminProductSerializer(serializers.ModelSerializer):
         if len(cleaned) > 30:
             raise serializers.ValidationError("A product can have at most 30 sizes.")
         return cleaned
+
+
+class AdminReviewSerializer(serializers.ModelSerializer):
+    """Moderation view of a review. Only `is_approved` is writable: staff
+    hide or restore reviews, they do not rewrite them."""
+
+    product_title = serializers.CharField(source="product.title", read_only=True)
+    product_slug = serializers.SlugField(source="product.slug", read_only=True)
+    reviewer = serializers.CharField(source="user.display_name", read_only=True)
+
+    class Meta:
+        model = ProductReview
+        fields = (
+            "id",
+            "product_title",
+            "product_slug",
+            "reviewer",
+            "rating",
+            "comment",
+            "is_approved",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "id",
+            "product_title",
+            "product_slug",
+            "reviewer",
+            "rating",
+            "comment",
+            "created_at",
+            "updated_at",
+        )

@@ -142,14 +142,40 @@ export function fetchProductRating(slug: string): Promise<ProductRatingSummary> 
   return api.get(`/api/v1/catalog/products/${encodeURIComponent(slug)}/review/`);
 }
 
-/** Submit (or replace) the caller's 1-5 star rating for a product. */
+/** A single written review shown on the product page. */
+export interface ProductReview {
+  id: number;
+  rating: number;
+  comment: string;
+  /** Display name of whoever left it. */
+  reviewer: string;
+  /** True when it belongs to the signed-in viewer (lets the PDP re-open it). */
+  mine: boolean;
+  created_at: string;
+}
+
+/** Approved reviews for a product, newest first (first page). */
+export function fetchProductReviews(
+  slug: string,
+): Promise<Paginated<ProductReview>> {
+  return api.get(
+    `/api/v1/catalog/products/${encodeURIComponent(slug)}/reviews/`,
+  );
+}
+
+/**
+ * Submit (or replace) the caller's review of a product. Omitting `comment`
+ * leaves any written feedback intact - that is what the quick star row on
+ * the product page sends; the review form always passes it explicitly.
+ */
 export function submitProductRating(
   slug: string,
   rating: number,
+  comment?: string,
 ): Promise<ProductRatingSummary> {
-  return api.post(`/api/v1/catalog/products/${encodeURIComponent(slug)}/review/`, {
-    rating,
-  });
+  const body: { rating: number; comment?: string } = { rating };
+  if (comment !== undefined) body.comment = comment;
+  return api.post(`/api/v1/catalog/products/${encodeURIComponent(slug)}/review/`, body);
 }
 
 /** Ksh formatting shared by the storefront (whole shillings). */

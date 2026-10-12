@@ -96,6 +96,35 @@ PHONE_PREFIXES = ["0712", "0722", "0733", "0701", "0710", "0748", "0110"]
 # Weighted toward 4-5 stars (a happy fashion storefront), with a few 3s.
 RATING_WEIGHTS = [1, 2, 5, 8, 6]  # indexes 0..4 => 1..5 stars
 
+# Written feedback paired with the star it was left under, so seeded review
+# lists read like real ones instead of bare star rows.
+REVIEW_COMMENTS = {
+    5: [
+        "Exactly as pictured and the fit is spot on. Delivered the next day.",
+        "Second one I've ordered - the quality is consistent and the size chart is accurate.",
+        "Fabric is thick and the stitching held up after several washes. Worth it.",
+        "Messaged them on WhatsApp and it arrived the same afternoon. Very happy.",
+    ],
+    4: [
+        "Good quality overall, though it runs slightly large - size down if you're between sizes.",
+        "Looks just like the photos. Took a day longer than expected but fine.",
+        "Comfortable and well made. Would have been five stars for the price.",
+    ],
+    3: [
+        "Decent for the money, but the colour is a little lighter than shown.",
+        "Fine, though the fit through the hips is tighter than I expected.",
+        "As described - nothing special, but no complaints either.",
+    ],
+    2: [
+        "Arrived with a loose thread along the seam. Support was slow to respond.",
+        "Sizing was off and returning it was a hassle. Expected better.",
+    ],
+    1: [
+        "Not the same fabric as described - sent it back.",
+        "Ordered two, one arrived damaged. Still waiting on a refund.",
+    ],
+}
+
 
 def pick_status(days_ago: int, rng: random.Random) -> str:
     """Older orders are mostly delivered; recent ones still in flight."""
@@ -284,7 +313,10 @@ class Command(BaseCommand):
                 _, created = ProductReview.objects.get_or_create(
                     user=user,
                     product=product,
-                    defaults={"rating": rating},
+                    defaults={
+                        "rating": rating,
+                        "comment": rng.choice(REVIEW_COMMENTS[rating]),
+                    },
                 )
                 review_rows += int(created)
 

@@ -6,6 +6,7 @@ from .admin_views import (
     AdminNavCountsView,
     AdminProductViewSet,
     AdminCategoryViewSet,
+    AdminReviewViewSet,
     AdminProductStockView,
     AdminProductImageUploadView,
     AdminProductImageDetailView,
@@ -15,6 +16,7 @@ from accounts.admin_views import AdminCustomerViewSet
 router = DefaultRouter()
 router.register(r"products", AdminProductViewSet, basename="admin-products")
 router.register(r"categories", AdminCategoryViewSet, basename="admin-categories")
+router.register(r"reviews", AdminReviewViewSet, basename="admin-reviews")
 router.register(r"customers", AdminCustomerViewSet, basename="admin-customers")
 
 urlpatterns = [

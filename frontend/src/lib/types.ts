@@ -121,6 +121,7 @@ export interface NavCounts {
   orders: number;
   products: number;
   categories: number;
+  reviews: number;
   customers: number;
 }
 
@@ -154,6 +155,19 @@ export interface Category {
   image: string | null;
   display_order: number;
   product_count: number;
+}
+
+/** Moderation row for the reviews dashboard. Only `is_approved` is writable. */
+export interface AdminReview {
+  id: number;
+  product_title: string;
+  product_slug: string;
+  reviewer: string;
+  rating: number;
+  comment: string;
+  is_approved: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ProductImage {

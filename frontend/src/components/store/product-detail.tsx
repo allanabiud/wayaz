@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/store/product-card";
+import { ProductReviews } from "@/components/store/product-reviews";
 import { useStore } from "@/components/store/store-context";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -681,6 +682,15 @@ export function ProductDetail({ product }: ProductDetailProps) {
           </dl>
         </div>
       </div>
+
+      {/* Written reviews: list + the shopper's own form. Posts feed back into
+          the header rating summary, so tapping a star up there stays in
+          sync with what this section shows. */}
+      <ProductReviews
+        slug={product.slug}
+        rating={rating}
+        onRatingChange={setRating}
+      />
 
       {/* Cross-sell from the shared catalog */}
       {related.length > 0 && product.category && (

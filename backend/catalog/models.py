@@ -114,7 +114,12 @@ class ProductImage(models.Model):
 
 
 class ProductReview(models.Model):
-    """A 1-5 star rating from a signed-in user. One per product per user."""
+    """A 1-5 star rating, optionally with written feedback, from a signed-in
+    user. One per product per user.
+
+    Reviews publish immediately (is_approved defaults to True); staff can
+    hide one from the dashboard afterwards, which drops it from the public
+    list and the rating average."""
 
     product = models.ForeignKey(
         Product, on_delete=models.CASCADE, related_name="reviews"
@@ -127,6 +132,8 @@ class ProductReview(models.Model):
     rating = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(5)]
     )
+    comment = models.TextField(blank=True)
+    is_approved = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

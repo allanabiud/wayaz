@@ -12,11 +12,12 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from accounts.models import WishlistItem
 from accounts.permissions import IsStaffOrAdminUser
 from orders.models import Order, OrderItem
-from .models import Category, Product, ProductImage
+from .models import Category, Product, ProductImage, ProductReview
 from .admin_serializers import (
     AdminCategorySerializer,
     AdminProductImageSerializer,
     AdminProductSerializer,
+    AdminReviewSerializer,
 )
 
 User = get_user_model()
@@ -513,6 +514,7 @@ class AdminNavCountsView(APIView):
                 "orders": Order.objects.count(),
                 "products": Product.objects.count(),
                 "categories": Category.objects.count(),
+                "reviews": ProductReview.objects.count(),
                 "customers": User.objects.filter(role="customer").count(),
             }
         )
@@ -569,6 +571,39 @@ class AdminCategoryViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return super().destroy(request, *args, **kwargs)
+
+
+class AdminReviewViewSet(viewsets.ModelViewSet):
+    """Moderate shopper reviews: list them, hide/restore, or remove one.
+
+    Reviews are written by shoppers through the storefront, so there is no
+    create path here - `is_approved` is the only writable field."""
+
+    queryset = ProductReview.objects.select_related("product", "user").all()
+    serializer_class = AdminReviewSerializer
+    permission_classes = [IsStaffOrAdminUser]
+    http_method_names = ["get", "patch", "delete", "head", "options"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        params = self.request.query_params
+
+        review_status = params.get("status")
+        if review_status == "hidden":
+            qs = qs.filter(is_approved=False)
+        elif review_status == "approved":
+            qs = qs.filter(is_approved=True)
+
+        search = params.get("search")
+        if search:
+            qs = qs.filter(
+                Q(comment__icontains=search)
+                | Q(product__title__icontains=search)
+                | Q(user__username__icontains=search)
+                | Q(user__first_name__icontains=search)
+            )
+
+        return qs
 
 
 class AdminProductStockView(APIView):
