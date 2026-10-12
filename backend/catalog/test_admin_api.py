@@ -107,7 +107,10 @@ class AdminAPITestCase(TestCase):
         self.client.force_authenticate(user=self.admin_user)
         res = self.client.get("/api/v1/admin/nav-counts/")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(res.data, {"orders": 1, "products": 1, "customers": 1})
+        self.assertEqual(
+            res.data,
+            {"orders": 1, "products": 1, "categories": 1, "customers": 1},
+        )
 
     def test_admin_orders_forbidden_for_customers(self):
         self.assertEqual(
@@ -362,3 +365,93 @@ class AdminAPITestCase(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock_quantity, 40)
+
+
+class AdminCategoryAPITestCase(TestCase):
+    """Staff manage categories from the dashboard: create, rename, reorder,
+    delete - but only once nothing still points at the category."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.staff = User.objects.create_user(
+            username="cat_manager",
+            email="cats@example.com",
+            password="Password123!",
+            role=User.Role.STAFF,
+        )
+        self.customer = User.objects.create_user(
+            username="cat_buyer",
+            email="cat_buyer@example.com",
+            password="Password123!",
+            role=User.Role.CUSTOMER,
+        )
+        self.category = Category.objects.create(name="Jeans", display_order=1)
+        self.product = Product.objects.create(
+            title="Wide-Leg Jeans",
+            category=self.category,
+            base_price=3000.00,
+            stock_quantity=4,
+        )
+        self.list_url = "/api/v1/admin/categories/"
+
+    def test_anonymous_cannot_manage_categories(self):
+        res = self.client.get(self.list_url)
+        self.assertIn(
+            res.status_code,
+            (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN),
+        )
+
+    def test_customer_cannot_create_category(self):
+        self.client.force_authenticate(user=self.customer)
+        res = self.client.post(self.list_url, {"name": "Shorts"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_staff_creates_category_with_derived_slug(self):
+        self.client.force_authenticate(user=self.staff)
+        res = self.client.post(
+            self.list_url,
+            {"name": "Summer Shorts", "display_order": 3},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["slug"], "summer-shorts")
+        self.assertEqual(res.data["product_count"], 0)
+
+    def test_duplicate_name_rejected(self):
+        self.client.force_authenticate(user=self.staff)
+        res = self.client.post(self.list_url, {"name": "Jeans"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_rename_keeps_the_slug(self):
+        # Bookmarks and storefront links must survive a rename.
+        self.client.force_authenticate(user=self.staff)
+        res = self.client.patch(
+            f"{self.list_url}{self.category.id}/", {"name": "Denim"}, format="json"
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.category.refresh_from_db()
+        self.assertEqual(self.category.name, "Denim")
+        self.assertEqual(self.category.slug, "jeans")
+
+    def test_list_reports_product_counts(self):
+        self.client.force_authenticate(user=self.staff)
+        res = self.client.get(self.list_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        results = res.data.get("results", res.data)
+        row = next(r for r in results if r["id"] == self.category.id)
+        self.assertEqual(row["product_count"], 1)
+
+    def test_delete_blocked_while_products_attached(self):
+        self.client.force_authenticate(user=self.staff)
+        res = self.client.delete(f"{self.list_url}{self.category.id}/")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(Category.objects.filter(id=self.category.id).exists())
+        # The refused delete must not have cascaded to the products.
+        self.assertTrue(Product.objects.filter(id=self.product.id).exists())
+
+    def test_delete_empty_category_succeeds(self):
+        empty = Category.objects.create(name="Hats")
+        self.client.force_authenticate(user=self.staff)
+        res = self.client.delete(f"{self.list_url}{empty.id}/")
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Category.objects.filter(id=empty.id).exists())

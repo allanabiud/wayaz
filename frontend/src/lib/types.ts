@@ -120,6 +120,7 @@ export interface OrderPoint {
 export interface NavCounts {
   orders: number;
   products: number;
+  categories: number;
   customers: number;
 }
 

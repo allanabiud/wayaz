@@ -2,6 +2,31 @@ from rest_framework import serializers
 from .models import Category, Product, ProductImage
 
 
+class AdminCategorySerializer(serializers.ModelSerializer):
+    product_count = serializers.SerializerMethodField()
+
+    def get_product_count(self, obj):
+        # Annotated on the viewset queryset (O(1)); instances that were just
+        # created or updated carry no annotation, so fall back to a count.
+        count = getattr(obj, "product_count", None)
+        if count is not None:
+            return count
+        return obj.products.count()
+
+    class Meta:
+        model = Category
+        fields = (
+            "id",
+            "name",
+            "slug",
+            "description",
+            "display_order",
+            "product_count",
+        )
+        # Slug is derived from the name by the model; product_count is a read.
+        read_only_fields = ("id", "slug", "product_count")
+
+
 class AdminProductImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductImage

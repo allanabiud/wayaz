@@ -5,18 +5,6 @@ from django.utils.text import slugify
 
 
 class Category(models.Model):
-    JEANS = "jeans"
-    SHOES = "shoes"
-    SHIRTS = "shirts"
-    BIKINIS = "bikinis"
-
-    ALLOWED_CATEGORIES = [
-        (JEANS, "Jeans"),
-        (SHOES, "Shoes"),
-        (SHIRTS, "Shirts"),
-        (BIKINIS, "Bikinis"),
-    ]
-
     name = models.CharField(max_length=120, unique=True)
     slug = models.SlugField(max_length=140, unique=True, blank=True)
     description = models.TextField(blank=True)

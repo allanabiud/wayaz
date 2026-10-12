@@ -8,6 +8,7 @@ import {
   ExternalLink,
   LayoutDashboard,
   ShoppingBag,
+  Tags,
   Users,
 } from "lucide-react";
 import {
@@ -55,6 +56,7 @@ const navGroups: NavGroup[] = [
     items: [
       { title: "Orders", icon: ClipboardList, href: "/admin/orders", countKey: "orders" },
       { title: "Products", icon: ShoppingBag, href: "/admin/products", countKey: "products" },
+      { title: "Categories", icon: Tags, href: "/admin/categories", countKey: "categories" },
       { title: "Customers", icon: Users, href: "/admin/customers", countKey: "customers" },
     ],
   },

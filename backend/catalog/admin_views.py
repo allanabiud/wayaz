@@ -13,8 +13,8 @@ from accounts.models import WishlistItem
 from accounts.permissions import IsStaffOrAdminUser
 from orders.models import Order, OrderItem
 from .models import Category, Product, ProductImage
-from .serializers import CategorySerializer
 from .admin_serializers import (
+    AdminCategorySerializer,
     AdminProductImageSerializer,
     AdminProductSerializer,
 )
@@ -512,6 +512,7 @@ class AdminNavCountsView(APIView):
             {
                 "orders": Order.objects.count(),
                 "products": Product.objects.count(),
+                "categories": Category.objects.count(),
                 "customers": User.objects.filter(role="customer").count(),
             }
         )
@@ -552,11 +553,22 @@ class AdminProductViewSet(viewsets.ModelViewSet):
         return qs
 
 
-class AdminCategoryViewSet(viewsets.ReadOnlyModelViewSet):
+class AdminCategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.annotate(product_count=Count("products")).all()
-    serializer_class = CategorySerializer
+    serializer_class = AdminCategorySerializer
     permission_classes = [IsStaffOrAdminUser]
     lookup_field = "id"
+
+    def destroy(self, request, *args, **kwargs):
+        # Products cascade-delete with their category, so refuse while the
+        # category still owns any - staff move or delete them first.
+        category = self.get_object()
+        if category.products.exists():
+            return Response(
+                {"detail": "Move or delete this category's products first."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().destroy(request, *args, **kwargs)
 
 
 class AdminProductStockView(APIView):
