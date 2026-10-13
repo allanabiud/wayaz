@@ -7,8 +7,11 @@ from config.views import HealthView
 
 urlpatterns = [
     # Uptime monitor target (kept outside /api/v1/ so version bumps never
-    # move it).
+    # move it). /health and /health/ are aliases: many monitors default to
+    # that path instead of the /api/health/ the plan specifies.
     path("api/health/", HealthView.as_view(), name="health"),
+    path("health/", HealthView.as_view(), name="health-alias"),
+    path("health", HealthView.as_view(), name="health-alias-bare"),
     path("admin/", admin.site.urls),
     path("api/v1/admin/", include("catalog.admin_urls")),
     path("api/v1/auth/", include("accounts.urls")),

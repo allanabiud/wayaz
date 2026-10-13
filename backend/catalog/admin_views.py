@@ -566,7 +566,14 @@ class AdminProductViewSet(viewsets.ModelViewSet):
 
 
 class AdminCategoryViewSet(viewsets.ModelViewSet):
-    queryset = Category.objects.annotate(product_count=Count("products")).all()
+    # Explicit order_by: annotate() puts this in GROUP BY mode, where
+    # Meta.ordering stops counting as an ordering - categories would list
+    # in arbitrary DB order (see CategoryViewSet in catalog/views.py).
+    queryset = (
+        Category.objects.annotate(product_count=Count("products"))
+        .order_by("display_order", "name")
+        .all()
+    )
     serializer_class = AdminCategorySerializer
     permission_classes = [IsStaffOrAdminUser]
     lookup_field = "id"

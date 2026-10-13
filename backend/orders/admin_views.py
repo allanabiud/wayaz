@@ -181,7 +181,15 @@ class AdminCouponViewSet(viewsets.ModelViewSet):
     past orders keep their discount_amount - only the label is lost.
     """
 
-    queryset = Coupon.objects.annotate(order_count=Count("orders")).all()
+    # Explicit order_by: annotate() puts this in GROUP BY mode, where
+    # Meta.ordering stops counting as an ordering - coupons would paginate
+    # in arbitrary DB order (see AdminCategoryViewSet in
+    # catalog/admin_views.py). Mirrors Coupon.Meta.ordering.
+    queryset = (
+        Coupon.objects.annotate(order_count=Count("orders"))
+        .order_by("-created_at")
+        .all()
+    )
     serializer_class = AdminCouponSerializer
     permission_classes = [IsStaffOrAdminUser]
     lookup_field = "id"

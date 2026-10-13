@@ -49,7 +49,15 @@ def rating_payload(product, user):
 
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Category.objects.annotate(product_count=Count("products")).all()
+    # Explicit order_by: the annotate() below puts this in GROUP BY mode,
+    # where Django's Meta.ordering no longer counts as an ordering (rows
+    # would paginate in arbitrary DB order and trigger DRF's
+    # UnorderedObjectListWarning). Mirrors Category.Meta.ordering.
+    queryset = (
+        Category.objects.annotate(product_count=Count("products"))
+        .order_by("display_order", "name")
+        .all()
+    )
     serializer_class = CategorySerializer
     permission_classes = [permissions.AllowAny]
     lookup_field = "slug"

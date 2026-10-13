@@ -131,12 +131,14 @@ export function SearchResults({
             </div>
           ) : (
             <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-              {products.map((product) => (
+              {products.map((product, index) => (
                 <ProductCard
                   key={product.id}
                   product={product}
                   adding={addingId === product.id}
                   inCart={cartProductIds.has(product.id)}
+                  // First row (up to 4 on desktop) is this page's LCP candidate.
+                  eager={index < 4}
                   onAdd={(p) => void addProduct(p)}
                   onOpenCart={openCart}
                 />
