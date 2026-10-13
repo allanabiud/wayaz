@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-import { API_URL } from "@/lib/api";
+import { SERVER_API_URL } from "@/lib/api";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://wayaz.co.ke";
 
@@ -20,7 +20,7 @@ interface Paginated {
  */
 async function fetchAllSlugs(path: string, maxPages = 20): Promise<SlugPayload[]> {
   const slugs: SlugPayload[] = [];
-  let url: string | null = `${API_URL}${path}`;
+  let url: string | null = `${SERVER_API_URL}${path}`;
 
   for (let page = 0; url && page < maxPages; page += 1) {
     const res = await fetch(url, { next: { revalidate: 3600 } });

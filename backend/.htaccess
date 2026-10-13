@@ -1,0 +1,12 @@
+# Copy this file into the API vhost's document root (the directory Apache
+# serves for api.<domain>). Media uploads live under MEDIA_ROOT inside that
+# directory, and Apache - not Django - serves them, so security headers must
+# be set here too (Django's SECURE_CONTENT_TYPE_NOSNIFF only covers responses
+# that reach Django).
+#
+# Requires AllowOverride FileInfo in the vhost config - the default on
+# cPanel/DirectAdmin. Wrapped in IfModule so a missing mod_headers degrades
+# gracefully instead of erroring.
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+</IfModule>

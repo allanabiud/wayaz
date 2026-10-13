@@ -158,7 +158,10 @@ STORAGES = {
 }
 
 MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
+# Env-overridable so production can point MEDIA_ROOT inside the
+# Apache-served document root (uploads are then web-served by Apache,
+# never through Django - see docs/deployment-guide.md and .htaccess).
+MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT", str(BASE_DIR / "media")))
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
