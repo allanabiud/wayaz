@@ -126,7 +126,10 @@ Interactive API documentation (drf-spectacular) is served by the backend:
 - ReDoc: `/api/v1/schema/redoc/`
 - Raw OpenAPI 3 document: `/api/v1/schema/`
 
-CI regenerates and validates the schema on every push
+These routes are in-house tooling: they exist only while `DEBUG` is on (or
+when a staging box sets `SERVE_DOCS=true` in its env), so on production they
+404 — customers only ever talk to the storefront, and the API map stays
+undiscoverable. CI regenerates and validates the schema on every push
 (`manage.py spectacular --validate`), so the spec never drifts from the code.
 The uptime-monitor health probes (`/api/health/`, `/health`) are excluded
 from the spec on purpose — they are operational plumbing, not API surface.

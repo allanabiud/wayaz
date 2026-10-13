@@ -199,6 +199,12 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
+# OpenAPI schema + Swagger UI/ReDoc. This is an in-house API: customers only
+# ever touch the Next.js storefront, so the docs are a dev/staging
+# convenience, not public production surface. They follow DEBUG unless a
+# staging box sets SERVE_DOCS=true (or false to hide them in dev).
+SERVE_DOCS = _env_bool("SERVE_DOCS", str(DEBUG))
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "Wayaz API",
     "DESCRIPTION": "Headless API for the Wayaz Collection e-commerce storefront and admin portal.",
