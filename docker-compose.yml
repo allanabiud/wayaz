@@ -1,16 +1,23 @@
 services:
   db:
-    image: postgres:16-alpine
+    image: mariadb:11.4
     container_name: wayaz_db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: wayaz
-      POSTGRES_USER: wayaz
-      POSTGRES_PASSWORD: wayaz_secret
+      MARIADB_DATABASE: wayaz
+      MARIADB_USER: wayaz
+      MARIADB_PASSWORD: wayaz_secret
+      MARIADB_ROOT_PASSWORD: wayaz_root_secret
     ports:
-      - "5433:5432"
+      - "3306:3306"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - dbdata:/var/lib/mysql
+      - ./docker/mysql-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
 
 volumes:
-  pgdata:
+  dbdata:

@@ -6,6 +6,12 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
+# PyMySQL acts as the MySQLdb API module that Django's MySQL backend expects.
+# Pure Python: no compiler or dev headers required (locally or on cPanel).
+import pymysql
+
+pymysql.install_as_MySQLdb()
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -71,16 +77,20 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
-# Database (PostgreSQL)
+# Database (MariaDB/MySQL - the cPanel/DirectAdmin server has no PostgreSQL)
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
+        "ENGINE": "django.db.backends.mysql",
         "NAME": os.environ.get("DB_NAME", "wayaz"),
         "USER": os.environ.get("DB_USER", "wayaz"),
         "PASSWORD": os.environ.get("DB_PASSWORD", "wayaz_secret"),
         "HOST": os.environ.get("DB_HOST", "localhost"),
-        "PORT": os.environ.get("DB_PORT", "5433"),
+        "PORT": os.environ.get("DB_PORT", "3306"),
         "CONN_MAX_AGE": int(os.environ.get("DB_CONN_MAX_AGE", "60")),
+        "OPTIONS": {
+            "charset": "utf8mb4",
+            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+        },
     }
 }
 
