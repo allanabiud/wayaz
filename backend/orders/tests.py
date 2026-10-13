@@ -1,12 +1,17 @@
 from decimal import Decimal
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.core import mail
-from django.test import TestCase
+from django.core.management import call_command
+from django.test import TestCase, override_settings
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 from catalog.models import Category, Product
 from orders.models import Cart, CartItem, Coupon, Order, OrderItem
 from orders.tokens import verify_payment_token
+from payments.models import PaymentTransaction
 
 User = get_user_model()
 
@@ -236,6 +241,24 @@ class CheckoutAPITestCase(TestCase):
             payment_method=Order.PaymentMethod.COD,
         )
         self.assertFalse(verify_payment_token(token, other))
+
+    @override_settings(MANAGER_EMAIL="boss@wayaz.co.ke")
+    def test_checkout_sends_merchant_copy(self):
+        """The merchant gets a new-order email when MANAGER_EMAIL is set."""
+        res = self.checkout()
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(len(mail.outbox), 2)
+        merchant_mails = [m for m in mail.outbox if "boss@wayaz.co.ke" in m.to]
+        self.assertEqual(len(merchant_mails), 1)
+        self.assertIn(res.data["order_number"], merchant_mails[0].subject)
+        # The shopper still gets their own confirmation.
+        self.assertIn(res.data["order_number"], mail.outbox[0].subject)
+
+    def test_checkout_skips_merchant_copy_when_unconfigured(self):
+        res = self.checkout()
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        # Only the shopper confirmation; MANAGER_EMAIL is empty in tests.
+        self.assertEqual(len(mail.outbox), 1)
 
     def test_checkout_delivery_fee_applied_below_threshold(self):
         CartItem.objects.filter(cart=self.cart).update(quantity=1)  # 2500.00
@@ -1039,3 +1062,114 @@ class AdminCouponAPITestCase(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class CancelStaleOrdersTestCase(TestCase):
+    """Unpaid M-Pesa orders must not hold stock forever.
+
+    Checkout decrements stock immediately; if the STK push is abandoned
+    the order sits PROCESSING + PENDING and the stock stays reserved until
+    this command cancels it and restocks via Order.cancel().
+    """
+
+    def setUp(self):
+        self.category = Category.objects.create(name="Denim", slug="denim")
+        self.product = Product.objects.create(
+            title="Stale Jeans",
+            category=self.category,
+            base_price=Decimal("2000.00"),
+            stock_quantity=5,
+        )
+
+    def _order(
+        self,
+        minutes_old=0,
+        payment_method=Order.PaymentMethod.M_PESA,
+        payment_status=Order.PaymentStatus.PENDING,
+        status=Order.Status.PROCESSING,
+    ):
+        order = Order.objects.create(
+            email="shopper@example.com",
+            phone_number="0712345678",
+            shipping_name="Jane Doe",
+            county="Nairobi",
+            town="Westlands",
+            street_address="Mpaka Rd",
+            total_amount=Decimal("4000.00"),
+            payment_method=payment_method,
+            payment_status=payment_status,
+            status=status,
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=self.product,
+            product_title=self.product.title,
+            unit_price=Decimal("2000.00"),
+            quantity=2,
+        )
+        if minutes_old:
+            Order.objects.filter(pk=order.pk).update(
+                created_at=timezone.now() - timedelta(minutes=minutes_old)
+            )
+        return order
+
+    def test_stale_unpaid_mpesa_order_is_cancelled_and_restocked(self):
+        order = self._order(minutes_old=45)
+        call_command("cancel_stale_orders")
+        order.refresh_from_db()
+        self.product.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.CANCELLED)
+        self.assertEqual(self.product.stock_quantity, 7)  # 5 + 2 restored
+
+    def test_recent_order_is_left_alone(self):
+        order = self._order(minutes_old=5)
+        call_command("cancel_stale_orders")
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.PROCESSING)
+
+    def test_in_flight_payment_is_skipped(self):
+        """A fresh PENDING transaction means the shopper may still be paying."""
+        order = self._order(minutes_old=45)
+        PaymentTransaction.objects.create(
+            order=order,
+            merchant_request_id="MR1",
+            checkout_request_id="ws_CO_STALE_1",
+            amount=order.total_amount,
+            phone_number="254712345678",
+            status=PaymentTransaction.Status.PENDING,
+        )
+        call_command("cancel_stale_orders")
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.PROCESSING)
+
+    def test_paid_and_manually_confirmed_orders_are_left_alone(self):
+        paid = self._order(
+            minutes_old=120, payment_status=Order.PaymentStatus.PAID
+        )
+        confirmed = self._order(
+            minutes_old=120, status=Order.Status.CONFIRMED
+        )
+        call_command("cancel_stale_orders")
+        paid.refresh_from_db()
+        confirmed.refresh_from_db()
+        self.assertEqual(paid.status, Order.Status.PROCESSING)
+        self.assertEqual(paid.payment_status, Order.PaymentStatus.PAID)
+        self.assertEqual(confirmed.status, Order.Status.CONFIRMED)
+
+    def test_cod_left_alone_unless_explicitly_included(self):
+        cod = self._order(minutes_old=120, payment_method=Order.PaymentMethod.COD)
+        call_command("cancel_stale_orders")
+        cod.refresh_from_db()
+        self.assertEqual(cod.status, Order.Status.PROCESSING)
+
+        call_command("cancel_stale_orders", "--include-cod", "--cod-minutes", "60")
+        cod.refresh_from_db()
+        self.assertEqual(cod.status, Order.Status.CANCELLED)
+
+    def test_dry_run_changes_nothing(self):
+        order = self._order(minutes_old=45)
+        call_command("cancel_stale_orders", "--dry-run")
+        order.refresh_from_db()
+        self.product.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.PROCESSING)
+        self.assertEqual(self.product.stock_quantity, 5)

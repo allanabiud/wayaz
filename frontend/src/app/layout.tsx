@@ -14,14 +14,31 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://wayaz.co.ke";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Wayaz Admin",
-    template: "%s · Wayaz Admin",
+    default: "Wayaz Collection",
+    template: "%s · Wayaz Collection",
   },
-  description: "Wayaz admin management dashboard.",
+  description:
+    "Shop the Wayaz Collection - browse the latest pieces and order on WhatsApp or add them to your cart. Delivery across Kenya.",
   icons: { icon: "/wayaz_favicon.jpeg" },
-  robots: { index: false, follow: false },
+  // Default social-preview image for WhatsApp/Facebook shares (the
+  // storefront's primary sharing channel); product pages override it.
+  openGraph: {
+    type: "website",
+    siteName: "Wayaz Collection",
+    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og-image.png"],
+  },
+  // The storefront is indexable; admin (/admin/layout.tsx) and auth
+  // (/(auth)/layout.tsx) re-declare noindex for their own routes.
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

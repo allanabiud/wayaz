@@ -3,7 +3,12 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
+from config.views import HealthView
+
 urlpatterns = [
+    # Uptime monitor target (kept outside /api/v1/ so version bumps never
+    # move it).
+    path("api/health/", HealthView.as_view(), name="health"),
     path("admin/", admin.site.urls),
     path("api/v1/admin/", include("catalog.admin_urls")),
     path("api/v1/auth/", include("accounts.urls")),

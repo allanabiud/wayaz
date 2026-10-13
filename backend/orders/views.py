@@ -12,7 +12,7 @@ from rest_framework.serializers import ValidationError
 from accounts.models import Address
 from catalog.models import Product
 from .delivery import delivery_fee
-from .emails import send_order_confirmation_email
+from .emails import send_order_confirmation_email, send_new_order_email_merchant
 from .models import Cart, CartItem, Coupon, Order, OrderItem, auto_coupon_for
 from .tokens import make_payment_token
 from .serializers import (
@@ -375,9 +375,12 @@ class CheckoutView(APIView):
         except ValidationError as exc:
             return Response(exc.detail, status=status.HTTP_400_BAD_REQUEST)
 
-        # Confirmation hooks: email is fire-and-forget; the WhatsApp link goes
-        # back to the client on the order success page.
+        # Confirmation hooks: emails are fire-and-forget; the shopper gets
+        # the "order received" mail, the merchant a new-order copy (env
+        # MANAGER_EMAIL), and the WhatsApp link goes back to the client on
+        # the order success page.
         send_order_confirmation_email(order)
+        send_new_order_email_merchant(order)
 
         # payment_token is the capability the client must present to drive
         # M-Pesa STK for this order (see orders/tokens.py) - the only place

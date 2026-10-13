@@ -1,11 +1,32 @@
 """Order lifecycle emails; all fire-and-forget (never raise) - the
 WhatsApp link is the primary confirmation channel.
 
-Flow: checkout -> "order received" email; successful M-Pesa payment ->
-"payment received" email; admin confirms the order -> "order confirmed"
-email."""
+Failures are logged (never silently swallowed): a broken SMTP config
+should show up in the logs, not as quietly missing customer emails.
+
+Flow: checkout -> "order received" email to the shopper + a new-order
+copy to the merchant; successful M-Pesa payment -> "payment received"
+email; admin confirms the order -> "order confirmed" email."""
+import logging
+
 from django.conf import settings
 from django.core.mail import send_mail
+
+logger = logging.getLogger(__name__)
+
+
+def _send(subject, body, recipients):
+    """Send without ever raising; log failures with context."""
+    try:
+        send_mail(
+            subject,
+            body,
+            settings.DEFAULT_FROM_EMAIL,
+            recipients,
+            fail_silently=False,
+        )
+    except Exception:  # noqa: BLE001 - notification hooks must not block orders
+        logger.exception("Failed to send email '%s' to %s", subject, recipients)
 
 
 def _summary_lines(order):
@@ -40,16 +61,43 @@ def send_order_confirmation_email(order):
         f"{order.whatsapp_link}\n\n"
         f"- Wayaz Collection"
     )
-    try:
-        send_mail(
-            subject,
-            body,
-            settings.DEFAULT_FROM_EMAIL,
-            [order.email],
-            fail_silently=True,
+    _send(subject, body, [order.email])
+
+
+def send_new_order_email_merchant(order):
+    """Notify the shop owner/manager that a new order landed.
+
+    Sent to MANAGER_EMAIL (env); skipped when unset. The shopper email is
+    fire-and-forget, so this is the merchant's only automatic signal that
+    an order needs preparing.
+    """
+    recipient = getattr(settings, "MANAGER_EMAIL", "")
+    if not recipient:
+        logger.info(
+            "MANAGER_EMAIL not configured; skipping merchant copy of %s",
+            order.order_number,
         )
-    except Exception:  # noqa: BLE001 - notification hooks must not block orders
-        pass
+        return
+
+    item_lines = "".join(
+        f"  - {item.quantity}x {item.product_title} "
+        f"(Ksh {item.line_total})\n"
+        for item in order.items.all()
+    )
+    subject = f"New Wayaz order {order.order_number}"
+    body = (
+        f"New order placed on the storefront.\n\n"
+        f"Order number: {order.order_number}\n"
+        f"Payment: {order.get_payment_method_display()} "
+        f"({order.get_payment_status_display()})\n"
+        f"Customer: {order.shipping_name} | {order.phone_number} | {order.email}\n"
+        f"Deliver to: {order.street_address}, {order.town}, {order.county}\n\n"
+        f"Items:\n{item_lines}\n"
+        + _summary_lines(order)
+        + "\n"
+        f"Follow up on WhatsApp:\n{order.whatsapp_link}\n"
+    )
+    _send(subject, body, [recipient])
 
 
 def send_payment_received_email(order):
@@ -66,16 +114,7 @@ def send_payment_received_email(order):
         f"{order.whatsapp_link}\n\n"
         f"- Wayaz Collection"
     )
-    try:
-        send_mail(
-            subject,
-            body,
-            settings.DEFAULT_FROM_EMAIL,
-            [order.email],
-            fail_silently=True,
-        )
-    except Exception:  # noqa: BLE001 - notification hooks must not block orders
-        pass
+    _send(subject, body, [order.email])
 
 
 def send_order_confirmed_email(order):
@@ -94,13 +133,4 @@ def send_order_confirmed_email(order):
         f"{order.whatsapp_link}\n\n"
         f"- Wayaz Collection"
     )
-    try:
-        send_mail(
-            subject,
-            body,
-            settings.DEFAULT_FROM_EMAIL,
-            [order.email],
-            fail_silently=True,
-        )
-    except Exception:  # noqa: BLE001 - notification hooks must not block orders
-        pass
+    _send(subject, body, [order.email])

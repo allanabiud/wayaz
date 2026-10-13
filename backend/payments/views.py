@@ -183,7 +183,9 @@ class STKPushMockSimulateView(APIView):
             try:
                 send_payment_received_email(order)
             except Exception:
-                pass
+                logger.exception(
+                    "Payment-received email failed for %s", order.order_number
+                )
 
             return Response(
                 {

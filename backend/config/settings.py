@@ -254,10 +254,24 @@ csrf_raw = os.environ.get("CSRF_TRUSTED_ORIGINS", "")
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in csrf_raw.split(",") if o.strip()]
 
 # Email (order confirmations) - console backend by default in development.
+# Production points EMAIL_* at a cPanel mailbox, e.g. orders@<domain>
+# (465 = implicit TLS / 587 = STARTTLS; see docs/deployment-guide.md).
 EMAIL_BACKEND = os.environ.get(
     "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
 )
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "465"))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_SSL = _env_bool("EMAIL_USE_SSL", "true")  # port 465
+EMAIL_USE_TLS = _env_bool("EMAIL_USE_TLS", "false")  # port 587
+# Short timeout so a hanging mail server can't stall checkout.
+EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "10"))
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "Wayaz <orders@wayaz.co.ke>")
+
+# Shop owner/manager address that receives a copy of every new order
+# (skipped when empty).
+MANAGER_EMAIL = os.environ.get("MANAGER_EMAIL", "")
 
 # Base URL for links that must open in the browser (password reset emails).
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://127.0.0.1:3000").rstrip("/")
@@ -282,3 +296,44 @@ MPESA_CALLBACK_URL = os.environ.get(
 # can reach the webhook. Required outside mock mode; generate one with:
 #   python -c "import secrets; print(secrets.token_urlsafe(32))"
 MPESA_CALLBACK_SECRET = os.environ.get("MPESA_CALLBACK_SECRET", "")
+
+# Logging: one console handler (cPanel/DirectAdmin captures stdout into the
+# app's error log). LOG_LEVEL env tunes verbosity; request/DB logs from
+# noisy frameworks stay at WARNING so real problems stand out.
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "standard": {
+            "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": LOG_LEVEL,
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        "django.server": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "urllib3": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+    },
+}
