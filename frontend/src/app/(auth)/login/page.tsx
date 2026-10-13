@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Eye, EyeOff, Loader2, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,13 +25,11 @@ function LoginForm() {
 
   useEffect(() => {
     if (!ready || !isAuthenticated) return;
-    if (next) {
-      router.replace(next);
-    } else if (canManage) {
-      router.replace("/admin");
-    } else {
-      router.replace("/");
-    }
+    // Mirror the sign-in rule below: the storefront is everyone's landing
+    // spot; an admin ?next= is honored only for accounts that can manage
+    // (the /admin gate uses it to round-trip staff through sign-in).
+    const wantsAdmin = Boolean(next && next.startsWith("/admin"));
+    router.replace(next && (!wantsAdmin || canManage) ? next : "/");
   }, [ready, isAuthenticated, canManage, next, router]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -51,13 +49,14 @@ function LoginForm() {
         result.user.is_staff ||
         result.user.is_superuser;
 
-      if (isStaffOrAdmin) {
-        toast.success(`Signed in as ${result.user.role || "staff"}.`);
-        router.replace(next || "/admin");
-      } else {
-        toast.success(`Welcome back, ${result.user.display_name || result.user.username}!`);
-        router.replace(next || "/");
-      }
+      // Everyone signs in to the storefront; an admin ?next= is honored
+      // only for staff/admin accounts, so customers are never bounced
+      // into the dashboard by a crafted link.
+      const wantsAdmin = Boolean(next && next.startsWith("/admin"));
+      toast.success(
+        `Welcome back, ${result.user.display_name || result.user.username}!`,
+      );
+      router.replace(next && (!wantsAdmin || isStaffOrAdmin) ? next : "/");
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -70,8 +69,6 @@ function LoginForm() {
     }
   };
 
-  const isStaffRequested = Boolean(next && next.startsWith("/admin"));
-
   return (
     <div className="flex min-h-screen w-full flex-col justify-between bg-background p-6 sm:p-10">
       {/* Top Bar with Return link */}
@@ -79,7 +76,7 @@ function LoginForm() {
         <div className="flex items-center gap-2">
           {/* subtle header branding */}
           <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Wayaz Admin
+            Wayaz Collection
           </span>
         </div>
 
@@ -116,17 +113,6 @@ function LoginForm() {
           </div>
         </div>
 
-        {isStaffRequested && (
-          <div
-            role="status"
-            className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary/10 p-3 text-xs text-primary"
-          >
-            <ShieldAlert className="size-4 shrink-0 mt-0.5" />
-            <span>
-              Staff credentials required to access the admin portal.
-            </span>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">

@@ -61,19 +61,11 @@ export function LoginDialog({
       tokenStore.save({ access: result.access, refresh: result.refresh });
       signIn(result.user);
 
-      const isStaffOrAdmin =
-        result.user.role === "admin" ||
-        result.user.role === "staff" ||
-        result.user.is_staff ||
-        result.user.is_superuser;
-
-      if (isStaffOrAdmin) {
-        toast.success(`Signed in as ${result.user.role || "staff"}.`, {
-          description: "Admin privileges enabled.",
-        });
-      } else {
-        toast.success(`Welcome back, ${result.user.display_name || result.user.username}!`);
-      }
+      // Plain welcome for everyone — staff find the dashboard via the
+      // Admin Dashboard item in the account menu.
+      toast.success(
+        `Welcome back, ${result.user.display_name || result.user.username}!`,
+      );
 
       onOpenChange(false);
       setUsername("");
