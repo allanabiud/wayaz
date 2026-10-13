@@ -18,6 +18,7 @@ import {
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/admin/states";
@@ -294,19 +295,19 @@ export default function AdminOverviewPage() {
                   {
                     icon: ShoppingBag,
                     label: "Active Products",
-                    value: kpis.total_products.toLocaleString(),
+                    rawValue: kpis.total_products,
                   },
                   {
                     icon: PackageCheck,
                     label: "Units in Stock",
-                    value: kpis.total_stock_units.toLocaleString(),
+                    rawValue: kpis.total_stock_units,
                   },
                   {
                     icon: Users,
                     label: "Customers",
-                    value: kpis.total_customers.toLocaleString(),
+                    rawValue: kpis.total_customers,
                   },
-                ].map(({ icon: Icon, label, value }) => (
+                ].map(({ icon: Icon, label, rawValue }) => (
                   <div
                     key={label}
                     className="flex flex-col rounded-xl border border-white/15 bg-white/10 px-3.5 py-2.5 backdrop-blur-md min-w-[100px] sm:min-w-[125px]"
@@ -316,7 +317,7 @@ export default function AdminOverviewPage() {
                       <span className="truncate">{label}</span>
                     </div>
                     <span className="mt-1 text-base sm:text-lg font-bold tabular-nums text-white">
-                      {value}
+                      <AnimatedNumber value={rawValue} />
                     </span>
                   </div>
                 ))}
@@ -364,7 +365,7 @@ export default function AdminOverviewPage() {
                         onClick={() => setRevenuePeriod(tab)}
                         className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
                           revenuePeriod === tab
-                            ? "bg-background text-foreground shadow-xs"
+                            ? "bg-card dark:bg-background text-foreground shadow-xs"
                             : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
@@ -374,7 +375,7 @@ export default function AdminOverviewPage() {
                   </div>
                 </div>
                 <p className="text-2xl font-bold tracking-tight tabular-nums sm:text-3xl">
-                  Ksh {money(displayRevenue)}
+                  Ksh <AnimatedNumber value={displayRevenue} format={money} />
                   <span className="ml-2 text-xs font-medium text-muted-foreground">
                     ({PERIOD_LABELS[revenuePeriod]})
                   </span>
@@ -441,7 +442,7 @@ export default function AdminOverviewPage() {
                   </p>
                 </div>
                 <p className="text-2xl font-bold tracking-tight tabular-nums sm:text-3xl">
-                  {kpis.total_stock_units.toLocaleString()}
+                  <AnimatedNumber value={kpis.total_stock_units} />
                   <span className="ml-1.5 text-sm font-medium text-muted-foreground">units</span>
                 </p>
               </CardHeader>
@@ -516,7 +517,7 @@ export default function AdminOverviewPage() {
                       onClick={() => setProductTab("sales")}
                       className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
                         productTab === "sales"
-                          ? "bg-background text-foreground shadow-xs"
+                          ? "bg-card dark:bg-background text-foreground shadow-xs"
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
@@ -528,7 +529,7 @@ export default function AdminOverviewPage() {
                       onClick={() => setProductTab("wishlisted")}
                       className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
                         productTab === "wishlisted"
-                          ? "bg-background text-foreground shadow-xs"
+                          ? "bg-card dark:bg-background text-foreground shadow-xs"
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
@@ -540,14 +541,14 @@ export default function AdminOverviewPage() {
                 <p className="text-2xl font-bold tracking-tight tabular-nums sm:text-3xl">
                   {productTab === "sales" ? (
                     <>
-                      {(salesSummary?.units_sold ?? 0).toLocaleString()}
+                      <AnimatedNumber value={salesSummary?.units_sold ?? 0} />
                       <span className="ml-1.5 text-sm font-medium text-muted-foreground">
                         units sold
                       </span>
                     </>
                   ) : (
                     <>
-                      {(salesSummary?.wishlist_saves ?? 0).toLocaleString()}
+                      <AnimatedNumber value={salesSummary?.wishlist_saves ?? 0} />
                       <span className="ml-1.5 text-sm font-medium text-muted-foreground">
                         total saves
                       </span>
@@ -658,7 +659,7 @@ export default function AdminOverviewPage() {
                         onClick={() => setOrdersPeriod(tab)}
                         className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
                           ordersPeriod === tab
-                            ? "bg-background text-foreground shadow-xs"
+                            ? "bg-card dark:bg-background text-foreground shadow-xs"
                             : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
@@ -668,7 +669,7 @@ export default function AdminOverviewPage() {
                   </div>
                 </div>
                 <p className="text-2xl font-bold tracking-tight tabular-nums sm:text-3xl">
-                  {displayOrders.toLocaleString()}
+                  <AnimatedNumber value={displayOrders} />
                   <span className="ml-2 text-xs font-medium text-muted-foreground">
                     ({PERIOD_LABELS[ordersPeriod]})
                   </span>

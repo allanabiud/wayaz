@@ -25,6 +25,7 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState, PageHeader } from "@/components/admin/states";
@@ -55,6 +56,20 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   cod: "Cash on Delivery",
   mpesa: "Lipa na M-Pesa",
 };
+
+// Count-up formatters for AnimatedNumber's `formatter` prop. Mid-flight
+// frames round for a clean roll; the resting frame hands back the exact
+// target, so a finished animation renders precisely what the old static
+// value did (cents on money, tenths on the rates).
+const formatWhole = (n: number) => n.toLocaleString();
+const formatOrderWord = (n: number) =>
+  `${Math.round(n)} order${Math.round(n) === 1 ? "" : "s"}`;
+const formatUnitWord = (n: number) =>
+  `${Math.round(n)} unit${Math.round(n) === 1 ? "" : "s"} sold`;
+const money = (target: number) => (n: number) =>
+  formatKsh(n === target ? target : Math.round(n));
+const percent = (target: number) => (n: number) =>
+  `${n === target ? target : Math.round(n * 10) / 10}%`;
 
 function formatCompact(value: number): string {
   if (value >= 1000) {
@@ -125,35 +140,35 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header and Reporting Controls */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <PageHeader
-          title="Analytics & Reports"
-          description="In-depth financial performance, customer retention, fulfillment health, and catalog insights."
-        />
+      <PageHeader
+        title="Analytics & Reports"
+        description="In-depth financial performance, customer retention, fulfillment health, and catalog insights."
+      />
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Period selector pill */}
-          <div className="inline-flex items-center rounded-lg border border-border/60 bg-muted/40 p-0.5 text-xs">
-            {(["7d", "30d", "90d", "month", "year", "all"] as PresetPeriod[]).map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => {
-                  setUseCustomRange(false);
-                  setPeriod(tab);
-                }}
-                className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
-                  !useCustomRange && period === tab
-                    ? "bg-background text-foreground shadow-xs font-semibold"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {PERIOD_LABELS[tab]}
-              </button>
-            ))}
-          </div>
+      {/* Reporting controls: their own row above the KPI cards */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Period selector pill */}
+        <div className="inline-flex items-center rounded-lg border border-border/60 bg-muted/40 p-0.5 text-xs">
+          {(["7d", "30d", "90d", "month", "year", "all"] as PresetPeriod[]).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => {
+                setUseCustomRange(false);
+                setPeriod(tab);
+              }}
+              className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
+                !useCustomRange && period === tab
+                  ? "bg-card dark:bg-background text-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {PERIOD_LABELS[tab]}
+            </button>
+          ))}
+        </div>
 
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -215,10 +230,14 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold tracking-tight tabular-nums">
-                  {formatKsh(kpis.gross_sales)}
+                  <AnimatedNumber
+                    value={kpis.gross_sales}
+                    decimals={2}
+                    formatter={money(kpis.gross_sales)}
+                  />
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Across {kpis.total_orders.toLocaleString()} total orders
+                  Across <AnimatedNumber value={kpis.total_orders} formatter={formatWhole} /> total orders
                 </p>
               </CardContent>
             </Card>
@@ -232,7 +251,11 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold tracking-tight tabular-nums">
-                  {formatKsh(kpis.aov)}
+                  <AnimatedNumber
+                    value={kpis.aov}
+                    decimals={2}
+                    formatter={money(kpis.aov)}
+                  />
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Average gross customer basket spend
@@ -249,10 +272,14 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold tracking-tight tabular-nums">
-                  {kpis.fulfillment_rate}%
+                  <AnimatedNumber
+                    value={kpis.fulfillment_rate}
+                    decimals={1}
+                    formatter={percent(kpis.fulfillment_rate)}
+                  />
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {kpis.completed_orders} orders delivered safely
+                  <AnimatedNumber value={kpis.completed_orders} formatter={formatWhole} /> orders delivered safely
                 </p>
               </CardContent>
             </Card>
@@ -266,7 +293,11 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold tracking-tight tabular-nums">
-                  {kpis.repeat_customer_rate}%
+                  <AnimatedNumber
+                    value={kpis.repeat_customer_rate}
+                    decimals={1}
+                    formatter={percent(kpis.repeat_customer_rate)}
+                  />
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Customers with 2+ purchases
@@ -418,7 +449,12 @@ export default function AnalyticsPage() {
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-medium text-foreground">{item.label}</span>
                           <span className="tabular-nums text-muted-foreground">
-                            {item.count} ({pct}%)
+                            <AnimatedNumber
+                              value={item.count}
+                              formatter={(n) =>
+                                `${n} (${Math.round((n / total) * 100)}%)`
+                              }
+                            />
                           </span>
                         </div>
                         <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
@@ -469,12 +505,16 @@ export default function AnalyticsPage() {
                               {PAYMENT_METHOD_LABELS[pm.payment_method] || pm.payment_method}
                             </p>
                             <p className="text-muted-foreground text-[11px]">
-                              {pm.count} order{pm.count === 1 ? "" : "s"}
+                              <AnimatedNumber value={pm.count} formatter={formatOrderWord} />
                             </p>
                           </div>
                         </div>
                         <span className="font-bold tabular-nums text-sm text-foreground">
-                          {formatKsh(pm.volume || 0)}
+                          <AnimatedNumber
+                            value={pm.volume || 0}
+                            decimals={2}
+                            formatter={money(pm.volume || 0)}
+                          />
                         </span>
                       </div>
                     ))}
@@ -527,12 +567,16 @@ export default function AnalyticsPage() {
                               {p.title}
                             </Link>
                             <p className="text-muted-foreground text-[11px]">
-                              {p.units_sold} unit{p.units_sold === 1 ? "" : "s"} sold
+                              <AnimatedNumber value={p.units_sold} formatter={formatUnitWord} />
                             </p>
                           </div>
                         </div>
                         <span className="font-semibold tabular-nums text-foreground shrink-0">
-                          {formatKsh(p.revenue)}
+                          <AnimatedNumber
+                            value={p.revenue}
+                            decimals={2}
+                            formatter={money(p.revenue)}
+                          />
                         </span>
                       </li>
                     ))}
@@ -572,10 +616,14 @@ export default function AnalyticsPage() {
                         </div>
                         <div className="flex items-center gap-3 tabular-nums">
                           <span className="text-muted-foreground">
-                            {d.orders} order{d.orders === 1 ? "" : "s"}
+                            <AnimatedNumber value={d.orders} formatter={formatOrderWord} />
                           </span>
                           <span className="font-semibold text-foreground">
-                            {formatKsh(d.volume)}
+                            <AnimatedNumber
+                              value={d.volume}
+                              decimals={2}
+                              formatter={money(d.volume)}
+                            />
                           </span>
                         </div>
                       </li>

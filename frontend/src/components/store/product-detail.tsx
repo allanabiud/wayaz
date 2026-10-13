@@ -69,6 +69,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
     openCart,
     wishlist,
     toggleWishlist,
+    settings,
   } = useStore();
   const { isAuthenticated } = useAuth();
   const [activeImage, setActiveImage] = useState(0);
@@ -329,7 +330,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
             {current?.image && (
               <div
                 aria-hidden="true"
-                className="absolute right-3 bottom-3 inline-flex items-center gap-1.5 rounded-full border bg-background/80 px-2.5 py-1 text-xs text-muted-foreground backdrop-blur"
+                className="absolute right-3 bottom-3 inline-flex items-center gap-1.5 rounded-full border bg-card/80 px-2.5 py-1 text-xs text-muted-foreground backdrop-blur"
               >
                 <ZoomIn className="size-3.5" />
                 <span className="sm:hidden">
@@ -473,6 +474,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 <a
                   href={waLink(
                     `Hi! What size should I get for "${product.title}"?`,
+                    settings?.whatsapp_number,
                   )}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -567,7 +569,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
               asChild
             >
               <a
-                href={productWhatsappLink(product)}
+                href={productWhatsappLink(product, settings?.whatsapp_number)}
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -729,7 +731,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
               asChild
             >
               <a
-                href={productWhatsappLink(product)}
+                href={productWhatsappLink(product, settings?.whatsapp_number)}
                 target="_blank"
                 rel="noopener noreferrer"
               >

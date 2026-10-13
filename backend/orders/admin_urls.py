@@ -5,6 +5,7 @@ from .admin_views import (
     AdminOrdersView,
     AdminOrderDetailView,
     AdminCouponViewSet,
+    AdminPaymentsView,
 )
 
 router = SimpleRouter()
@@ -14,6 +15,7 @@ urlpatterns = [
     # The router must come first: the order-detail pattern below would
     # otherwise swallow "coupons/" as an order_number.
     *router.urls,
+    path("payments/", AdminPaymentsView.as_view(), name="admin-payments"),
     path("", AdminOrdersView.as_view(), name="admin-orders"),
     path(
         "<str:order_number>/",

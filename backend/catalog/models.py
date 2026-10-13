@@ -148,3 +148,68 @@ class ProductReview(models.Model):
 
     def __str__(self):
         return f"{self.rating}/5 - {self.product.title} ({self.user})"
+
+
+class StoreSettings(models.Model):
+    """Business and storefront configuration managed from the admin dashboard."""
+
+    store_name = models.CharField(max_length=120, default="Wayaz Collection")
+    tagline = models.CharField(
+        max_length=255,
+        blank=True,
+        default="Fresh pieces delivered across Kenya - order on WhatsApp or add them to your cart.",
+    )
+    logo = models.ImageField(upload_to="branding/", blank=True, null=True)
+    favicon = models.ImageField(upload_to="branding/", blank=True, null=True)
+    whatsapp_number = models.CharField(
+        max_length=30,
+        default="254700000000",
+        help_text="Primary WhatsApp number for store orders and support, in international format without plus (e.g. 254700000000).",
+    )
+    whatsapp_message = models.CharField(
+        max_length=255,
+        blank=True,
+        default="Hi Wayaz, I'd like to make an inquiry.",
+    )
+    contact_phone = models.CharField(
+        max_length=30, blank=True, default="+254 700 000 000"
+    )
+    contact_email = models.EmailField(
+        blank=True, default="orders@wayaz.co.ke"
+    )
+    address = models.CharField(max_length=255, blank=True, default="Nairobi, Kenya")
+    instagram_url = models.URLField(
+        max_length=255, blank=True, default="https://www.instagram.com/wayaz"
+    )
+    facebook_url = models.URLField(
+        max_length=255, blank=True, default="https://www.facebook.com/wayaz"
+    )
+    tiktok_url = models.URLField(max_length=255, blank=True, default="")
+    twitter_url = models.URLField(max_length=255, blank=True, default="")
+    youtube_url = models.URLField(max_length=255, blank=True, default="")
+    announcement_text = models.CharField(max_length=255, blank=True, default="")
+    is_announcement_active = models.BooleanField(default=False)
+    mpesa_shortcode = models.CharField(
+        max_length=20,
+        blank=True,
+        default="",
+        help_text="M-Pesa Till number or Paybill shortcode. Overrides MPESA_SHORTCODE env var when set.",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Store Settings"
+        verbose_name_plural = "Store Settings"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return f"{self.store_name} Settings"
+

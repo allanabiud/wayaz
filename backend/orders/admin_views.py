@@ -142,6 +142,17 @@ class AdminOrderDetailView(APIView):
         else:
             if status_changed:
                 order.status = new_status
+
+            # COD: cash is collected on delivery — auto-mark as paid.
+            if (
+                status_changed
+                and new_status == Order.Status.DELIVERED
+                and order.payment_method == Order.PaymentMethod.COD
+                and order.payment_status != Order.PaymentStatus.PAID
+                and not new_payment_status  # don't override an explicit override
+            ):
+                order.payment_status = Order.PaymentStatus.PAID
+
             order.save()
 
         if status_changed and new_status == Order.Status.CONFIRMED:
@@ -174,3 +185,84 @@ class AdminCouponViewSet(viewsets.ModelViewSet):
     serializer_class = AdminCouponSerializer
     permission_classes = [IsStaffOrAdminUser]
     lookup_field = "id"
+
+
+class AdminPaymentsView(APIView):
+    """
+    GET /api/v1/admin/orders/payments/
+    Unified payments list: M-Pesa PaymentTransactions + COD orders.
+    Query params:
+      ?method=mpesa   — only M-Pesa
+      ?method=cod     — only Cash on Delivery
+      ?status=COMPLETED|PENDING|FAILED  — filter by payment status (M-Pesa) or PAID/PENDING (COD)
+      ?page=<n>       — 1-indexed
+      ?page_size=<n>  — results per page (default 10, max 100)
+    """
+
+    permission_classes = [IsStaffOrAdminUser]
+
+    def get(self, request):
+        from payments.models import PaymentTransaction
+
+        method = (request.query_params.get("method") or "").lower()
+        status_filter = (request.query_params.get("status") or "").upper()
+        page = max(1, int(request.query_params.get("page", 1)))
+        try:
+            page_size = min(100, max(1, int(request.query_params.get("page_size", 10))))
+        except (TypeError, ValueError):
+            page_size = 10
+        offset = (page - 1) * page_size
+
+        payments = []
+
+        # M-Pesa transactions
+        if not method or method == "mpesa":
+            mpesa_qs = PaymentTransaction.objects.select_related("order").order_by("-created_at")
+            if status_filter:
+                mpesa_qs = mpesa_qs.filter(status=status_filter)
+            for tx in mpesa_qs:
+                payments.append({
+                    "type": "mpesa",
+                    "id": f"mpesa-{tx.id}",
+                    "order_number": tx.order.order_number,
+                    "amount": str(tx.amount),
+                    "phone": tx.phone_number,
+                    "status": tx.status,
+                    "reference": tx.mpesa_receipt_number or "",
+                    "note": tx.result_desc or "",
+                    "date": tx.created_at.isoformat(),
+                })
+
+        # COD orders — all COD orders, status reflects payment collection
+        if not method or method == "cod":
+            cod_qs = Order.objects.filter(
+                payment_method=Order.PaymentMethod.COD
+            ).order_by("-created_at")
+            # Map status filter: PAID → PAID, PENDING → PENDING
+            if status_filter in ("PAID", "PENDING"):
+                cod_qs = cod_qs.filter(payment_status=status_filter)
+            for order in cod_qs:
+                payments.append({
+                    "type": "cod",
+                    "id": f"cod-{order.id}",
+                    "order_number": order.order_number,
+                    "amount": str(order.total_amount),
+                    "phone": order.phone_number,
+                    "status": "COMPLETED" if order.payment_status == Order.PaymentStatus.PAID else "PENDING",
+                    "reference": "",
+                    "note": order.get_status_display(),
+                    "date": order.created_at.isoformat(),
+                })
+
+        # Sort all by date descending, then paginate
+        payments.sort(key=lambda p: p["date"], reverse=True)
+        total = len(payments)
+        page_items = payments[offset: offset + page_size]
+
+        return Response({
+            "count": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": max(1, (total + page_size - 1) // page_size),
+            "results": page_items,
+        })

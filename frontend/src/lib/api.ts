@@ -140,6 +140,8 @@ export const api = {
     request<T>(path, { ...options, method: "DELETE" }),
   upload: <T>(path: string, form: FormData, options?: RequestOptions) =>
     request<T>(path, { ...options, method: "POST", raw: form }),
+  patchForm: <T>(path: string, form: FormData, options?: RequestOptions) =>
+    request<T>(path, { ...options, method: "PATCH", raw: form }),
 };
 
 export function login(username: string, password: string) {

@@ -19,6 +19,18 @@ def get_base_url():
     return SANDBOX_URL
 
 
+def get_active_shortcode() -> str:
+    """Returns DB-configured shortcode if set, otherwise falls back to env var."""
+    try:
+        from catalog.models import StoreSettings
+        db_shortcode = StoreSettings.load().mpesa_shortcode
+        if db_shortcode:
+            return db_shortcode
+    except Exception:
+        pass
+    return settings.MPESA_SHORTCODE
+
+
 def format_phone_number(phone: str) -> str:
     """Formats phone number to Kenyan international format without + (e.g. 254712345678)."""
     cleaned = "".join(filter(str.isdigit, str(phone)))
@@ -90,7 +102,8 @@ def initiate_stk_push(order, phone_number: str) -> dict:
     # Real Daraja Gateway Call (Sandbox or Production)
     token = get_oauth_token()
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    password = generate_stk_password(settings.MPESA_SHORTCODE, settings.MPESA_PASSKEY, timestamp)
+    shortcode = get_active_shortcode()
+    password = generate_stk_password(shortcode, settings.MPESA_PASSKEY, timestamp)
 
     url = f"{get_base_url()}/mpesa/stkpush/v1/processrequest"
     headers = {
@@ -99,13 +112,13 @@ def initiate_stk_push(order, phone_number: str) -> dict:
     }
 
     payload = {
-        "BusinessShortCode": settings.MPESA_SHORTCODE,
+        "BusinessShortCode": shortcode,
         "Password": password,
         "Timestamp": timestamp,
         "TransactionType": "CustomerPayBillOnline",
         "Amount": amount,
         "PartyA": formatted_phone,
-        "PartyB": settings.MPESA_SHORTCODE,
+        "PartyB": shortcode,
         "PhoneNumber": formatted_phone,
         "CallBackURL": settings.MPESA_CALLBACK_URL,
         "AccountReference": f"Wayaz {order.order_number}",

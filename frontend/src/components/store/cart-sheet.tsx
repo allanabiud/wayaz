@@ -22,6 +22,7 @@ import {
   updateCartItem,
   type Cart,
 } from "@/lib/store";
+import { useStore } from "@/components/store/store-context";
 
 interface CartSheetProps {
   open: boolean;
@@ -37,6 +38,7 @@ export function CartSheet({
   onCartChange,
 }: CartSheetProps) {
   const [busyId, setBusyId] = useState<number | null>(null);
+  const { settings } = useStore();
   const items = cart?.items ?? [];
 
   const run = async (
@@ -184,7 +186,7 @@ export function CartSheet({
             <div className="flex flex-col gap-2 sm:grid sm:grid-cols-2">
               <Button variant="outline" className="gap-1.5" asChild>
                 <a
-                  href={cartWhatsappLink(cart)}
+                  href={cartWhatsappLink(cart, settings?.whatsapp_number)}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

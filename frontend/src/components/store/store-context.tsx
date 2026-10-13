@@ -20,12 +20,13 @@ import {
   addToCart,
   fetchCart,
   fetchStorefrontCatalog,
+  fetchStoreSettings,
   storedCartId,
   type Cart,
   type StoreProduct,
   type StorefrontCatalog,
 } from "@/lib/store";
-import type { Paginated } from "@/lib/types";
+import type { Paginated, StoreSettings } from "@/lib/types";
 
 interface WishlistResponseItem {
   id: number;
@@ -58,6 +59,10 @@ interface StoreContextValue {
   catalogLoading: boolean;
   catalogError: string | null;
   refetchCatalog: () => void;
+  /** Live store settings (branding, socials, WhatsApp number, announcement). */
+  settings: StoreSettings | null;
+  settingsLoading: boolean;
+  refetchSettings: () => void;
   /** In-place authentication dialog controls. */
   loginOpen: boolean;
   openLogin: () => void;
@@ -104,6 +109,12 @@ export function StoreProvider({
     [],
     initialCatalog ? { initialData: initialCatalog } : undefined,
   );
+
+  const {
+    data: settings,
+    loading: settingsLoading,
+    refetch: refetchSettings,
+  } = useQuery<StoreSettings>(fetchStoreSettings, []);
 
   // 1. Initial cart load (guest session from stored cart id).
   useEffect(() => {
@@ -280,6 +291,9 @@ export function StoreProvider({
       catalogLoading,
       catalogError,
       refetchCatalog,
+      settings: settings ?? null,
+      settingsLoading,
+      refetchSettings,
       loginOpen,
       openLogin: () => setLoginOpen(true),
       closeLogin: () => setLoginOpen(false),
@@ -302,6 +316,9 @@ export function StoreProvider({
       catalogLoading,
       catalogError,
       refetchCatalog,
+      settings,
+      settingsLoading,
+      refetchSettings,
       loginOpen,
     ],
   );

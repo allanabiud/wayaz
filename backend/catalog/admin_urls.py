@@ -10,6 +10,8 @@ from .admin_views import (
     AdminProductStockView,
     AdminProductImageUploadView,
     AdminProductImageDetailView,
+    AdminStoreSettingsView,
+    AdminMpesaConfigView,
 )
 from accounts.admin_views import AdminCustomerViewSet, AdminTeamViewSet
 
@@ -24,6 +26,8 @@ urlpatterns = [
     path("overview/", AdminOverviewView.as_view(), name="admin-overview"),
     path("analytics/", AdminAnalyticsView.as_view(), name="admin-analytics"),
     path("nav-counts/", AdminNavCountsView.as_view(), name="admin-nav-counts"),
+    path("settings/", AdminStoreSettingsView.as_view(), name="admin-store-settings"),
+    path("mpesa-config/", AdminMpesaConfigView.as_view(), name="admin-mpesa-config"),
     path("orders/", include("orders.admin_urls")),
     path(
         "products/<int:product_id>/adjust-stock/",

@@ -5,9 +5,11 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   ClipboardList,
+  CreditCard,
   ExternalLink,
   LayoutDashboard,
   MessageSquare,
+  Settings,
   ShoppingBag,
   Tags,
   Ticket,
@@ -28,7 +30,7 @@ import {
 } from "@/components/ui/sidebar";
 import { api } from "@/lib/api";
 import { useQuery } from "@/lib/use-query";
-import type { NavCounts } from "@/lib/types";
+import type { NavCounts, StoreSettings } from "@/lib/types";
 
 interface NavItem {
   title: string;
@@ -62,8 +64,15 @@ const navGroups: NavGroup[] = [
       { title: "Categories", icon: Tags, href: "/admin/categories", countKey: "categories" },
       { title: "Reviews", icon: MessageSquare, href: "/admin/reviews", countKey: "reviews" },
       { title: "Coupons", icon: Ticket, href: "/admin/coupons", countKey: "coupons" },
+      { title: "Payments", icon: CreditCard, href: "/admin/payments", countKey: "payments" },
       { title: "Team", icon: UserCog, href: "/admin/team", countKey: "team" },
       { title: "Customers", icon: Users, href: "/admin/customers", countKey: "customers" },
+    ],
+  },
+  {
+    label: "Settings",
+    items: [
+      { title: "Store Settings", icon: Settings, href: "/admin/settings" },
     ],
   },
 ];
@@ -77,6 +86,9 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { data: navCounts } = useQuery<NavCounts>(() =>
     api.get<NavCounts>("/api/v1/admin/nav-counts/"),
+  );
+  const { data: settings } = useQuery<StoreSettings>(() =>
+    api.get<StoreSettings>("/api/v1/catalog/settings/"),
   );
 
   const renderCount = (item: NavItem) =>
@@ -96,8 +108,8 @@ export function AppSidebar() {
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/wayaz_logo.jpeg"
-            alt="Wayaz Collection"
+            src={settings?.logo_url || "/wayaz_logo.jpeg"}
+            alt={settings?.store_name || "Wayaz Collection"}
             className="block h-full w-full object-cover"
           />
         </Link>

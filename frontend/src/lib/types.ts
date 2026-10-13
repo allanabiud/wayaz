@@ -125,6 +125,7 @@ export interface NavCounts {
   coupons: number;
   team: number;
   customers: number;
+  payments: number;
 }
 
 export interface StockByCategory {
@@ -372,6 +373,27 @@ export interface AnalyticsData {
   top_products: AnalyticsTopProduct[];
   destinations: AnalyticsDestination[];
   dead_stock: AnalyticsDeadStock[];
+}
+
+export interface StoreSettings {
+  store_name: string;
+  tagline: string;
+  logo_url: string | null;
+  favicon_url: string | null;
+  whatsapp_number: string;
+  whatsapp_message: string;
+  contact_phone: string;
+  contact_email: string;
+  address: string;
+  instagram_url: string;
+  facebook_url: string;
+  tiktok_url: string;
+  twitter_url: string;
+  youtube_url: string;
+  announcement_text: string;
+  is_announcement_active: boolean;
+  mpesa_shortcode: string;
+  updated_at?: string;
 }
 
 

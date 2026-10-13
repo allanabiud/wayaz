@@ -51,7 +51,7 @@
 
 /* ---- Wayaz design tokens (light: crisp white with red accents) ---- */
 :root {
-  --background: #ffffff;
+  --background: #f7f7f8;
   --foreground: #000000;
   --card: #ffffff;
   --card-foreground: #000000;

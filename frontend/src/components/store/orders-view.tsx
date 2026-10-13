@@ -115,7 +115,7 @@ function OrderProgressTimeline({ status }: { status: OrderStatus }) {
                   isDone
                     ? "border-primary bg-primary text-primary-foreground shadow-sm"
                     : isCurrent
-                      ? "border-primary bg-background text-primary shadow-xs"
+                      ? "border-primary bg-card dark:bg-background text-primary shadow-xs"
                       : "border-muted-foreground/30 bg-muted text-muted-foreground"
                 }`}
               >

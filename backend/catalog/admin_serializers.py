@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Product, ProductImage, ProductReview
+from .models import Category, Product, ProductImage, ProductReview, StoreSettings
 
 
 class AdminCategorySerializer(serializers.ModelSerializer):
@@ -113,3 +113,69 @@ class AdminReviewSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+
+
+class AdminStoreSettingsSerializer(serializers.ModelSerializer):
+    logo = serializers.ImageField(required=False, allow_null=True)
+    favicon = serializers.ImageField(required=False, allow_null=True)
+    logo_url = serializers.SerializerMethodField()
+    favicon_url = serializers.SerializerMethodField()
+    clear_logo = serializers.BooleanField(required=False, write_only=True, default=False)
+    clear_favicon = serializers.BooleanField(required=False, write_only=True, default=False)
+
+    class Meta:
+        model = StoreSettings
+        fields = (
+            "store_name",
+            "tagline",
+            "logo",
+            "favicon",
+            "logo_url",
+            "favicon_url",
+            "clear_logo",
+            "clear_favicon",
+            "whatsapp_number",
+            "whatsapp_message",
+            "contact_phone",
+            "contact_email",
+            "address",
+            "instagram_url",
+            "facebook_url",
+            "tiktok_url",
+            "twitter_url",
+            "youtube_url",
+            "announcement_text",
+            "is_announcement_active",
+            "mpesa_shortcode",
+            "updated_at",
+        )
+        read_only_fields = ("updated_at",)
+
+    def get_logo_url(self, obj):
+        if not obj.logo:
+            return None
+        request = self.context.get("request")
+        return request.build_absolute_uri(obj.logo.url) if request else obj.logo.url
+
+    def get_favicon_url(self, obj):
+        if not obj.favicon:
+            return None
+        request = self.context.get("request")
+        return request.build_absolute_uri(obj.favicon.url) if request else obj.favicon.url
+
+    def update(self, instance, validated_data):
+        clear_logo = validated_data.pop("clear_logo", False)
+        clear_favicon = validated_data.pop("clear_favicon", False)
+
+        if clear_logo:
+            if instance.logo:
+                instance.logo.delete(save=False)
+            instance.logo = None
+
+        if clear_favicon:
+            if instance.favicon:
+                instance.favicon.delete(save=False)
+            instance.favicon = None
+
+        return super().update(instance, validated_data)
+

@@ -280,9 +280,15 @@ class Order(models.Model):
     def whatsapp_link(self):
         """Formatted WhatsApp dispatch/support link for the order success page."""
         from django.conf import settings as django_settings
+        from catalog.models import StoreSettings
+
+        try:
+            configured = StoreSettings.load().whatsapp_number
+        except Exception:
+            configured = ""
 
         number = str(
-            getattr(django_settings, "WHATSAPP_SUPPORT_NUMBER", "")
+            configured or getattr(django_settings, "WHATSAPP_SUPPORT_NUMBER", "")
         ).replace("+", "").replace(" ", "")
         text = (
             f"Hello Wayaz, I'm following up on order {self.order_number} "

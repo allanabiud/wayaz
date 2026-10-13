@@ -193,20 +193,25 @@ export function formatKsh(value: string | number): string {
 export const WHATSAPP_NUMBER =
   process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "254700000000";
 
-export function waLink(text: string): string {
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+export function waLink(text: string, customNumber?: string): string {
+  const number = (customNumber || WHATSAPP_NUMBER).replace(/[^0-9]/g, "");
+  return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
 }
 
-export function productWhatsappLink(product: {
-  title: string;
-  current_price: string;
-}): string {
+export function productWhatsappLink(
+  product: {
+    title: string;
+    current_price: string;
+  },
+  customNumber?: string,
+): string {
   return waLink(
     `Hi Wayaz! I'm interested in "${product.title}" - Ksh ${formatKsh(product.current_price)}. Is it available?`,
+    customNumber,
   );
 }
 
-export function cartWhatsappLink(cart: Cart): string {
+export function cartWhatsappLink(cart: Cart, customNumber?: string): string {
   const lines = cart.items.map(
     (line) =>
       `• ${line.quantity}× ${line.product.product_title}${line.size ? ` (${line.size})` : ""} - Ksh ${formatKsh(line.line_total)}`,
@@ -217,7 +222,12 @@ export function cartWhatsappLink(cart: Cart): string {
       ...lines,
       `Subtotal: Ksh ${formatKsh(cart.subtotal)}`,
     ].join("\n"),
+    customNumber,
   );
+}
+
+export async function fetchStoreSettings(): Promise<import("./types").StoreSettings> {
+  return api.get<import("./types").StoreSettings>("/api/v1/catalog/settings/");
 }
 
 // ---- Guest cart (server-side, identified by an X-Cart-ID header) ------

@@ -441,7 +441,7 @@ export function AppHeader() {
                 setDropdownOpen(false);
               }
             }}
-            className="h-9 w-full rounded-lg border border-border/60 bg-muted/50 pl-8 pr-8 text-sm outline-none transition-all duration-200 focus:bg-background focus:border-primary"
+            className="h-9 w-full rounded-lg border border-border/60 bg-muted/50 pl-8 pr-8 text-sm outline-none transition-all duration-200 focus:bg-card dark:focus:bg-background focus:border-primary"
           />
 
           {searching && query.trim() ? (

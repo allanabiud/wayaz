@@ -3,14 +3,16 @@ from django.db.models import Q, F, Avg, Count, Case, DecimalField, When
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from .models import Category, Product, ProductReview
+from .models import Category, Product, ProductReview, StoreSettings
 from .serializers import (
     CategorySerializer,
     ProductListSerializer,
     ProductDetailSerializer,
     ProductReviewListSerializer,
     ProductReviewSerializer,
+    StoreSettingsSerializer,
 )
 
 # What the shopper actually pays: the sale price while a sale is live,
@@ -247,3 +249,15 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                 ],
             }
         )
+
+
+class StoreSettingsView(APIView):
+    """Public store settings (branding, socials, WhatsApp number, announcement)."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        settings = StoreSettings.load()
+        serializer = StoreSettingsSerializer(settings, context={"request": request})
+        return Response(serializer.data)
+

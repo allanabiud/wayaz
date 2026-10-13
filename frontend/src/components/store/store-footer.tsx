@@ -1,10 +1,14 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import {
   FacebookIcon,
   InstagramIcon,
+  TikTokIcon,
+  TwitterIcon,
   WhatsAppIcon,
+  YouTubeIcon,
 } from "@/components/brand-icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStore } from "@/components/store/store-context";
@@ -18,25 +22,51 @@ const PRODUCT_LINKS = [
   { slug: "shirts", name: "Shirts" },
 ];
 
-/** Point these at the brand's real profiles (NEXT_PUBLIC_* overrides). */
-const INSTAGRAM_URL =
-  process.env.NEXT_PUBLIC_INSTAGRAM_URL ?? "https://www.instagram.com/wayaz";
-const FACEBOOK_URL =
-  process.env.NEXT_PUBLIC_FACEBOOK_URL ?? "https://www.facebook.com/wayaz";
-
-const SOCIAL_LINKS = [
-  { name: "Instagram", href: INSTAGRAM_URL, Icon: InstagramIcon },
-  {
-    name: "WhatsApp",
-    href: waLink("Hi Wayaz, I'd like to know more about your products."),
-    Icon: WhatsAppIcon,
-  },
-  { name: "Facebook", href: FACEBOOK_URL, Icon: FacebookIcon },
-];
-
 export function StoreFooter() {
-  const { catalog, catalogLoading } = useStore();
+  const { catalog, catalogLoading, settings } = useStore();
   const year = new Date().getFullYear();
+
+  // Dynamically resolve social links from settings with graceful fallbacks
+  const socialLinks = useMemo(() => {
+    const list = [];
+    const instagram =
+      settings?.instagram_url ||
+      process.env.NEXT_PUBLIC_INSTAGRAM_URL ||
+      "https://www.instagram.com/wayaz";
+    if (instagram) {
+      list.push({ name: "Instagram", href: instagram, Icon: InstagramIcon });
+    }
+
+    const waNum = settings?.whatsapp_number || process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "254700000000";
+    const waMsg = settings?.whatsapp_message || "Hi Wayaz, I'd like to know more about your products.";
+    list.push({
+      name: "WhatsApp",
+      href: waLink(waMsg, waNum),
+      Icon: WhatsAppIcon,
+    });
+
+    const facebook =
+      settings?.facebook_url ||
+      process.env.NEXT_PUBLIC_FACEBOOK_URL ||
+      "https://www.facebook.com/wayaz";
+    if (facebook) {
+      list.push({ name: "Facebook", href: facebook, Icon: FacebookIcon });
+    }
+
+    if (settings?.tiktok_url) {
+      list.push({ name: "TikTok", href: settings.tiktok_url, Icon: TikTokIcon });
+    }
+
+    if (settings?.twitter_url) {
+      list.push({ name: "X (Twitter)", href: settings.twitter_url, Icon: TwitterIcon });
+    }
+
+    if (settings?.youtube_url) {
+      list.push({ name: "YouTube", href: settings.youtube_url, Icon: YouTubeIcon });
+    }
+
+    return list;
+  }, [settings]);
 
   // Only link categories that exist and hold items.
   const productLinks = PRODUCT_LINKS.filter(({ slug }) => {
@@ -56,11 +86,11 @@ export function StoreFooter() {
         <div className="grid gap-8 md:grid-cols-3">
           <div>
             <p className="text-sm font-semibold tracking-tight">
-              Wayaz Collection
+              {settings?.store_name || "Wayaz Collection"}
             </p>
             <p className="mt-2 max-w-xs text-sm text-muted-foreground">
-              Fresh pieces delivered across Kenya - order on WhatsApp or add
-              them to your cart.
+              {settings?.tagline ||
+                "Fresh pieces delivered across Kenya - order on WhatsApp or add them to your cart."}
             </p>
           </div>
 
@@ -94,7 +124,7 @@ export function StoreFooter() {
               Social
             </h2>
             <ul className="mt-3 space-y-2 text-sm">
-              {SOCIAL_LINKS.map(({ name, href, Icon }) => (
+              {socialLinks.map(({ name, href, Icon }) => (
                 <li key={name}>
                   <a
                     href={href}
@@ -112,7 +142,7 @@ export function StoreFooter() {
         </div>
 
         <div className="mt-8 flex flex-col gap-3 border-t pt-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <p>© {year} Wayaz Collection. All rights reserved.</p>
+          <p>© {year} {settings?.store_name || "Wayaz Collection"}. All rights reserved.</p>
         </div>
       </div>
     </footer>

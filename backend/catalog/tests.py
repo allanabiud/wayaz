@@ -322,3 +322,54 @@ class SeedShopGuardTestCase(TestCase):
         with override_settings(DEBUG=False):
             with self.assertRaises(CommandError):
                 call_command("seed_shop")
+
+
+class StoreSettingsTestCase(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.staff_user = get_user_model().objects.create_user(
+            username="staff_user",
+            email="staff@wayaz.co.ke",
+            password="password123",
+            is_staff=True,
+        )
+        self.customer = get_user_model().objects.create_user(
+            username="customer_user",
+            email="cust@wayaz.co.ke",
+            password="password123",
+        )
+
+    def test_public_settings_accessible_unauthenticated(self):
+        res = self.client.get("/api/v1/catalog/settings/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["store_name"], "Wayaz Collection")
+        self.assertIn("whatsapp_number", res.data)
+        self.assertIn("instagram_url", res.data)
+
+    def test_admin_settings_forbidden_for_customers(self):
+        self.client.force_authenticate(self.customer)
+        res = self.client.get("/api/v1/admin/settings/")
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_settings_update(self):
+        self.client.force_authenticate(self.staff_user)
+        payload = {
+            "store_name": "Wayaz Boutique",
+            "whatsapp_number": "254711223344",
+            "instagram_url": "https://instagram.com/wayazboutique",
+            "announcement_text": "Flash sale this weekend!",
+            "is_announcement_active": True,
+        }
+        res = self.client.patch("/api/v1/admin/settings/", payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["store_name"], "Wayaz Boutique")
+        self.assertEqual(res.data["whatsapp_number"], "254711223344")
+        self.assertEqual(res.data["announcement_text"], "Flash sale this weekend!")
+        self.assertTrue(res.data["is_announcement_active"])
+
+        # Verify public endpoint reflects change
+        self.client.logout()
+        pub_res = self.client.get("/api/v1/catalog/settings/")
+        self.assertEqual(pub_res.data["store_name"], "Wayaz Boutique")
+        self.assertEqual(pub_res.data["whatsapp_number"], "254711223344")
+

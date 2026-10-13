@@ -12,12 +12,14 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from accounts.models import WishlistItem
 from accounts.permissions import IsStaffOrAdminUser
 from orders.models import Coupon, Order, OrderItem
-from .models import Category, Product, ProductImage, ProductReview
+from payments.models import PaymentTransaction
+from .models import Category, Product, ProductImage, ProductReview, StoreSettings
 from .admin_serializers import (
     AdminCategorySerializer,
     AdminProductImageSerializer,
     AdminProductSerializer,
     AdminReviewSerializer,
+    AdminStoreSettingsSerializer,
 )
 
 User = get_user_model()
@@ -509,6 +511,8 @@ class AdminNavCountsView(APIView):
     permission_classes = [IsStaffOrAdminUser]
 
     def get(self, request):
+        mpesa_count = PaymentTransaction.objects.count()
+        cod_count = Order.objects.filter(payment_method="cod").count()
         return Response(
             {
                 "orders": Order.objects.count(),
@@ -520,6 +524,7 @@ class AdminNavCountsView(APIView):
                     role__in=[User.Role.ADMIN, User.Role.STAFF]
                 ).count(),
                 "customers": User.objects.filter(role="customer").count(),
+                "payments": mpesa_count + cod_count,
             }
         )
 
@@ -938,3 +943,87 @@ class AdminAnalyticsView(APIView):
             "destinations": destinations,
             "dead_stock": dead_stock,
         })
+
+
+class AdminStoreSettingsView(APIView):
+    """Business and branding settings management."""
+
+    permission_classes = [IsStaffOrAdminUser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get(self, request):
+        settings = StoreSettings.load()
+        serializer = AdminStoreSettingsSerializer(
+            settings, context={"request": request}
+        )
+        return Response(serializer.data)
+
+    def patch(self, request):
+        settings = StoreSettings.load()
+        serializer = AdminStoreSettingsSerializer(
+            settings, data=request.data, partial=True, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def put(self, request):
+        return self.patch(request)
+
+
+class AdminMpesaConfigView(APIView):
+    """
+    GET /api/v1/admin/mpesa-config/
+    Returns non-sensitive M-Pesa configuration status and recent transactions.
+    Credentials (Consumer Key, Secret, Passkey) are intentionally never exposed.
+    """
+
+    permission_classes = [IsStaffOrAdminUser]
+
+    def get(self, request):
+        from django.conf import settings as django_settings
+
+        env = django_settings.MPESA_ENVIRONMENT
+        shortcode = django_settings.MPESA_SHORTCODE
+        callback_url = django_settings.MPESA_CALLBACK_URL
+        is_configured = bool(
+            django_settings.MPESA_CONSUMER_KEY
+            and django_settings.MPESA_CONSUMER_SECRET
+            and django_settings.MPESA_PASSKEY
+        )
+
+        # Recent transactions (last 50)
+        transactions = PaymentTransaction.objects.select_related("order").order_by(
+            "-created_at"
+        )[:50]
+        tx_data = [
+            {
+                "id": tx.id,
+                "order_number": tx.order.order_number,
+                "amount": str(tx.amount),
+                "phone_number": tx.phone_number,
+                "status": tx.status,
+                "mpesa_receipt_number": tx.mpesa_receipt_number,
+                "result_desc": tx.result_desc,
+                "created_at": tx.created_at.isoformat(),
+            }
+            for tx in transactions
+        ]
+
+        return Response(
+            {
+                "environment": env,
+                "shortcode": shortcode,
+                "callback_url": callback_url,
+                "is_configured": is_configured,
+                "env_vars": [
+                    "MPESA_ENVIRONMENT",
+                    "MPESA_CONSUMER_KEY",
+                    "MPESA_CONSUMER_SECRET",
+                    "MPESA_SHORTCODE",
+                    "MPESA_PASSKEY",
+                    "MPESA_CALLBACK_URL",
+                ],
+                "transactions": tx_data,
+            }
+        )

@@ -58,6 +58,7 @@ export function StoreHeader() {
     openWishlist,
     catalog,
     catalogLoading,
+    settings,
     openLogin,
   } = useStore();
   const { user, isAuthenticated, canManage, signOut } = useAuth();
@@ -124,19 +125,28 @@ export function StoreHeader() {
   const clearTerms = () => setHistory(clearSearchHistory());
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
-      <div className="flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-2 py-2 pr-2 sm:h-14 sm:flex-nowrap sm:gap-x-4 sm:py-0 sm:pr-3">
-        <Link
-          href="/"
-          className="order-1 flex min-w-0 shrink-0 items-center outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:order-none sm:h-full"
+    <>
+      {settings?.is_announcement_active && settings.announcement_text && (
+        <aside
+          aria-label="Announcement"
+          className="bg-primary text-primary-foreground text-center py-1.5 px-4 text-xs font-medium tracking-wide"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/wayaz_logo.jpeg"
-            alt="Wayaz Collection"
-            className="h-auto max-h-9 w-auto sm:h-full sm:max-h-full"
-          />
-        </Link>
+          {settings.announcement_text}
+        </aside>
+      )}
+      <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
+        <div className="flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-2 py-2 pr-2 sm:h-14 sm:flex-nowrap sm:gap-x-4 sm:py-0 sm:pr-3">
+          <Link
+            href="/"
+            className="order-1 flex min-w-0 shrink-0 items-center outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:order-none sm:h-full"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={settings?.logo_url || "/wayaz_logo.jpeg"}
+              alt={settings?.store_name || "Wayaz Collection"}
+              className="h-auto max-h-9 w-auto sm:h-full sm:max-h-full object-contain"
+            />
+          </Link>
 
         {/* Search - takes every remaining pixel of header width; the
             results popover drops down beneath it with thumbnails */}
@@ -517,5 +527,6 @@ export function StoreHeader() {
         </div>
       </div>
     </header>
-  );
+  </>
+);
 }

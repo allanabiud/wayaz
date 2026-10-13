@@ -37,7 +37,7 @@ export function ProductCard({
   onAdd,
   onOpenCart,
 }: ProductCardProps) {
-  const { wishlist, toggleWishlist } = useStore();
+  const { wishlist, toggleWishlist, settings } = useStore();
   const wishlisted = wishlist.has(product.id);
   const image = product.primary_image ? mediaUrl(product.primary_image) : null;
 
@@ -90,7 +90,7 @@ export function ProductCard({
         }
         aria-pressed={wishlisted}
         onClick={() => toggleWishlist(product)}
-        className="absolute top-2 right-2 z-10 flex size-9 items-center justify-center rounded-full border bg-background/85 text-muted-foreground backdrop-blur transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="absolute top-2 right-2 z-10 flex size-9 items-center justify-center rounded-full border bg-card/85 text-muted-foreground backdrop-blur transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <Heart
           className={wishlisted ? "size-4 fill-primary text-primary" : "size-4"}
@@ -123,7 +123,7 @@ export function ProductCard({
         <div className="mt-auto flex flex-col gap-2">
           <Button variant="outline" className="w-full gap-1.5" asChild>
             <a
-              href={productWhatsappLink(product)}
+              href={productWhatsappLink(product, settings?.whatsapp_number)}
               target="_blank"
               rel="noopener noreferrer"
             >

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Product, ProductImage, ProductReview
+from .models import Category, Product, ProductImage, ProductReview, StoreSettings
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -142,3 +142,43 @@ class ProductReviewListSerializer(serializers.ModelSerializer):
         model = ProductReview
         fields = ("id", "rating", "comment", "reviewer", "mine", "created_at")
         read_only_fields = fields
+
+
+class StoreSettingsSerializer(serializers.ModelSerializer):
+    logo_url = serializers.SerializerMethodField()
+    favicon_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = StoreSettings
+        fields = (
+            "store_name",
+            "tagline",
+            "logo_url",
+            "favicon_url",
+            "whatsapp_number",
+            "whatsapp_message",
+            "contact_phone",
+            "contact_email",
+            "address",
+            "instagram_url",
+            "facebook_url",
+            "tiktok_url",
+            "twitter_url",
+            "youtube_url",
+            "announcement_text",
+            "is_announcement_active",
+            "updated_at",
+        )
+
+    def get_logo_url(self, obj):
+        if not obj.logo:
+            return None
+        request = self.context.get("request")
+        return request.build_absolute_uri(obj.logo.url) if request else obj.logo.url
+
+    def get_favicon_url(self, obj):
+        if not obj.favicon:
+            return None
+        request = self.context.get("request")
+        return request.build_absolute_uri(obj.favicon.url) if request else obj.favicon.url
+
