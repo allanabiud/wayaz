@@ -2,7 +2,7 @@
 
 WhatsApp-first boutique storefront for the Kenyan market. One repository, two
 apps: a Django REST API (`backend/`) and a Next.js app that serves both the
-storefront and the admin (`frontend/`), backed by PostgreSQL 16.
+storefront and the admin (`frontend/`), backed by MariaDB/MySQL.
 
 ## Stack
 
@@ -10,13 +10,13 @@ storefront and the admin (`frontend/`), backed by PostgreSQL 16.
 | -------- | -------------------------------------------------------------------------- |
 | Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, shadcn-style UI |
 | Backend  | Django 5 + Django REST Framework + SimpleJWT, Python 3.12+ managed with `uv` |
-| Database | PostgreSQL 16 via docker compose (host port 5433)                          |
+| Database | MariaDB 11.4 via docker compose (host port 3306)                            |
 
 ## Repository layout
 
 ```text
 wayaz/
-├── docker-compose.yml       # PostgreSQL 16 service
+├── docker-compose.yml       # MariaDB 11.4 service
 ├── backend/
 │   ├── config/              # settings + API routing (api/v1/...)
 │   ├── accounts/            # users, addresses, wishlist, JWT auth
@@ -62,7 +62,7 @@ wayaz/
 Prerequisites: Docker, [uv](https://docs.astral.sh/uv/), Python 3.12+.
 
 ```bash
-docker compose up -d                    # PostgreSQL on localhost:5433
+docker compose up -d                    # MariaDB on localhost:3306
 cd backend
 uv sync                                 # creates .venv and installs deps
 cp .env.example .env                    # adjust secrets if needed
