@@ -62,6 +62,7 @@ import {
 } from "@/components/ui/select";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationsMenu } from "@/components/admin/notifications";
 import { api, login, tokenStore } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import type { AdminOrdersResponse, Paginated, Product } from "@/lib/types";
@@ -746,6 +747,9 @@ export function AppHeader() {
               </SheetFooter>
             </SheetContent>
           </Sheet>
+
+          {/* Contact inbox bell: unread count + newest-message preview */}
+          <NotificationsMenu />
 
           <ThemeToggle />
 

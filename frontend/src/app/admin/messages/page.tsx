@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Loader2,
   Mail,
@@ -123,6 +123,23 @@ export default function AdminMessagesPage() {
         .catch(() => {});
     }
   };
+
+  // Header-bell deep link (?message=<id>): open the referenced message once
+  // the first page arrives; opening marks it read via viewMessage above.
+  const attemptedDeepLink = useRef(false);
+  useEffect(() => {
+    if (attemptedDeepLink.current || !data) return;
+    const idParam = new URLSearchParams(window.location.search).get("message");
+    if (!idParam) return;
+    attemptedDeepLink.current = true;
+    const target = messages.find((m) => m.id === Number(idParam));
+    if (!target) return;
+    // Defer past the effect pass (react-hooks/set-state-in-effect): open the
+    // dialog on the next frame, once the list has painted.
+    const frame = requestAnimationFrame(() => viewMessage(target));
+    return () => cancelAnimationFrame(frame);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   const remove = async () => {
     if (!pendingDelete || deleting) return;

@@ -86,8 +86,11 @@ const itemClassName = "-mx-2 h-9 w-[calc(100%_+_1rem)] gap-3 rounded-none px-5";
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { data: navCounts } = useQuery<NavCounts>(() =>
-    api.get<NavCounts>("/api/v1/admin/nav-counts/"),
+  const { data: navCounts } = useQuery<NavCounts>(
+    () => api.get<NavCounts>("/api/v1/admin/nav-counts/"),
+    // Re-check on navigation so the Messages badge matches the header bell
+    // after messages get read or deleted elsewhere.
+    [pathname],
   );
   const { data: settings } = useQuery<StoreSettings>(() =>
     api.get<StoreSettings>("/api/v1/catalog/settings/"),
