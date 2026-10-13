@@ -172,6 +172,7 @@ class AdminStoreSettingsSerializer(serializers.ModelSerializer):
             "whatsapp_number",
             "whatsapp_message",
             "contact_phone",
+            "support_phones",
             "contact_email",
             "address",
             "instagram_url",
@@ -185,6 +186,36 @@ class AdminStoreSettingsSerializer(serializers.ModelSerializer):
             "updated_at",
         )
         read_only_fields = ("updated_at",)
+
+    def validate_support_phones(self, value):
+        import json
+        import re
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except Exception:
+                raise serializers.ValidationError("Invalid JSON for support phones.")
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Support phones must be a list.")
+        if len(value) > 6:
+            raise serializers.ValidationError("A maximum of 6 support phones are allowed.")
+        phone_regex = re.compile(r"^\+?[0-9\s\-()]{7,25}$")
+        cleaned = []
+        for item in value:
+            if not isinstance(item, dict):
+                raise serializers.ValidationError("Each support phone entry must be an object.")
+            label = str(item.get("label", "")).strip()
+            number = str(item.get("number", "")).strip()
+            if not label:
+                raise serializers.ValidationError("Department / Label is required for each phone.")
+            if len(label) > 40:
+                raise serializers.ValidationError("Label must be 40 characters or fewer.")
+            if not number:
+                raise serializers.ValidationError("Phone number is required.")
+            if not phone_regex.match(number):
+                raise serializers.ValidationError(f"Invalid phone number format: '{number}'.")
+            cleaned.append({"label": label, "number": number})
+        return cleaned
 
     def get_logo_url(self, obj):
         if not obj.logo:

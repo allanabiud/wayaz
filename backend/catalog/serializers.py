@@ -158,6 +158,7 @@ class StoreSettingsSerializer(serializers.ModelSerializer):
             "whatsapp_number",
             "whatsapp_message",
             "contact_phone",
+            "support_phones",
             "contact_email",
             "address",
             "instagram_url",

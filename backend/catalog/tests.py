@@ -376,6 +376,33 @@ class StoreSettingsTestCase(TestCase):
         self.assertEqual(pub_res.data["store_name"], "Wayaz Boutique")
         self.assertEqual(pub_res.data["whatsapp_number"], "254711223344")
 
+    def test_admin_settings_support_phones_validation_and_update(self):
+        self.client.force_authenticate(self.staff_user)
+        valid_phones = [
+            {"label": "Sales", "number": "+254712345678"},
+            {"label": "Support", "number": "0722000000"},
+        ]
+        res = self.client.patch(
+            "/api/v1/admin/settings/",
+            {"support_phones": valid_phones},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data["support_phones"]), 2)
+        self.assertEqual(res.data["support_phones"][0]["label"], "Sales")
+
+        # Public endpoint
+        pub_res = self.client.get("/api/v1/catalog/settings/")
+        self.assertEqual(len(pub_res.data["support_phones"]), 2)
+
+        # Invalid phone format
+        invalid_res = self.client.patch(
+            "/api/v1/admin/settings/",
+            {"support_phones": [{"label": "Help", "number": "abc"}]},
+            format="json",
+        )
+        self.assertEqual(invalid_res.status_code, status.HTTP_400_BAD_REQUEST)
+
 
 class AdminProductImageUploadTestCase(TestCase):
     """Upload validation: real images only, allowlisted extensions, capped

@@ -10,6 +10,7 @@ import {
   WhatsAppIcon,
   YouTubeIcon,
 } from "@/components/brand-icons";
+import { Mail, Phone } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStore } from "@/components/store/store-context";
 import { waLink } from "@/lib/store";
@@ -83,7 +84,7 @@ export function StoreFooter() {
   return (
     <footer className="border-t">
       <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6">
-        <div className="grid gap-8 md:grid-cols-3">
+        <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-4">
           <div>
             <p className="text-sm font-semibold tracking-tight">
               {settings?.store_name || "Wayaz Collection"}
@@ -92,6 +93,11 @@ export function StoreFooter() {
               {settings?.tagline ||
                 "Fresh pieces delivered across Kenya - order on WhatsApp or add them to your cart."}
             </p>
+            {settings?.address && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {settings.address}
+              </p>
+            )}
           </div>
 
           <nav aria-label="Products">
@@ -117,6 +123,56 @@ export function StoreFooter() {
                 ))}
               </ul>
             ) : null}
+          </nav>
+
+          <nav aria-label="Customer Care & Contact">
+            <h2 className="text-xs font-semibold tracking-[0.25em] text-gold uppercase">
+              Customer Care
+            </h2>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li>
+                <Link
+                  href="/contact"
+                  className="rounded-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+                >
+                  Contact Us
+                </Link>
+              </li>
+              {settings?.support_phones && settings.support_phones.length > 0 ? (
+                settings.support_phones.map((phone, i) => (
+                  <li key={i}>
+                    <a
+                      href={`tel:${phone.number.replace(/\s+/g, "")}`}
+                      className="inline-flex items-center gap-1.5 rounded-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+                    >
+                      <Phone className="size-3 shrink-0" />
+                      <span>{phone.label}: {phone.number}</span>
+                    </a>
+                  </li>
+                ))
+              ) : settings?.contact_phone ? (
+                <li>
+                  <a
+                    href={`tel:${settings.contact_phone.replace(/\s+/g, "")}`}
+                    className="inline-flex items-center gap-1.5 rounded-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+                  >
+                    <Phone className="size-3 shrink-0" />
+                    <span>{settings.contact_phone}</span>
+                  </a>
+                </li>
+              ) : null}
+              {settings?.contact_email && (
+                <li>
+                  <a
+                    href={`mailto:${settings.contact_email}`}
+                    className="inline-flex items-center gap-1.5 rounded-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+                  >
+                    <Mail className="size-3 shrink-0" />
+                    <span>{settings.contact_email}</span>
+                  </a>
+                </li>
+              )}
+            </ul>
           </nav>
 
           <nav aria-label="Social">

@@ -375,6 +375,11 @@ export interface AnalyticsData {
   dead_stock: AnalyticsDeadStock[];
 }
 
+export interface SupportPhone {
+  label: string;
+  number: string;
+}
+
 export interface StoreSettings {
   store_name: string;
   tagline: string;
@@ -383,6 +388,7 @@ export interface StoreSettings {
   whatsapp_number: string;
   whatsapp_message: string;
   contact_phone: string;
+  support_phones?: SupportPhone[];
   contact_email: string;
   address: string;
   instagram_url: string;

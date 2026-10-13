@@ -174,6 +174,11 @@ class StoreSettings(models.Model):
     contact_phone = models.CharField(
         max_length=30, blank=True, default="+254 700 000 000"
     )
+    support_phones = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='List of {"label": "Sales", "number": "2547..."} objects.',
+    )
     contact_email = models.EmailField(
         blank=True, default="orders@wayaz.co.ke"
     )

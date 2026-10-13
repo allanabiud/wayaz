@@ -8,11 +8,13 @@ import {
   MapPin,
   Megaphone,
   Phone,
+  Plus,
   RotateCcw,
   Save,
   Share2,
   Smartphone,
   Store,
+  Trash2,
   Upload,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -39,7 +41,7 @@ import {
 } from "@/components/brand-icons";
 import { api } from "@/lib/api";
 import { useQuery } from "@/lib/use-query";
-import type { StoreSettings } from "@/lib/types";
+import type { StoreSettings, SupportPhone } from "@/lib/types";
 
 export default function AdminSettingsPage() {
   const { data, error, loading, refetch } = useQuery<StoreSettings>(() =>
@@ -54,6 +56,7 @@ export default function AdminSettingsPage() {
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [whatsappMessage, setWhatsappMessage] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [supportPhones, setSupportPhones] = useState<SupportPhone[]>([]);
   const [contactEmail, setContactEmail] = useState("");
   const [address, setAddress] = useState("");
   const [mpesaShortcode, setMpesaShortcode] = useState("");
@@ -86,6 +89,7 @@ export default function AdminSettingsPage() {
     setWhatsappNumber(data.whatsapp_number || "");
     setWhatsappMessage(data.whatsapp_message || "");
     setContactPhone(data.contact_phone || "");
+    setSupportPhones(Array.isArray(data.support_phones) ? data.support_phones : []);
     setContactEmail(data.contact_email || "");
     setAddress(data.address || "");
     setInstagramUrl(data.instagram_url || "");
@@ -144,6 +148,14 @@ export default function AdminSettingsPage() {
       formData.append("whatsapp_number", whatsappNumber.trim());
       formData.append("whatsapp_message", whatsappMessage.trim());
       formData.append("contact_phone", contactPhone.trim());
+      formData.append(
+        "support_phones",
+        JSON.stringify(
+          supportPhones
+            .map((p) => ({ label: p.label.trim(), number: p.number.trim() }))
+            .filter((p) => p.label && p.number),
+        ),
+      );
       formData.append("contact_email", contactEmail.trim());
       formData.append("address", address.trim());
       formData.append("instagram_url", instagramUrl.trim());
@@ -472,6 +484,79 @@ export default function AdminSettingsPage() {
                     placeholder="Nairobi, Kenya"
                   />
                 </div>
+              </div>
+
+              {/* Department Phone Numbers */}
+              <div className="pt-3 border-t border-border/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-xs font-semibold flex items-center gap-1.5">
+                      <Phone className="size-3 text-muted-foreground" />
+                      Department Support Phone Numbers (Up to 6)
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Add direct lines for Sales, Delivery, Inquiries, etc. Displayed on the footer and contact page.
+                    </p>
+                  </div>
+                  {supportPhones.length < 6 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSupportPhones([...supportPhones, { label: "", number: "" }])}
+                      className="h-7 text-xs gap-1 cursor-pointer"
+                    >
+                      <Plus className="size-3" />
+                      Add Phone
+                    </Button>
+                  )}
+                </div>
+
+                {supportPhones.length === 0 ? (
+                  <p className="text-xs text-muted-foreground/70 italic py-1">
+                    No department phones configured. Only the primary support line will be displayed.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {supportPhones.map((phone, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <Input
+                          placeholder="Department (e.g. Sales, Deliveries)"
+                          value={phone.label}
+                          onChange={(e) => {
+                            const next = [...supportPhones];
+                            next[idx] = { ...next[idx], label: e.target.value };
+                            setSupportPhones(next);
+                          }}
+                          className="w-1/3 text-xs"
+                          maxLength={40}
+                        />
+                        <Input
+                          placeholder="Phone (e.g. +254 712 345 678)"
+                          value={phone.number}
+                          onChange={(e) => {
+                            const next = [...supportPhones];
+                            next[idx] = { ...next[idx], number: e.target.value };
+                            setSupportPhones(next);
+                          }}
+                          className="flex-1 text-xs"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setSupportPhones(supportPhones.filter((_, i) => i !== idx));
+                          }}
+                          className="size-8 text-destructive hover:bg-destructive/10 cursor-pointer shrink-0"
+                          title="Remove phone"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
