@@ -7,6 +7,7 @@ from .admin_views import (
     AdminProductViewSet,
     AdminCategoryViewSet,
     AdminReviewViewSet,
+    AdminContactMessageViewSet,
     AdminProductStockView,
     AdminProductImageUploadView,
     AdminProductImageDetailView,
@@ -19,6 +20,7 @@ router = DefaultRouter()
 router.register(r"products", AdminProductViewSet, basename="admin-products")
 router.register(r"categories", AdminCategoryViewSet, basename="admin-categories")
 router.register(r"reviews", AdminReviewViewSet, basename="admin-reviews")
+router.register(r"contact-messages", AdminContactMessageViewSet, basename="admin-contact-messages")
 router.register(r"customers", AdminCustomerViewSet, basename="admin-customers")
 router.register(r"team", AdminTeamViewSet, basename="admin-team")
 

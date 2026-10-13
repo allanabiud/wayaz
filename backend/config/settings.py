@@ -193,6 +193,7 @@ REST_FRAMEWORK = {
         "auth": "10/min",
         "forgot-password": "5/min",
         "payments": "30/min",
+        "contact": "5/min",
     },
 }
 

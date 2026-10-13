@@ -13,9 +13,14 @@ export default function StoreNotFound() {
       <p className="mt-2 max-w-md text-sm text-muted-foreground">
         This piece may have been removed, or the link is broken.
       </p>
-      <Button asChild className="mt-6">
-        <Link href="/">Back to the store</Link>
-      </Button>
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+        <Button asChild>
+          <Link href="/">Back to the store</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/contact">Contact Support</Link>
+        </Button>
+      </div>
     </div>
   );
 }

@@ -13,9 +13,10 @@ from accounts.models import WishlistItem
 from accounts.permissions import IsStaffOrAdminUser
 from orders.models import Coupon, Order, OrderItem
 from payments.models import PaymentTransaction
-from .models import Category, Product, ProductImage, ProductReview, StoreSettings
+from .models import Category, ContactMessage, Product, ProductImage, ProductReview, StoreSettings
 from .admin_serializers import (
     AdminCategorySerializer,
+    AdminContactMessageSerializer,
     AdminProductImageSerializer,
     AdminProductImageUploadSerializer,
     AdminProductSerializer,
@@ -526,6 +527,7 @@ class AdminNavCountsView(APIView):
                 ).count(),
                 "customers": User.objects.filter(role="customer").count(),
                 "payments": mpesa_count + cod_count,
+                "messages": ContactMessage.objects.filter(is_read=False).count(),
             }
         )
 
@@ -620,6 +622,35 @@ class AdminReviewViewSet(viewsets.ModelViewSet):
                 | Q(user__first_name__icontains=search)
             )
 
+        return qs
+
+
+class AdminContactMessageViewSet(viewsets.ModelViewSet):
+    """Staff inbox for contact inquiries: list (paginated, newest first), mark read/unread, delete."""
+
+    queryset = ContactMessage.objects.all()
+    serializer_class = AdminContactMessageSerializer
+    permission_classes = [IsStaffOrAdminUser]
+    http_method_names = ["get", "patch", "delete", "head", "options"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        params = self.request.query_params
+        status_param = params.get("status")
+        if status_param == "unread":
+            qs = qs.filter(is_read=False)
+        elif status_param == "read":
+            qs = qs.filter(is_read=True)
+
+        search = params.get("search")
+        if search:
+            qs = qs.filter(
+                Q(name__icontains=search)
+                | Q(email__icontains=search)
+                | Q(phone__icontains=search)
+                | Q(subject__icontains=search)
+                | Q(message__icontains=search)
+            )
         return qs
 
 

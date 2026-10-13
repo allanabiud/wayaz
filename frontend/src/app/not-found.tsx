@@ -31,6 +31,12 @@ export default function NotFound() {
         >
           Search products
         </Link>
+        <Link
+          href="/contact"
+          className="rounded-full border px-6 py-2.5 text-sm font-semibold hover:bg-card"
+        >
+          Contact support
+        </Link>
       </div>
     </div>
   );

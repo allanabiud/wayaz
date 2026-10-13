@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   LogIn,
   LogOut,
+  Mail,
   Search,
   ShoppingBag,
   User,
@@ -481,6 +482,12 @@ export function StoreHeader() {
                 <Link href="/orders" className="flex items-center gap-1.5">
                   <ClipboardList className="size-4" />
                   <span>Orders</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="cursor-pointer">
+                <Link href="/contact" className="flex items-center gap-1.5">
+                  <Mail className="size-4" />
+                  <span>Contact Us</span>
                 </Link>
               </DropdownMenuItem>
               {canManage && (

@@ -1,13 +1,15 @@
 from django.db import models
 from django.db.models import Q, F, Avg, Count, Case, DecimalField, When
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.throttling import ScopedRateThrottle
 
-from .models import Category, Product, ProductReview, StoreSettings
+from .models import Category, ContactMessage, Product, ProductReview, StoreSettings
 from .serializers import (
     CategorySerializer,
+    ContactMessageCreateSerializer,
     ProductListSerializer,
     ProductDetailSerializer,
     ProductReviewListSerializer,
@@ -268,4 +270,32 @@ class StoreSettingsView(APIView):
         settings = StoreSettings.load()
         serializer = StoreSettingsSerializer(settings, context={"request": request})
         return Response(serializer.data)
+
+
+class ContactMessageCreateView(generics.CreateAPIView):
+    """Public customer contact submission."""
+
+    queryset = ContactMessage.objects.all()
+    serializer_class = ContactMessageCreateSerializer
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "contact"
+
+    def perform_create(self, serializer):
+        msg = serializer.save()
+        from orders.emails import _send
+        from django.conf import settings
+
+        merchant_email = getattr(settings, "MANAGER_EMAIL", "")
+        if merchant_email:
+            subject = f"New Contact Message: {msg.subject}"
+            body = (
+                f"You received a new inquiry via the website contact form:\n\n"
+                f"From: {msg.name} <{msg.email}>\n"
+                f"Phone: {msg.phone or 'Not provided'}\n"
+                f"Subject: {msg.subject}\n\n"
+                f"Message:\n{msg.message}\n\n"
+                f"Received at: {msg.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            )
+            _send(subject, body, [merchant_email])
 

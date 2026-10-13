@@ -512,3 +512,84 @@ class AdminProductImageUploadTestCase(TestCase):
         )
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
 
+
+class ContactMessageTestCase(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.staff_user = get_user_model().objects.create_user(
+            username="contact_staff",
+            email="staff@wayaz.co.ke",
+            password="password123",
+            is_staff=True,
+        )
+        self.customer = get_user_model().objects.create_user(
+            username="contact_cust",
+            email="cust@wayaz.co.ke",
+            password="password123",
+        )
+
+    def test_public_contact_submission(self):
+        from django.core import mail
+        payload = {
+            "name": "Jane Doe",
+            "email": "jane@example.com",
+            "phone": "+254712345678",
+            "subject": "Delivery Question",
+            "message": "Do you deliver to Westlands?",
+        }
+        res = self.client.post("/api/v1/catalog/contact/", payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["name"], "Jane Doe")
+        self.assertEqual(res.data["subject"], "Delivery Question")
+
+        # Test manager copy was sent
+        from catalog.models import ContactMessage
+        msg = ContactMessage.objects.get(id=res.data["id"])
+        self.assertFalse(msg.is_read)
+
+    def test_admin_contact_messages_list_and_manage(self):
+        from catalog.models import ContactMessage
+        msg = ContactMessage.objects.create(
+            name="Alice",
+            email="alice@example.com",
+            subject="Size inquiry",
+            message="What is the size chart for jeans?",
+        )
+
+        # Unauthenticated cannot access admin
+        res = self.client.get("/api/v1/admin/contact-messages/")
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # Customer cannot access admin
+        self.client.force_authenticate(self.customer)
+        res = self.client.get("/api/v1/admin/contact-messages/")
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Staff can list
+        self.client.force_authenticate(self.staff_user)
+        res = self.client.get("/api/v1/admin/contact-messages/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertGreaterEqual(len(res.data["results"]), 1)
+
+        # Nav counts reflects unread count
+        nav_res = self.client.get("/api/v1/admin/nav-counts/")
+        self.assertEqual(nav_res.status_code, status.HTTP_200_OK)
+        self.assertIn("messages", nav_res.data)
+        self.assertEqual(nav_res.data["messages"], 1)
+
+        # Mark read
+        patch_res = self.client.patch(
+            f"/api/v1/admin/contact-messages/{msg.id}/",
+            {"is_read": True},
+            format="json",
+        )
+        self.assertEqual(patch_res.status_code, status.HTTP_200_OK)
+        self.assertTrue(patch_res.data["is_read"])
+        msg.refresh_from_db()
+        self.assertTrue(msg.is_read)
+
+        # Delete message
+        del_res = self.client.delete(f"/api/v1/admin/contact-messages/{msg.id}/")
+        self.assertEqual(del_res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(ContactMessage.objects.filter(id=msg.id).exists())
+

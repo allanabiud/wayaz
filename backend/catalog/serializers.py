@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Product, ProductImage, ProductReview, StoreSettings
+from .models import Category, ContactMessage, Product, ProductImage, ProductReview, StoreSettings
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -182,4 +182,29 @@ class StoreSettingsSerializer(serializers.ModelSerializer):
             return None
         request = self.context.get("request")
         return request.build_absolute_uri(obj.favicon.url) if request else obj.favicon.url
+
+
+class ContactMessageCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContactMessage
+        fields = ("id", "name", "email", "phone", "subject", "message", "created_at")
+        read_only_fields = ("id", "created_at")
+
+    def validate_name(self, value):
+        val = value.strip()
+        if not val:
+            raise serializers.ValidationError("Name cannot be blank.")
+        return val
+
+    def validate_subject(self, value):
+        val = value.strip()
+        if not val:
+            raise serializers.ValidationError("Subject cannot be blank.")
+        return val
+
+    def validate_message(self, value):
+        val = value.strip()
+        if not val:
+            raise serializers.ValidationError("Message cannot be blank.")
+        return val
 

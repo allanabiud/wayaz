@@ -1,7 +1,7 @@
 import os
 
 from rest_framework import serializers
-from .models import Category, Product, ProductImage, ProductReview, StoreSettings
+from .models import Category, ContactMessage, Product, ProductImage, ProductReview, StoreSettings
 
 ALLOWED_PRODUCT_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 PRODUCT_IMAGE_MAX_UPLOAD_MB = 5
@@ -244,4 +244,20 @@ class AdminStoreSettingsSerializer(serializers.ModelSerializer):
             instance.favicon = None
 
         return super().update(instance, validated_data)
+
+
+class AdminContactMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContactMessage
+        fields = (
+            "id",
+            "name",
+            "email",
+            "phone",
+            "subject",
+            "message",
+            "is_read",
+            "created_at",
+        )
+        read_only_fields = ("id", "name", "email", "phone", "subject", "message", "created_at")
 
