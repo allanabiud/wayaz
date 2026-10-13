@@ -28,6 +28,9 @@ interface MpesaPaymentModalProps {
   open: boolean;
   orderNumber: string;
   checkoutRequestId: string;
+  /** Signed capability token from the checkout response - the payment
+   * status endpoint only answers to the order's owner (or token holder). */
+  paymentToken: string;
   phoneNumber: string;
   amount: string;
   isMock?: boolean;
@@ -41,6 +44,7 @@ export function MpesaPaymentModal({
   open,
   orderNumber,
   checkoutRequestId,
+  paymentToken,
   phoneNumber,
   amount,
   isMock = false,
@@ -78,7 +82,10 @@ export function MpesaPaymentModal({
     // Status polling every 2.5s
     const pollInterval = setInterval(async () => {
       try {
-        const res: PaymentStatusResponse = await pollPaymentStatus(checkoutRequestId);
+        const res: PaymentStatusResponse = await pollPaymentStatus(
+          checkoutRequestId,
+          paymentToken,
+        );
         if (isCancelled) return;
 
         if (res.status === "COMPLETED" || res.payment_status === "PAID") {
@@ -107,7 +114,7 @@ export function MpesaPaymentModal({
       clearInterval(timer);
       clearInterval(pollInterval);
     };
-  }, [open, checkoutRequestId, status, onSuccess]);
+  }, [open, checkoutRequestId, paymentToken, status, onSuccess]);
 
   const handleSimulate = async (action: "success" | "fail") => {
     try {

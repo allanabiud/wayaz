@@ -14,6 +14,7 @@ from catalog.models import Product
 from .delivery import delivery_fee
 from .emails import send_order_confirmation_email
 from .models import Cart, CartItem, Coupon, Order, OrderItem, auto_coupon_for
+from .tokens import make_payment_token
 from .serializers import (
     CartSerializer,
     AddToCartSerializer,
@@ -378,7 +379,12 @@ class CheckoutView(APIView):
         # back to the client on the order success page.
         send_order_confirmation_email(order)
 
-        return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+        # payment_token is the capability the client must present to drive
+        # M-Pesa STK for this order (see orders/tokens.py) - the only place
+        # it's handed out.
+        payload = OrderSerializer(order).data
+        payload["payment_token"] = make_payment_token(order)
+        return Response(payload, status=status.HTTP_201_CREATED)
 
 
 class CouponValidateView(APIView):

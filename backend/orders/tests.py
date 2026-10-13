@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from catalog.models import Category, Product
 from orders.models import Cart, CartItem, Coupon, Order, OrderItem
+from orders.tokens import verify_payment_token
 
 User = get_user_model()
 
@@ -212,6 +213,29 @@ class CheckoutAPITestCase(TestCase):
         self.assertEqual(order.status, Order.Status.PROCESSING)
         self.assertEqual(order.payment_status, Order.PaymentStatus.PENDING)
         self.assertEqual(order.guest_id, str(self.cart.id))
+
+    def test_checkout_returns_payment_token(self):
+        """The checkout response hands out the STK capability token that the
+        payments endpoints require as a guest's ownership proof."""
+        res = self.checkout()
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        token = res.data["payment_token"]
+        order = Order.objects.get(order_number=res.data["order_number"])
+        self.assertTrue(verify_payment_token(token, order))
+
+        # A token minted for another order must not verify against this one.
+        other = Order.objects.create(
+            order_number="WAYAZ-2610-0001",
+            email="other@example.com",
+            phone_number="0711111111",
+            shipping_name="Other Shopper",
+            county="Nairobi",
+            town="Kilimani",
+            street_address="5 Riara Road",
+            total_amount=Decimal("100.00"),
+            payment_method=Order.PaymentMethod.COD,
+        )
+        self.assertFalse(verify_payment_token(token, other))
 
     def test_checkout_delivery_fee_applied_below_threshold(self):
         CartItem.objects.filter(cart=self.cart).update(quantity=1)  # 2500.00

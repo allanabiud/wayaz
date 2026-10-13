@@ -17,6 +17,7 @@ from .models import Category, Product, ProductImage, ProductReview, StoreSetting
 from .admin_serializers import (
     AdminCategorySerializer,
     AdminProductImageSerializer,
+    AdminProductImageUploadSerializer,
     AdminProductSerializer,
     AdminReviewSerializer,
     AdminStoreSettingsSerializer,
@@ -667,23 +668,16 @@ class AdminProductImageUploadView(APIView):
                 {"detail": "Product not found."}, status=status.HTTP_404_NOT_FOUND
             )
 
-        image_file = request.FILES.get("image")
-        if not image_file:
-            return Response(
-                {"detail": "No image file provided."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        is_primary = request.data.get("is_primary", "false").lower() in ("true", "1")
-        alt_text = request.data.get("alt_text", product.title)
-        display_order = int(request.data.get("display_order", 0))
+        serializer = AdminProductImageUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
 
         image = ProductImage.objects.create(
             product=product,
-            image=image_file,
-            alt_text=alt_text,
-            is_primary=is_primary,
-            display_order=display_order,
+            image=data["image"],
+            alt_text=data.get("alt_text") or product.title,
+            is_primary=data["is_primary"],
+            display_order=data["display_order"],
         )
 
         return Response(

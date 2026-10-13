@@ -1,4 +1,4 @@
-import random
+import secrets
 import uuid
 from decimal import Decimal
 from urllib.parse import quote
@@ -95,10 +95,14 @@ class OrderItem(models.Model):
 
 
 def generate_order_number():
-    """Readable order number, e.g. WAYAZ-2609-4821 (YYMM-XXXX)."""
+    """Readable order number, e.g. WAYAZ-2609-4821 (YYMM-XXXX).
+
+    The suffix uses `secrets` rather than `random` so order numbers can't
+    be predicted and probed via the order/payment endpoints.
+    """
     stamp = timezone.now().strftime("%y%m")
     for _ in range(50):
-        candidate = f"WAYAZ-{stamp}-{random.randint(1000, 9999)}"
+        candidate = f"WAYAZ-{stamp}-{secrets.randbelow(9000) + 1000}"
         if not Order.objects.filter(order_number=candidate).exists():
             return candidate
     raise RuntimeError("Could not generate a unique order number")  # pragma: no cover

@@ -27,15 +27,18 @@ User = get_user_model()
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+    throttle_scope = "auth"
 
 
 class CustomTokenRefreshView(TokenRefreshView):
     serializer_class = CustomTokenRefreshSerializer
+    throttle_scope = "auth"
 
 
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
+    throttle_scope = "auth"
 
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
@@ -67,6 +70,9 @@ class ForgotPasswordView(generics.GenericAPIView):
 
     serializer_class = ForgotPasswordSerializer
     permission_classes = [permissions.AllowAny]
+    # Extra-tight: each hit mails a message, so this is both an email-bomb
+    # and an account-enumeration surface.
+    throttle_scope = "forgot-password"
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -115,6 +121,9 @@ class ResetPasswordView(generics.GenericAPIView):
 
     serializer_class = ResetPasswordSerializer
     permission_classes = [permissions.AllowAny]
+    # Reset links are single-use signed tokens; the tight scope also slows
+    # any brute-force attempt against them.
+    throttle_scope = "forgot-password"
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

@@ -3,8 +3,11 @@ Django settings for Wayaz e-commerce project.
 """
 
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
+
+from django.core.exceptions import ImproperlyConfigured
 
 # PyMySQL acts as the MySQLdb API module that Django's MySQL backend expects.
 # Pure Python: no compiler or dev headers required (locally or on cPanel).
@@ -18,12 +21,36 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Load environment variables from .env file
 load_dotenv(BASE_DIR / ".env")
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production-wayaz")
-DEBUG = os.environ.get("DEBUG", "True").lower() in ("true", "1", "yes")
+def _env_bool(name: str, default: str = "false") -> bool:
+    return os.environ.get(name, default).lower() in ("1", "true", "yes")
 
-allowed_hosts_raw = os.environ.get(
-    "ALLOWED_HOSTS", "localhost,127.0.0.1,192.168.1.138,192.168.6.195"
-)
+
+# DEBUG defaults to False so production can never run debug mode by
+# omission. Local dev flips it to True in backend/.env.
+DEBUG = _env_bool("DEBUG")
+
+# Fail closed on the secret key: production must provide its own, and the
+# checked-in development key may never be used with DEBUG off.
+_DEV_SECRET_KEY = "dev-secret-key-change-in-production-wayaz"
+_secret_key = os.environ.get("SECRET_KEY", "")
+if _secret_key:
+    SECRET_KEY = _secret_key
+elif DEBUG:
+    SECRET_KEY = _DEV_SECRET_KEY  # local dev convenience only
+else:
+    raise ImproperlyConfigured(
+        "SECRET_KEY must be set in the environment when DEBUG is off."
+    )
+if not DEBUG and SECRET_KEY == _DEV_SECRET_KEY:
+    raise ImproperlyConfigured(
+        "SECRET_KEY is still the bundled development value. Generate a real "
+        "one with: python -c \"from django.core.management.utils import "
+        "get_random_secret_key; print(get_random_secret_key())\""
+    )
+
+# Host allow-list defaults to localhost only; production/demo hosts
+# (LAN IPs, ngrok tunnels, api.<domain>) come from the environment.
+allowed_hosts_raw = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1")
 ALLOWED_HOSTS = [h.strip() for h in allowed_hosts_raw.split(",") if h.strip()]
 
 # Application definition
@@ -36,6 +63,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Third-party apps
     "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     # Local apps
     "accounts",
@@ -150,7 +178,26 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "config.pagination.StandardResultsSetPagination",
     "PAGE_SIZE": 24,
+    # Anonymous traffic is capped globally, and sensitive view groups opt
+    # into tighter per-scope rates via `throttle_scope`
+    # (auth=10/min, forgot-password=5/min, payments=30/min).
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "60/min",
+        "auth": "10/min",
+        "forgot-password": "5/min",
+        "payments": "30/min",
+    },
 }
+
+# Throttling is disabled under `manage.py test`: the rate-limit cache is
+# process-wide, so a full suite run would trip anon/auth limits and fail
+# spuriously. Production behaviour is covered by the scope settings above.
+if "test" in sys.argv:
+    REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []
 
 from datetime import timedelta
 
@@ -158,18 +205,18 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
     "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": False,
+    # Rotated-out refresh tokens are blacklisted so a stolen (already
+    # used) refresh token can't be replayed for new sessions.
+    "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-# CORS Configuration
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    # LAN origins used for the client demo (served over the local network).
-    "http://192.168.1.138:3000",
-    "http://192.168.6.195:3000",
-]
+# CORS: localhost by default; the production storefront origin and any
+# demo/LAN origins come from the environment (comma-separated).
+cors_raw = os.environ.get(
+    "CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+)
+CORS_ALLOWED_ORIGINS = [o.strip() for o in cors_raw.split(",") if o.strip()]
 
 # Default allowed headers + the guest storefront cart's X-Cart-ID header,
 # which identifies an anonymous shopper's server-side cart.
@@ -185,6 +232,26 @@ CORS_ALLOW_HEADERS = [
     "x-requested-with",
     "x-cart-id",
 ]
+
+# HTTPS posture. All off by default so plain-HTTP local dev keeps working;
+# the production environment turns them on once DNS + SSL are live
+# (see docs/deployment-guide.md).
+# - SECURE_SSL_REDIRECT / *_COOKIE_SECURE: enforce HTTPS end to end.
+# - TRUST_X_FORWARDED_PROTO: set true when Apache/DirectAdmin terminates
+#   TLS and proxies to gunicorn over HTTP (honours X-Forwarded-Proto).
+# - SECURE_HSTS_SECONDS: enable only after the domain serves HTTPS
+#   everywhere (e.g. 31536000 = 1 year).
+SECURE_SSL_REDIRECT = _env_bool("SECURE_SSL_REDIRECT")
+SESSION_COOKIE_SECURE = _env_bool("SESSION_COOKIE_SECURE")
+CSRF_COOKIE_SECURE = _env_bool("CSRF_COOKIE_SECURE")
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "0"))
+if _env_bool("TRUST_X_FORWARDED_PROTO"):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Origins trusted for CSRF-protected POSTs (Django admin, DRF session auth).
+csrf_raw = os.environ.get("CSRF_TRUSTED_ORIGINS", "")
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in csrf_raw.split(",") if o.strip()]
 
 # Email (order confirmations) - console backend by default in development.
 EMAIL_BACKEND = os.environ.get(
@@ -210,3 +277,8 @@ MPESA_PASSKEY = os.environ.get(
 MPESA_CALLBACK_URL = os.environ.get(
     "MPESA_CALLBACK_URL", "https://api.wayaz.co.ke/api/v1/payments/mpesa/callback/"
 )
+# Shared secret embedded in the callback URL path
+# (mpesa/callback/<token>/) so only Safaricom - who we gave the URL to -
+# can reach the webhook. Required outside mock mode; generate one with:
+#   python -c "import secrets; print(secrets.token_urlsafe(32))"
+MPESA_CALLBACK_SECRET = os.environ.get("MPESA_CALLBACK_SECRET", "")

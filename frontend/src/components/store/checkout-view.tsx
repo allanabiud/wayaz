@@ -45,6 +45,7 @@ import {
   initiateMpesaStkPush,
   submitCheckout,
   validateCoupon,
+  type CheckoutOrder,
   type CouponValidation,
   type StoreOrder,
 } from "@/lib/store";
@@ -92,7 +93,7 @@ export function CheckoutView() {
   // M-Pesa STK Push Modal State
   const [mpesaModal, setMpesaModal] = useState<{
     open: boolean;
-    order: StoreOrder | null;
+    order: CheckoutOrder | null;
     checkoutRequestId: string;
     phoneNumber: string;
     isMock?: boolean;
@@ -263,7 +264,11 @@ export function CheckoutView() {
       // If Lipa na M-Pesa is chosen, trigger STK Push immediately
       if (paymentMethod === "mpesa") {
         try {
-          const stkRes = await initiateMpesaStkPush(order.order_number, phone.trim());
+          const stkRes = await initiateMpesaStkPush(
+            order.order_number,
+            phone.trim(),
+            order.payment_token,
+          );
           setMpesaModal({
             open: true,
             order,
@@ -906,6 +911,7 @@ export function CheckoutView() {
           open={mpesaModal.open}
           orderNumber={mpesaModal.order.order_number}
           checkoutRequestId={mpesaModal.checkoutRequestId}
+          paymentToken={mpesaModal.order.payment_token}
           phoneNumber={mpesaModal.phoneNumber}
           amount={formatKsh(mpesaModal.order.total_amount)}
           isMock={mpesaModal.isMock}

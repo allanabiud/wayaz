@@ -45,6 +45,14 @@ def format_phone_number(phone: str) -> str:
     return cleaned
 
 
+def redact_phone(phone: str) -> str:
+    """Log-safe phone representation (keeps first 4 + last 3 digits only)."""
+    digits = "".join(filter(str.isdigit, str(phone)))
+    if len(digits) < 7:
+        return "****"
+    return f"{digits[:4]}****{digits[-3:]}"
+
+
 def get_oauth_token() -> str:
     """Fetches and caches Daraja OAuth bearer token."""
     cache_key = f"daraja_oauth_token_{settings.MPESA_ENVIRONMENT}"
@@ -88,7 +96,8 @@ def initiate_stk_push(order, phone_number: str) -> dict:
         checkout_request_id = f"ws_CO_{datetime.now().strftime('%d%m%Y%H%M%S')}_{uuid.uuid4().hex[:8]}"
         merchant_request_id = f"{uuid.uuid4().hex[:12]}"
         logger.info(
-            f"[MOCK DARJA] STK push initiated for Order {order.order_number}: Amount={amount}, Phone={formatted_phone}"
+            f"[MOCK DARJA] STK push initiated for Order {order.order_number}: "
+            f"Amount={amount}, Phone={redact_phone(formatted_phone)}"
         )
         return {
             "MerchantRequestID": merchant_request_id,
@@ -134,3 +143,55 @@ def initiate_stk_push(order, phone_number: str) -> dict:
         raise RuntimeError(error_msg)
 
     return response_data
+
+
+def stk_query(checkout_request_id: str) -> dict | None:
+    """Asks Safaricom for the authoritative status of an STK Push request
+    (stkpushqueryrequestv1).
+
+    Used to re-verify a success callback before marking an order paid -
+    callback POSTs are unauthenticated beyond the secret URL, so the
+    callback alone is not proof of payment.
+
+    Returns the Daraja response dict (with "ResultCode"), or None when the
+    status could not be determined (transport error, API error response)
+    so callers can distinguish "not completed" from "couldn't ask" and ask
+    Safaricom to redeliver the callback later.
+    """
+    if settings.MPESA_ENVIRONMENT == "mock":
+        # Local mock gateway has no Safaricom to ask; the simulated
+        # callback is its own authority here.
+        return {"ResultCode": 0, "ResultDesc": "Mock gateway: processed successfully."}
+
+    try:
+        token = get_oauth_token()
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        shortcode = get_active_shortcode()
+        password = generate_stk_password(shortcode, settings.MPESA_PASSKEY, timestamp)
+
+        url = f"{get_base_url()}/mpesa/stkpushqueryrequestv1/query"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "BusinessShortCode": shortcode,
+            "Password": password,
+            "Timestamp": timestamp,
+            "CheckoutRequestID": checkout_request_id,
+        }
+        response = requests.post(url, json=payload, headers=headers, timeout=30)
+        data = response.json()
+    except (requests.RequestException, ValueError) as exc:
+        logger.error(f"[DARAJA] STK query failed for {checkout_request_id}: {exc}")
+        return None
+
+    if response.status_code != 200 or "ResultCode" not in data:
+        # Daraja error envelope ({"errorMessage": ...}) or a non-200:
+        # transient - treat as "couldn't ask".
+        logger.error(
+            f"[DARAJA] STK query inconclusive for {checkout_request_id} "
+            f"(HTTP {response.status_code}): {data}"
+        )
+        return None
+    return data

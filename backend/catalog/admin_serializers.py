@@ -1,5 +1,10 @@
+import os
+
 from rest_framework import serializers
 from .models import Category, Product, ProductImage, ProductReview, StoreSettings
+
+ALLOWED_PRODUCT_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+PRODUCT_IMAGE_MAX_UPLOAD_MB = 5
 
 
 class AdminCategorySerializer(serializers.ModelSerializer):
@@ -31,6 +36,36 @@ class AdminProductImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductImage
         fields = ("id", "image", "alt_text", "is_primary", "display_order")
+
+
+class AdminProductImageUploadSerializer(serializers.Serializer):
+    """Validated multipart upload for a product image.
+
+    ImageField opens the file with Pillow, so a ".jpg" that isn't really an
+    image is rejected; this adds an extension allowlist and a size cap, and
+    types the metadata fields so garbage input 400s instead of crashing the
+    old raw `int()` parsing.
+    """
+
+    image = serializers.ImageField()
+    is_primary = serializers.BooleanField(default=False)
+    alt_text = serializers.CharField(
+        required=False, allow_blank=True, max_length=255
+    )
+    display_order = serializers.IntegerField(min_value=0, max_value=1000, default=0)
+
+    def validate_image(self, image):
+        ext = os.path.splitext(image.name or "")[1].lower()
+        if ext not in ALLOWED_PRODUCT_IMAGE_EXTENSIONS:
+            raise serializers.ValidationError(
+                "Only JPG, PNG, or WebP images are allowed."
+            )
+        max_bytes = PRODUCT_IMAGE_MAX_UPLOAD_MB * 1024 * 1024
+        if image.size > max_bytes:
+            raise serializers.ValidationError(
+                f"Image must be smaller than {PRODUCT_IMAGE_MAX_UPLOAD_MB}MB."
+            )
+        return image
 
 
 class AdminProductSerializer(serializers.ModelSerializer):

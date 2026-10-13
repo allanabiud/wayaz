@@ -120,6 +120,12 @@ export interface StoreOrder {
   items: StoreOrderItem[];
   whatsapp_link: string;
   created_at: string;
+  /**
+   * Signed capability token proving the caller placed this order - required
+   * to drive M-Pesa STK push/status for it. Present only in the checkout
+   * response (POST /api/v1/orders/checkout/), never in order history.
+   */
+  payment_token?: string;
 }
 
 /** Signed-in shopper's order history, newest first (server-paginated). */
@@ -346,9 +352,9 @@ export function fetchAutoCoupon(): Promise<CouponValidation | null> {
     );
 }
 
-export function submitCheckout(payload: CheckoutPayload): Promise<StoreOrder> {
+export function submitCheckout(payload: CheckoutPayload): Promise<CheckoutOrder> {
   return api
-    .post<StoreOrder>("/api/v1/orders/checkout/", payload, {
+    .post<CheckoutOrder>("/api/v1/orders/checkout/", payload, {
       headers: cartHeaders(),
     })
     .then((order) => {
@@ -358,6 +364,12 @@ export function submitCheckout(payload: CheckoutPayload): Promise<StoreOrder> {
 }
 
 // ---- M-Pesa Payment Helpers -------------------------------------------
+
+/**
+ * POST /api/v1/orders/checkout/ response: a full StoreOrder plus the
+ * payment_token that authorises M-Pesa calls for this specific order.
+ */
+export type CheckoutOrder = StoreOrder & { payment_token: string };
 
 export interface MpesaInitiateResponse {
   detail: string;
@@ -380,18 +392,21 @@ export interface PaymentStatusResponse {
 export function initiateMpesaStkPush(
   order_number: string,
   phone_number: string,
+  payment_token: string,
 ): Promise<MpesaInitiateResponse> {
   return api.post<MpesaInitiateResponse>("/api/v1/payments/mpesa/stk-push/", {
     order_number,
     phone_number,
+    payment_token,
   });
 }
 
 export function pollPaymentStatus(
   checkout_request_id: string,
+  payment_token: string,
 ): Promise<PaymentStatusResponse> {
   return api.get<PaymentStatusResponse>(
-    `/api/v1/payments/status/${encodeURIComponent(checkout_request_id)}/`,
+    `/api/v1/payments/status/${encodeURIComponent(checkout_request_id)}/?payment_token=${encodeURIComponent(payment_token)}`,
   );
 }
 

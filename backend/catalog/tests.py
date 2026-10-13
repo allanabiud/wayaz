@@ -1,4 +1,7 @@
+from decimal import Decimal
+
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework import status
@@ -372,4 +375,113 @@ class StoreSettingsTestCase(TestCase):
         pub_res = self.client.get("/api/v1/catalog/settings/")
         self.assertEqual(pub_res.data["store_name"], "Wayaz Boutique")
         self.assertEqual(pub_res.data["whatsapp_number"], "254711223344")
+
+
+class AdminProductImageUploadTestCase(TestCase):
+    """Upload validation: real images only, allowlisted extensions, capped
+    size, typed metadata (the old endpoint raw-`int()`-parsed display_order
+    and accepted any file)."""
+
+    UPLOAD_URL = "/api/v1/admin/products/{pid}/upload-image/"
+
+    def setUp(self):
+        self.client = APIClient()
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = get_user_model().objects.create_user(
+            username="img_staff",
+            email="img@wayaz.co.ke",
+            password="password123",
+            is_staff=True,
+        )
+        cls.customer = get_user_model().objects.create_user(
+            username="img_customer",
+            email="imgcust@wayaz.co.ke",
+            password="password123",
+        )
+        category = Category.objects.create(name="Tops", slug="tops")
+        cls.product = Product.objects.create(
+            title="Test Tee",
+            category=category,
+            base_price=Decimal("1500.00"),
+            stock_quantity=10,
+        )
+
+    @staticmethod
+    def _image_bytes(fmt, size=64):
+        import io
+
+        from PIL import Image
+
+        buf = io.BytesIO()
+        Image.new("RGB", (size, size), (200, 30, 30)).save(buf, fmt)
+        return buf.getvalue()
+
+    def upload(self, name, content, content_type, extra=None):
+        self.client.force_authenticate(self.staff)
+        data = {
+            "image": SimpleUploadedFile(name, content, content_type),
+            **(extra or {}),
+        }
+        return self.client.post(
+            self.UPLOAD_URL.format(pid=self.product.id), data, format="multipart"
+        )
+
+    def test_valid_jpeg_upload_succeeds(self):
+        res = self.upload(
+            "tee.jpg",
+            self._image_bytes("JPEG"),
+            "image/jpeg",
+            {"display_order": "2", "is_primary": "true"},
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["display_order"], 2)
+        self.assertTrue(res.data["is_primary"])
+        self.assertEqual(self.product.images.count(), 1)
+
+    def test_display_order_garbage_is_a_400_not_a_crash(self):
+        res = self.upload(
+            "tee.png",
+            self._image_bytes("PNG"),
+            "image/png",
+            {"display_order": "not-a-number"},
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_disallowed_extension_rejected(self):
+        # A real GIF - valid image, but outside the allowlist.
+        res = self.upload("anim.gif", self._image_bytes("GIF"), "image/gif")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self.product.images.count(), 0)
+
+    def test_fake_image_content_rejected(self):
+        # A ".jpg" that is really plain text: Pillow must refuse it.
+        res = self.upload(
+            "fake.jpg", b"definitely not an image at all", "image/jpeg"
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_oversized_image_rejected(self):
+        import io
+        import os
+
+        from PIL import Image
+
+        # Noise JPEGs barely compress, so this lands well over the 5MB cap.
+        img = Image.frombytes("RGB", (2400, 2400), os.urandom(2400 * 2400 * 3))
+        buf = io.BytesIO()
+        img.save(buf, "JPEG", quality=100)
+        self.assertGreater(len(buf.getvalue()), 5 * 1024 * 1024)
+
+        res = self.upload("huge.jpg", buf.getvalue(), "image/jpeg")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("5MB", str(res.data))
+
+    def test_upload_forbidden_for_customers(self):
+        self.client.force_authenticate(self.customer)
+        res = self.client.post(
+            self.UPLOAD_URL.format(pid=self.product.id), {}, format="multipart"
+        )
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
 
