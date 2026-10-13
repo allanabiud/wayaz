@@ -25,3 +25,23 @@ class PasswordAwareJWTAuthentication(JWTAuthentication):
                     "Session expired after a password change. Please sign in again."
                 )
         return user
+
+
+try:
+    from drf_spectacular.extensions import OpenApiAuthenticationExtension
+
+    class PasswordAwareJWTScheme(OpenApiAuthenticationExtension):
+        target_class = "accounts.authentication.PasswordAwareJWTAuthentication"
+        name = "jwtAuth"
+
+        def get_security_requirement(self, auto_schema):
+            return {self.name: []}
+
+        def get_security_definition(self, auto_schema):
+            return {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+            }
+except ImportError:
+    pass

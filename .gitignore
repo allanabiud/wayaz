@@ -40,6 +40,8 @@ db.sqlite3
 db.sqlite3-journal
 media/
 staticfiles/
+# Generated OpenAPI document (regenerate with manage.py spectacular)
+backend/schema.yml
 
 # Environment Variables & Secrets
 .env

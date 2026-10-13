@@ -233,16 +233,11 @@ export default function AdminMessagesPage() {
           ))}
         </div>
       ) : error ? (
-        <ErrorState
-          title="Could not load messages"
-          description={error.message}
-          retry={refetch}
-        />
+        <ErrorState message={error} onRetry={refetch} />
       ) : messages.length === 0 ? (
         <EmptyState
-          icon={Mail}
           title={filtersActive ? "No matching messages" : "Inbox is empty"}
-          description={
+          hint={
             filtersActive
               ? "Try adjusting your search query or status filter."
               : "Messages submitted via the contact form will appear here."
@@ -328,9 +323,10 @@ export default function AdminMessagesPage() {
       {/* Pagination */}
       {data && data.count > PAGE_SIZE && (
         <ListPagination
-          currentPage={page}
-          totalCount={data.count}
+          page={page}
+          count={data.count}
           pageSize={PAGE_SIZE}
+          itemCount={messages.length}
           onPageChange={setPage}
         />
       )}

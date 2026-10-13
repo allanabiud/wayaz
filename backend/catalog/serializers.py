@@ -1,11 +1,13 @@
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 from .models import Category, ContactMessage, Product, ProductImage, ProductReview, StoreSettings
 
 
 class CategorySerializer(serializers.ModelSerializer):
     product_count = serializers.SerializerMethodField()
 
-    def get_product_count(self, obj):
+    @extend_schema_field(serializers.IntegerField())
+    def get_product_count(self, obj) -> int:
         # Use annotated value if present (O(1)), else fallback
         count = getattr(obj, "product_count", None)
         if count is not None:
@@ -60,7 +62,8 @@ class ProductListSerializer(serializers.ModelSerializer):
             "created_at",
         )
 
-    def get_primary_image(self, obj):
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_primary_image(self, obj) -> str | None:
         img = obj.primary_image
         if img and img.image:
             request = self.context.get("request")
@@ -106,13 +109,16 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             "updated_at",
         )
 
-    def get_average_rating(self, obj):
+    @extend_schema_field(serializers.FloatField(allow_null=True))
+    def get_average_rating(self, obj) -> float | None:
         return getattr(obj, "average_rating", None)
 
-    def get_rating_count(self, obj):
+    @extend_schema_field(serializers.IntegerField())
+    def get_rating_count(self, obj) -> int:
         return getattr(obj, "rating_count", 0)
 
-    def get_user_rating(self, obj):
+    @extend_schema_field(serializers.IntegerField(allow_null=True))
+    def get_user_rating(self, obj) -> int | None:
         return getattr(obj, "user_rating", None)
 
 
@@ -171,13 +177,15 @@ class StoreSettingsSerializer(serializers.ModelSerializer):
             "updated_at",
         )
 
-    def get_logo_url(self, obj):
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_logo_url(self, obj) -> str | None:
         if not obj.logo:
             return None
         request = self.context.get("request")
         return request.build_absolute_uri(obj.logo.url) if request else obj.logo.url
 
-    def get_favicon_url(self, obj):
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_favicon_url(self, obj) -> str | None:
         if not obj.favicon:
             return None
         request = self.context.get("request")

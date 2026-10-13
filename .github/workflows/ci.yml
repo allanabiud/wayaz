@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (tests + OpenAPI schema)
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: wayaz
+          MARIADB_USER: wayaz
+          MARIADB_PASSWORD: wayaz_secret
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      # Match the settings.py defaults so the service container plugs straight in.
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_NAME: wayaz
+      DB_USER: wayaz
+      DB_PASSWORD: wayaz_secret
+      # DEBUG is off in CI, so settings.py demands a (non-production) key.
+      SECRET_KEY: ci-only-secret-key-not-for-production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Run tests
+        working-directory: backend
+        run: uv run python manage.py test
+
+      - name: Validate OpenAPI schema
+        working-directory: backend
+        # Fails on any drf-spectacular warning or error; keeps the
+        # annotated spec honest on every push.
+        run: uv run python manage.py spectacular --validate --file /dev/null
+
+  frontend:
+    name: Frontend (lint + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build

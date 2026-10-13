@@ -1,5 +1,6 @@
 import uuid
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 from catalog.models import Product
 from .delivery import DELIVERY_ZONES
 from .models import Cart, CartItem, Order, OrderItem
@@ -9,6 +10,9 @@ class CartItemProductSerializer(serializers.ModelSerializer):
     product_title = serializers.CharField(source="title", read_only=True)
     product_slug = serializers.CharField(source="slug", read_only=True)
     thumbnail = serializers.SerializerMethodField()
+    # Product.is_in_stock is a @property; declare it so the schema types it
+    # as a boolean instead of defaulting to string.
+    is_in_stock = serializers.BooleanField(read_only=True)
     unit_price = serializers.DecimalField(
         source="current_price", max_digits=10, decimal_places=2, read_only=True
     )
@@ -25,7 +29,8 @@ class CartItemProductSerializer(serializers.ModelSerializer):
             "thumbnail",
         )
 
-    def get_thumbnail(self, obj):
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_thumbnail(self, obj) -> str | None:
         primary = obj.primary_image
         url = primary.image.url if primary and primary.image else None
         if url:
@@ -247,8 +252,10 @@ class OrderSerializer(serializers.ModelSerializer):
             "created_at",
         )
 
-    def get_coupon_code(self, obj):
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_coupon_code(self, obj) -> str | None:
         return obj.coupon.code if obj.coupon else None
 
-    def get_whatsapp_link(self, obj):
+    @extend_schema_field(serializers.CharField())
+    def get_whatsapp_link(self, obj) -> str:
         return obj.whatsapp_link

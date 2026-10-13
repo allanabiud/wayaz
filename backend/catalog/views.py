@@ -5,6 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.throttling import ScopedRateThrottle
+from drf_spectacular.utils import extend_schema
 
 from .models import Category, ContactMessage, Product, ProductReview, StoreSettings
 from .serializers import (
@@ -265,7 +266,12 @@ class StoreSettingsView(APIView):
     """Public store settings (branding, socials, WhatsApp number, announcement)."""
 
     permission_classes = [permissions.AllowAny]
+    serializer_class = StoreSettingsSerializer
 
+    @extend_schema(
+        summary="Retrieve public store settings",
+        responses={200: StoreSettingsSerializer},
+    )
     def get(self, request):
         settings = StoreSettings.load()
         serializer = StoreSettingsSerializer(settings, context={"request": request})

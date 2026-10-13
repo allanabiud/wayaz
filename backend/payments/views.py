@@ -8,6 +8,8 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter, OpenApiTypes
+from rest_framework import serializers
 
 from orders.models import Order
 from orders.emails import send_payment_received_email
@@ -43,6 +45,27 @@ class STKPushInitiateView(APIView):
     permission_classes = [permissions.AllowAny]
     throttle_scope = "payments"
 
+    @extend_schema(
+        summary="Initiate M-Pesa STK Push",
+        request=inline_serializer(
+            name="STKPushInitiateRequest",
+            fields={
+                "order_number": serializers.CharField(required=True),
+                "phone_number": serializers.CharField(required=True),
+                "payment_token": serializers.CharField(required=False),
+            },
+        ),
+        responses={
+            200: inline_serializer(
+                name="STKPushInitiateResponse",
+                fields={
+                    "detail": serializers.CharField(),
+                    "checkout_request_id": serializers.CharField(),
+                    "customer_message": serializers.CharField(),
+                },
+            )
+        },
+    )
     def post(self, request):
         order_number = request.data.get("order_number")
         phone_number = request.data.get("phone_number")
@@ -119,6 +142,31 @@ class STKPushStatusView(APIView):
     permission_classes = [permissions.AllowAny]
     throttle_scope = "payments"
 
+    @extend_schema(
+        summary="Check status of M-Pesa transaction",
+        parameters=[
+            OpenApiParameter(
+                "payment_token",
+                OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Capability token issued at checkout",
+                required=False,
+            )
+        ],
+        responses={
+            200: inline_serializer(
+                name="STKPushStatusResponse",
+                fields={
+                    "checkout_request_id": serializers.CharField(),
+                    "order_number": serializers.CharField(),
+                    "status": serializers.CharField(),
+                    "payment_status": serializers.CharField(),
+                    "mpesa_receipt_number": serializers.CharField(allow_null=True),
+                    "result_desc": serializers.CharField(allow_null=True),
+                },
+            )
+        },
+    )
     def get(self, request, checkout_request_id):
         transaction = get_object_or_404(
             PaymentTransaction.objects.select_related("order"),
@@ -154,6 +202,17 @@ class STKPushMockSimulateView(APIView):
     """
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        summary="Simulate M-Pesa STK callback (Mock mode only)",
+        request=inline_serializer(
+            name="MockSimulateRequest",
+            fields={
+                "checkout_request_id": serializers.CharField(),
+                "action": serializers.ChoiceField(choices=["success", "fail"]),
+            },
+        ),
+        responses={200: inline_serializer(name="MockSimulateResponse", fields={"detail": serializers.CharField(), "status": serializers.CharField()})},
+    )
     def post(self, request):
         if settings.MPESA_ENVIRONMENT != "mock":
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
@@ -226,6 +285,57 @@ class DarajaCallbackView(APIView):
     """
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        summary="Daraja STK push webhook callback (server-to-server only)",
+        description=(
+            "Safaricom-only webhook, called asynchronously after the customer "
+            "enters their PIN. Never invoke it from the client: it must arrive "
+            "from Safaricom's servers with the shared secret embedded in the "
+            "URL path. A missing or wrong token is rejected (403), and a "
+            "reported success is re-verified against Daraja's stkpushquery "
+            "before the order is marked paid."
+        ),
+        request=inline_serializer(
+            name="DarajaCallbackRequest",
+            fields={
+                "Body": inline_serializer(
+                    name="DarajaCallbackBody",
+                    fields={
+                        "stkCallback": inline_serializer(
+                            name="DarajaStkCallback",
+                            fields={
+                                "MerchantRequestID": serializers.CharField(),
+                                "CheckoutRequestID": serializers.CharField(),
+                                "ResultCode": serializers.IntegerField(),
+                                "ResultDesc": serializers.CharField(),
+                                "CallbackMetadata": inline_serializer(
+                                    name="DarajaCallbackMetadata",
+                                    fields={
+                                        "Item": serializers.ListField(
+                                            child=inline_serializer(
+                                                name="DarajaCallbackMetadataItem",
+                                                fields={
+                                                    "Name": serializers.CharField(
+                                                        help_text="Amount | MpesaReceiptNumber | TransactionDate | PhoneNumber."
+                                                    ),
+                                                    "Value": serializers.JSONField(
+                                                        help_text="Type depends on Name."
+                                                    ),
+                                                },
+                                            )
+                                        ),
+                                    },
+                                    required=False,
+                                    help_text="Present on success only.",
+                                ),
+                            },
+                        ),
+                    },
+                ),
+            },
+        ),
+        responses={200: inline_serializer(name="DarajaCallbackResponse", fields={"ResultCode": serializers.IntegerField(), "ResultDesc": serializers.CharField()})},
+    )
     def post(self, request, token=None):
         secret = settings.MPESA_CALLBACK_SECRET
         if not secret:

@@ -8,6 +8,7 @@ from rest_framework import generics, status, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 
 from accounts.models import Address
 from catalog.models import Product
@@ -49,9 +50,27 @@ def get_or_create_cart(request):
     return Cart.objects.create()
 
 
+# Shared by every endpoint that resolves an anonymous shopper's cart from the
+# X-Cart-ID header; signed-in users are served their own cart instead.
+GUEST_CART_ID_HEADER = [
+    OpenApiParameter(
+        "X-Cart-ID",
+        OpenApiTypes.STR,
+        location=OpenApiParameter.HEADER,
+        description="Guest cart UUID token (ignored for signed-in users).",
+        required=False,
+    )
+]
+
+
 class CartDetailView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        summary="Retrieve active cart",
+        parameters=GUEST_CART_ID_HEADER,
+        responses={200: CartSerializer},
+    )
     def get(self, request):
         cart = get_or_create_cart(request)
         # Prefetch cart items, products, and images to prevent N+1 queries during serialization
@@ -66,6 +85,11 @@ class CartDetailView(APIView):
         response["X-Cart-ID"] = str(cart.id)
         return response
 
+    @extend_schema(
+        summary="Clear active cart",
+        parameters=GUEST_CART_ID_HEADER,
+        responses={200: CartSerializer},
+    )
     def delete(self, request):
         cart = get_or_create_cart(request)
         cart.items.all().delete()
@@ -76,6 +100,12 @@ class CartDetailView(APIView):
 class CartItemAddView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        summary="Add item to cart",
+        parameters=GUEST_CART_ID_HEADER,
+        request=AddToCartSerializer,
+        responses={201: CartSerializer},
+    )
     def post(self, request):
         serializer = AddToCartSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -119,6 +149,12 @@ class CartItemAddView(APIView):
 class CartItemDetailView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        summary="Update cart item quantity or product",
+        parameters=GUEST_CART_ID_HEADER,
+        request=UpdateCartItemSerializer,
+        responses={200: CartSerializer},
+    )
     def patch(self, request, item_id):
         cart = get_or_create_cart(request)
         cart_item = get_object_or_404(CartItem, id=item_id, cart=cart)
@@ -174,6 +210,11 @@ class CartItemDetailView(APIView):
         cart_serializer = CartSerializer(cart, context={"request": request})
         return Response(cart_serializer.data)
 
+    @extend_schema(
+        summary="Remove item from cart",
+        parameters=GUEST_CART_ID_HEADER,
+        responses={200: CartSerializer},
+    )
     def delete(self, request, item_id):
         cart = get_or_create_cart(request)
         cart_item = get_object_or_404(CartItem, id=item_id, cart=cart)
@@ -186,6 +227,11 @@ class CartItemDetailView(APIView):
 class CartMergeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        summary="Merge guest cart into authenticated user cart",
+        request=MergeCartSerializer,
+        responses={200: CartSerializer},
+    )
     def post(self, request):
         serializer = MergeCartSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -240,6 +286,12 @@ class CheckoutView(APIView):
 
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        summary="Create order from active cart",
+        parameters=GUEST_CART_ID_HEADER,
+        request=CheckoutSerializer,
+        responses={201: OrderSerializer},
+    )
     def post(self, request):
         serializer = CheckoutSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -401,7 +453,13 @@ class CouponValidateView(APIView):
     promotion. `auto_applied` reports which of the two happened."""
 
     permission_classes = [permissions.AllowAny]
+    serializer_class = CouponValidateSerializer
 
+    @extend_schema(
+        summary="Validate or auto-apply coupon code to current cart",
+        parameters=GUEST_CART_ID_HEADER,
+        request=CouponValidateSerializer,
+    )
     def post(self, request):
         serializer = CouponValidateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

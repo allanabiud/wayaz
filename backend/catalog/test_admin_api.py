@@ -118,6 +118,7 @@ class AdminAPITestCase(TestCase):
                 "team": 1,
                 "customers": 1,
                 "payments": 0,  # 0 PaymentTransactions + 0 COD orders in test data
+                "messages": 0,
             },
         )
 

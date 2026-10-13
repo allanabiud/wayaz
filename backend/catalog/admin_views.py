@@ -4,7 +4,13 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q, F, Sum, Count
 from django.db.models.functions import TruncWeek
 from django.utils import timezone
-from rest_framework import status, viewsets
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+    inline_serializer,
+)
+from rest_framework import serializers, status, viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
@@ -15,9 +21,15 @@ from orders.models import Coupon, Order, OrderItem
 from payments.models import PaymentTransaction
 from .models import Category, ContactMessage, Product, ProductImage, ProductReview, StoreSettings
 from .admin_serializers import (
+    AdminAnalyticsResponseSerializer,
     AdminCategorySerializer,
     AdminContactMessageSerializer,
+    AdminErrorDetailSerializer,
+    AdminMpesaConfigResponseSerializer,
+    AdminNavCountsResponseSerializer,
+    AdminOverviewResponseSerializer,
     AdminProductImageSerializer,
+    AdminProductImageUploadResponseSerializer,
     AdminProductImageUploadSerializer,
     AdminProductSerializer,
     AdminReviewSerializer,
@@ -47,6 +59,14 @@ def _order_counts_by_day(since, dates):
 class AdminOverviewView(APIView):
     permission_classes = [IsStaffOrAdminUser]
 
+    @extend_schema(
+        summary="Admin dashboard overview",
+        description=(
+            "One aggregate payload for the admin landing page: KPIs, "
+            "period-over-period deltas, chart series and low-stock alerts."
+        ),
+        responses={200: AdminOverviewResponseSerializer},
+    )
     def get(self, request):
         total_products = Product.objects.count()
         total_stock = (
@@ -512,6 +532,11 @@ class AdminNavCountsView(APIView):
 
     permission_classes = [IsStaffOrAdminUser]
 
+    @extend_schema(
+        summary="Admin sidebar counts",
+        description="One counter per admin section, for the Management sidebar badges.",
+        responses={200: AdminNavCountsResponseSerializer},
+    )
     def get(self, request):
         mpesa_count = PaymentTransaction.objects.count()
         cod_count = Order.objects.filter(payment_method="cod").count()
@@ -657,6 +682,26 @@ class AdminContactMessageViewSet(viewsets.ModelViewSet):
 class AdminProductStockView(APIView):
     permission_classes = [IsStaffOrAdminUser]
 
+    @extend_schema(
+        summary="Update a product's stock",
+        description=(
+            "Send `stock_quantity` to set an absolute level, or `adjustment` "
+            "to shift the current one (negative values included). Both clamp "
+            "at zero."
+        ),
+        request=inline_serializer(
+            name="AdminStockUpdateRequest",
+            fields={
+                "stock_quantity": serializers.IntegerField(required=False),
+                "adjustment": serializers.IntegerField(required=False),
+            },
+        ),
+        responses={
+            200: AdminProductSerializer,
+            400: AdminErrorDetailSerializer,
+            404: AdminErrorDetailSerializer,
+        },
+    )
     def post(self, request, product_id):
         try:
             product = Product.objects.get(id=product_id)
@@ -698,6 +743,15 @@ class AdminProductImageUploadView(APIView):
     permission_classes = [IsStaffOrAdminUser]
     parser_classes = [MultiPartParser, FormParser]
 
+    @extend_schema(
+        summary="Upload a product image",
+        description="Multipart upload, max 5MB, JPG/PNG/WebP only.",
+        request=AdminProductImageUploadSerializer,
+        responses={
+            201: AdminProductImageUploadResponseSerializer,
+            404: AdminErrorDetailSerializer,
+        },
+    )
     def post(self, request, product_id):
         try:
             product = Product.objects.get(id=product_id)
@@ -738,6 +792,23 @@ class AdminProductImageDetailView(APIView):
             id=image_id, product_id=product_id
         ).first()
 
+    @extend_schema(
+        summary="Update a product image's metadata",
+        description="Partial update of `is_primary`, `alt_text` and/or `display_order`.",
+        request=inline_serializer(
+            name="AdminProductImageUpdateRequest",
+            fields={
+                "is_primary": serializers.BooleanField(required=False),
+                "alt_text": serializers.CharField(required=False, allow_blank=True),
+                "display_order": serializers.IntegerField(required=False),
+            },
+        ),
+        responses={
+            200: AdminProductImageSerializer,
+            400: AdminErrorDetailSerializer,
+            404: AdminErrorDetailSerializer,
+        },
+    )
     def patch(self, request, product_id, image_id):
         image = self._get_image(product_id, image_id)
         if image is None:
@@ -764,6 +835,14 @@ class AdminProductImageDetailView(APIView):
         image.save()
         return Response(AdminProductImageSerializer(image).data)
 
+    @extend_schema(
+        summary="Delete a product image",
+        description=(
+            "Deleting the primary image promotes the next one (by display "
+            "order) to primary."
+        ),
+        responses={204: None, 404: AdminErrorDetailSerializer},
+    )
     def delete(self, request, product_id, image_id):
         image = self._get_image(product_id, image_id)
         if image is None:
@@ -796,6 +875,32 @@ class AdminAnalyticsView(APIView):
 
     permission_classes = [IsStaffOrAdminUser]
 
+    @extend_schema(
+        summary="Admin analytics report",
+        description=(
+            "Financial and behavioural reporting for a period. Give both "
+            "start_date and end_date for a custom range, otherwise pick a "
+            "period preset."
+        ),
+        parameters=[
+            OpenApiParameter(
+                "period",
+                OpenApiTypes.STR,
+                description="7d | 30d | 90d | month | year | all (default 30d).",
+            ),
+            OpenApiParameter(
+                "start_date",
+                OpenApiTypes.DATE,
+                description="ISO date; requires end_date.",
+            ),
+            OpenApiParameter(
+                "end_date",
+                OpenApiTypes.DATE,
+                description="ISO date; requires start_date.",
+            ),
+        ],
+        responses={200: AdminAnalyticsResponseSerializer},
+    )
     def get(self, request):
         # Local time so "This Month"/"This Year" start at local midnight
         # rather than 03:00 (TIME_ZONE is Africa/Nairobi).
@@ -983,6 +1088,10 @@ class AdminStoreSettingsView(APIView):
     permission_classes = [IsStaffOrAdminUser]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
+    @extend_schema(
+        summary="Get store settings",
+        responses={200: AdminStoreSettingsSerializer},
+    )
     def get(self, request):
         settings = StoreSettings.load()
         serializer = AdminStoreSettingsSerializer(
@@ -990,6 +1099,15 @@ class AdminStoreSettingsView(APIView):
         )
         return Response(serializer.data)
 
+    @extend_schema(
+        summary="Partially update store settings",
+        description=(
+            "Multipart or JSON. Set `clear_logo` / `clear_favicon` to remove "
+            "the stored files."
+        ),
+        request=AdminStoreSettingsSerializer,
+        responses={200: AdminStoreSettingsSerializer},
+    )
     def patch(self, request):
         settings = StoreSettings.load()
         serializer = AdminStoreSettingsSerializer(
@@ -999,6 +1117,12 @@ class AdminStoreSettingsView(APIView):
         serializer.save()
         return Response(serializer.data)
 
+    @extend_schema(
+        summary="Replace store settings",
+        description="Full replace; same payload as PATCH but with every field required.",
+        request=AdminStoreSettingsSerializer,
+        responses={200: AdminStoreSettingsSerializer},
+    )
     def put(self, request):
         return self.patch(request)
 
@@ -1012,6 +1136,14 @@ class AdminMpesaConfigView(APIView):
 
     permission_classes = [IsStaffOrAdminUser]
 
+    @extend_schema(
+        summary="M-Pesa configuration status",
+        description=(
+            "Non-sensitive Daraja status plus the last 50 transactions. "
+            "Credentials (Consumer Key, Secret, Passkey) are never exposed."
+        ),
+        responses={200: AdminMpesaConfigResponseSerializer},
+    )
     def get(self, request):
         from django.conf import settings as django_settings
 

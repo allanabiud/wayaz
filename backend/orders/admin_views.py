@@ -1,13 +1,25 @@
 from django.db.models import Q, Count
-from rest_framework import status, viewsets
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+    inline_serializer,
+)
+from rest_framework import serializers, status, viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from accounts.permissions import IsStaffOrAdminUser
+from catalog.admin_serializers import AdminErrorDetailSerializer
 from .emails import send_order_confirmed_email
 from .models import Coupon, Order
-from .admin_serializers import AdminCouponSerializer
+from .admin_serializers import (
+    AdminCouponSerializer,
+    AdminOrderDetailResponseSerializer,
+    AdminOrderListResponseSerializer,
+    AdminPaymentsResponseSerializer,
+)
 
 
 class AdminOrdersView(APIView):
@@ -20,6 +32,26 @@ class AdminOrdersView(APIView):
 
     permission_classes = [IsStaffOrAdminUser]
 
+    @extend_schema(
+        summary="List orders (admin)",
+        parameters=[
+            OpenApiParameter(
+                "status",
+                OpenApiTypes.STR,
+                description='Pipeline status, or "pending" for anything not delivered/cancelled.',
+            ),
+            OpenApiParameter(
+                "search",
+                OpenApiTypes.STR,
+                description="Order number, shipping name or email.",
+            ),
+            OpenApiParameter("page", OpenApiTypes.INT, description="1-based page."),
+            OpenApiParameter(
+                "page_size", OpenApiTypes.INT, description="Default 20, max 100."
+            ),
+        ],
+        responses={200: AdminOrderListResponseSerializer},
+    )
     def get(self, request):
         all_orders = Order.objects.all()
         qs = all_orders.select_related("user").prefetch_related("items").order_by("-created_at")
@@ -107,6 +139,25 @@ class AdminOrderDetailView(APIView):
 
     permission_classes = [IsStaffOrAdminUser]
 
+    @extend_schema(
+        summary="Update an order's status",
+        description=(
+            "Cancelling restores reserved stock; delivering a COD order "
+            "auto-marks it paid; confirming triggers the confirmation email."
+        ),
+        request=inline_serializer(
+            name="AdminOrderStatusUpdateRequest",
+            fields={
+                "status": serializers.CharField(required=False),
+                "payment_status": serializers.CharField(required=False),
+            },
+        ),
+        responses={
+            200: AdminOrderDetailResponseSerializer,
+            400: AdminErrorDetailSerializer,
+            404: AdminErrorDetailSerializer,
+        },
+    )
     def patch(self, request, order_number):
         try:
             order = Order.objects.get(order_number=order_number)
@@ -209,6 +260,27 @@ class AdminPaymentsView(APIView):
 
     permission_classes = [IsStaffOrAdminUser]
 
+    @extend_schema(
+        summary="List payments (admin)",
+        description="Merged M-Pesa transactions and COD orders, newest first.",
+        parameters=[
+            OpenApiParameter(
+                "method",
+                OpenApiTypes.STR,
+                description='"mpesa" or "cod" (default: both).',
+            ),
+            OpenApiParameter(
+                "status",
+                OpenApiTypes.STR,
+                description="M-Pesa transaction status, or PENDING/PAID for COD.",
+            ),
+            OpenApiParameter("page", OpenApiTypes.INT, description="1-based page."),
+            OpenApiParameter(
+                "page_size", OpenApiTypes.INT, description="Default 10, max 100."
+            ),
+        ],
+        responses={200: AdminPaymentsResponseSerializer},
+    )
     def get(self, request):
         from payments.models import PaymentTransaction
 

@@ -120,6 +120,17 @@ changing `.env.local`. Other scripts: `npm run build`, `npm run start`,
 Admin endpoints require a staff/admin JWT and return 401/403 otherwise. The
 guest cart is addressed by an `X-Cart-ID` header that the client persists.
 
+Interactive API documentation (drf-spectacular) is served by the backend:
+
+- Swagger UI: `/api/v1/schema/swagger-ui/`
+- ReDoc: `/api/v1/schema/redoc/`
+- Raw OpenAPI 3 document: `/api/v1/schema/`
+
+CI regenerates and validates the schema on every push
+(`manage.py spectacular --validate`), so the spec never drifts from the code.
+The uptime-monitor health probes (`/api/health/`, `/health`) are excluded
+from the spec on purpose — they are operational plumbing, not API surface.
+
 ## Notes and roadmap
 
 - Next milestones: M-Pesa STK push for checkout confirmation, then the admin

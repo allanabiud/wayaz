@@ -4,7 +4,14 @@ from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
-from rest_framework import generics, permissions, status, viewsets
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+    extend_schema_view,
+    inline_serializer,
+)
+from rest_framework import generics, permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
@@ -25,22 +32,79 @@ from .serializers import (
 User = get_user_model()
 
 
+@extend_schema(
+    summary="Sign in and obtain a JWT pair",
+    description=(
+        "Accepts the username or the account's email address. The response "
+        "carries the access/refresh pair plus a snapshot of the user, so the "
+        "client can hydrate its session without a second round trip."
+    ),
+    request=CustomTokenObtainPairSerializer,
+    responses={
+        200: inline_serializer(
+            name="TokenObtainPairResponse",
+            fields={
+                "access": serializers.CharField(
+                    help_text="Short-lived token for Authorization: Bearer."
+                ),
+                "refresh": serializers.CharField(
+                    help_text="Long-lived token used to mint a new access token."
+                ),
+                "user": inline_serializer(
+                    name="SessionUser",
+                    fields={
+                        "id": serializers.IntegerField(),
+                        "username": serializers.CharField(),
+                        "email": serializers.CharField(),
+                        "phone_number": serializers.CharField(allow_blank=True),
+                        "role": serializers.CharField(),
+                        "display_name": serializers.CharField(),
+                        "is_staff": serializers.BooleanField(),
+                        "is_superuser": serializers.BooleanField(),
+                    },
+                ),
+            },
+        ),
+    },
+)
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
     throttle_scope = "auth"
 
 
+@extend_schema(
+    summary="Refresh the access token",
+    description=(
+        "Trade a valid refresh token for a fresh access token. Refresh tokens "
+        "minted before the last password change are rejected."
+    ),
+    request=CustomTokenRefreshSerializer,
+    responses={
+        200: inline_serializer(
+            name="TokenRefreshResponse",
+            fields={"access": serializers.CharField()},
+        ),
+    },
+)
 class CustomTokenRefreshView(TokenRefreshView):
     serializer_class = CustomTokenRefreshSerializer
     throttle_scope = "auth"
 
 
+@extend_schema(
+    summary="Create a customer account",
+    description="The account is ready for sign-in immediately; no verification email is sent.",
+)
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
     throttle_scope = "auth"
 
 
+@extend_schema(
+    summary="Get or update the current user's profile",
+    description="GET returns the signed-in user; PATCH/PUT update the writable profile fields.",
+)
 class UserProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -49,6 +113,20 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
         return self.request.user
 
 
+@extend_schema(
+    summary="Change the current user's password",
+    description=(
+        "On success every refresh token the user holds outside this request "
+        "dies with the change (password_changed_at stamp)."
+    ),
+    request=ChangePasswordSerializer,
+    responses={
+        200: inline_serializer(
+            name="ChangePasswordResponse",
+            fields={"detail": serializers.CharField()},
+        ),
+    },
+)
 class ChangePasswordView(generics.GenericAPIView):
     serializer_class = ChangePasswordSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -62,6 +140,20 @@ class ChangePasswordView(generics.GenericAPIView):
         return Response({"detail": "Password updated successfully."}, status=status.HTTP_200_OK)
 
 
+@extend_schema(
+    summary="Request a password-reset link",
+    description=(
+        "Always answers with the same message whether or not the address has "
+        "an account, so the endpoint cannot be used to fish for who shops here."
+    ),
+    request=ForgotPasswordSerializer,
+    responses={
+        200: inline_serializer(
+            name="ForgotPasswordResponse",
+            fields={"detail": serializers.CharField()},
+        ),
+    },
+)
 class ForgotPasswordView(generics.GenericAPIView):
     """POST /api/v1/auth/forgot-password/ - mail a reset link.
 
@@ -115,6 +207,20 @@ class ForgotPasswordView(generics.GenericAPIView):
         )
 
 
+@extend_schema(
+    summary="Complete a password reset",
+    description=(
+        "Exchange the emailed uidb64 + token for a new password. Retires "
+        "every outstanding token via change_password()."
+    ),
+    request=ResetPasswordSerializer,
+    responses={
+        200: inline_serializer(
+            name="ResetPasswordResponse",
+            fields={"detail": serializers.CharField()},
+        ),
+    },
+)
 class ResetPasswordView(generics.GenericAPIView):
     """POST /api/v1/auth/reset-password/ - exchange a mailed link for a
     new password. Retires every outstanding token via change_password()."""
@@ -134,6 +240,21 @@ class ResetPasswordView(generics.GenericAPIView):
         return Response({"detail": "Password updated. You can sign in now."})
 
 
+_ADDRESS_ID_PARAM = extend_schema(
+    parameters=[
+        OpenApiParameter(
+            "id", OpenApiTypes.INT, location="path", description="Address id."
+        )
+    ]
+)
+
+
+@extend_schema_view(
+    retrieve=_ADDRESS_ID_PARAM,
+    update=_ADDRESS_ID_PARAM,
+    partial_update=_ADDRESS_ID_PARAM,
+    destroy=_ADDRESS_ID_PARAM,
+)
 class AddressViewSet(viewsets.ModelViewSet):
     serializer_class = AddressSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -142,6 +263,21 @@ class AddressViewSet(viewsets.ModelViewSet):
         return Address.objects.filter(user=self.request.user)
 
 
+_WISHLIST_ID_PARAM = extend_schema(
+    parameters=[
+        OpenApiParameter(
+            "id", OpenApiTypes.INT, location="path", description="Wishlist entry id."
+        )
+    ]
+)
+
+
+@extend_schema_view(
+    retrieve=_WISHLIST_ID_PARAM,
+    update=_WISHLIST_ID_PARAM,
+    partial_update=_WISHLIST_ID_PARAM,
+    destroy=_WISHLIST_ID_PARAM,
+)
 class WishlistViewSet(viewsets.ModelViewSet):
     serializer_class = WishlistSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -153,6 +289,25 @@ class WishlistViewSet(viewsets.ModelViewSet):
             .prefetch_related("product__images")
         )
 
+    @extend_schema(
+        summary="Remove a product from the wishlist",
+        description="Answers 204 whether or not the product was present; a product never in the wishlist 404s.",
+        parameters=[
+            OpenApiParameter(
+                "product_id",
+                OpenApiTypes.INT,
+                location="path",
+                description="Product id.",
+            )
+        ],
+        responses={
+            204: None,
+            404: inline_serializer(
+                name="WishlistRemoveNotFound",
+                fields={"detail": serializers.CharField()},
+            ),
+        },
+    )
     @action(detail=False, methods=["delete"], url_path="remove-product/(?P<product_id>[^/.]+)")
     def remove_by_product_id(self, request, product_id=None):
         deleted, _ = WishlistItem.objects.filter(

@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 
 from .models import Coupon
 
@@ -13,7 +14,8 @@ class AdminCouponSerializer(serializers.ModelSerializer):
 
     order_count = serializers.SerializerMethodField()
 
-    def get_order_count(self, obj):
+    @extend_schema_field(serializers.IntegerField())
+    def get_order_count(self, obj) -> int:
         # Annotated on the viewset queryset (O(1)); freshly saved instances
         # carry no annotation, so fall back to a count.
         count = getattr(obj, "order_count", None)
@@ -63,3 +65,81 @@ class AdminCouponSerializer(serializers.ModelSerializer):
             "created_at",
         )
         read_only_fields = ("id", "order_count", "created_at")
+
+
+# ---------------------------------------------------------------------------
+# Schema-only response serializers for the admin order/payment APIViews
+# ---------------------------------------------------------------------------
+# AdminOrdersView, AdminOrderDetailView and AdminPaymentsView build plain
+# dicts in a single annotated pass for speed; these classes mirror that
+# payload shape so drf-spectacular can type it. They are never instantiated
+# at runtime - keep them in sync with orders/admin_views.py.
+
+
+class AdminOrderItemSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    product_title = serializers.CharField()
+    unit_price = serializers.CharField(help_text="Money as a decimal string.")
+    quantity = serializers.IntegerField()
+    line_total = serializers.CharField(help_text="Money as a decimal string.")
+
+
+class AdminOrderListItemSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    order_number = serializers.CharField()
+    customer = serializers.CharField(help_text="shipping_name falling back to email.")
+    email = serializers.EmailField()
+    phone_number = serializers.CharField(allow_blank=True)
+    county = serializers.CharField(allow_blank=True)
+    town = serializers.CharField(allow_blank=True)
+    street_address = serializers.CharField(allow_blank=True)
+    status = serializers.CharField()
+    status_display = serializers.CharField()
+    payment_method = serializers.CharField()
+    payment_method_display = serializers.CharField()
+    payment_status = serializers.CharField()
+    total_amount = serializers.CharField(help_text="Money as a decimal string.")
+    subtotal = serializers.CharField(help_text="Money as a decimal string.")
+    shipping_fee = serializers.CharField(help_text="Money as a decimal string.")
+    item_count = serializers.IntegerField()
+    items = AdminOrderItemSerializer(many=True)
+    created_at = serializers.CharField(help_text="ISO 8601 timestamp.")
+
+
+class AdminOrderListResponseSerializer(serializers.Serializer):
+    count = serializers.IntegerField(help_text="Total orders matching the filters.")
+    page = serializers.IntegerField()
+    page_size = serializers.IntegerField()
+    pending_count = serializers.IntegerField(
+        help_text="Orders not yet delivered or cancelled (all statuses)."
+    )
+    results = AdminOrderListItemSerializer(many=True)
+
+
+class AdminOrderDetailResponseSerializer(serializers.Serializer):
+    order_number = serializers.CharField()
+    status = serializers.CharField()
+    status_display = serializers.CharField()
+    payment_status = serializers.CharField()
+
+
+class AdminPaymentListItemSerializer(serializers.Serializer):
+    type = serializers.CharField(help_text='"mpesa" or "cod".')
+    id = serializers.CharField(help_text='Composite id, e.g. "mpesa-12".')
+    order_number = serializers.CharField()
+    amount = serializers.CharField(help_text="Money as a decimal string.")
+    phone = serializers.CharField(allow_blank=True)
+    status = serializers.CharField()
+    reference = serializers.CharField(
+        help_text="M-Pesa receipt number; empty for cash payments."
+    )
+    note = serializers.CharField()
+    date = serializers.CharField(help_text="ISO 8601 timestamp.")
+
+
+class AdminPaymentsResponseSerializer(serializers.Serializer):
+    count = serializers.IntegerField(help_text="Total payments matching the filters.")
+    page = serializers.IntegerField()
+    page_size = serializers.IntegerField()
+    total_pages = serializers.IntegerField()
+    results = AdminPaymentListItemSerializer(many=True)
