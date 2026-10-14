@@ -28,10 +28,6 @@ interface ProductCardProps {
   product: StoreProduct;
   adding: boolean;
   inCart: boolean;
-  /**
-   * Eager instead of lazy, for cards above the fold; Next 16 deprecated
-   * `priority`, so `loading="eager"` is the replacement.
-   */
   eager?: boolean;
   onAdd: (product: StoreProduct) => void;
 }

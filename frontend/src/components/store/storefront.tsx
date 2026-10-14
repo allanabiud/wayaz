@@ -108,7 +108,6 @@ function TopShelf({
             product={product}
             adding={addingId === product.id}
             inCart={cartProductIds.has(product.id)}
-            // First shelf, first row: this is the homepage LCP candidate.
             eager={index < 4}
             onAdd={(item) => void addProduct(item)}
           />

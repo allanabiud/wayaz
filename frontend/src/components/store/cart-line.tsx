@@ -50,6 +50,7 @@ export function CartLine({
             alt={product.product_title}
             fill
             sizes="56px"
+            loading="eager"
             className="object-cover"
           />
         )}

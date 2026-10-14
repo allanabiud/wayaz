@@ -134,7 +134,6 @@ export function SearchResults({
                   product={product}
                   adding={addingId === product.id}
                   inCart={cartProductIds.has(product.id)}
-                  // First row (up to 4 on desktop) is this page's LCP candidate.
                   eager={index < 4}
                   onAdd={(p) => void addProduct(p)}
                 />
