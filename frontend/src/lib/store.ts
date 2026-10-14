@@ -173,6 +173,12 @@ export function formatKsh(value: string | number): string {
 export const WHATSAPP_NUMBER =
   process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "254700000000";
 
+export function whatsappNumber(
+  settings?: { whatsapp_number?: string | null } | null,
+): string {
+  return settings?.whatsapp_number || WHATSAPP_NUMBER;
+}
+
 export function waLink(text: string, customNumber?: string): string {
   const number = (customNumber || WHATSAPP_NUMBER).replace(/[^0-9]/g, "");
   return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;

@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ListPagination } from "@/components/ui/list-pagination";
+import { ListPagination } from "@/components/ui/pagination";
 import {
   Select,
   SelectContent,

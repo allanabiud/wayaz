@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-/** Page numbers as a gap-aware window: 1 … 4 5 6 … 9 (all when ≤ 7). */
+// Gap-aware window: 1 … 4 5 6 … 9 (all pages when 7 or fewer).
 function pageItems(current: number, pages: number): (number | "gap")[] {
   if (pages <= 7) {
     return Array.from({ length: pages }, (_, index) => index + 1);
@@ -27,6 +28,7 @@ interface PaginationBarProps {
   hrefFor: (page: number) => string;
 }
 
+// Link-based pagination for server-rendered storefront pages.
 export function PaginationBar({ page, pages, hrefFor }: PaginationBarProps) {
   if (pages <= 1) return null;
 
@@ -107,5 +109,63 @@ export function PaginationBar({ page, pages, hrefFor }: PaginationBarProps) {
         </span>
       )}
     </nav>
+  );
+}
+
+interface ListPaginationProps {
+  page: number;
+  count: number;
+  pageSize: number;
+  itemCount: number;
+  onPageChange: (page: number) => void;
+  className?: string;
+}
+
+// Callback-based footer for client-side lists: "Showing 1-10 of 34" left,
+// Prev/page-count/Next right. Renders nothing when there is nothing to page.
+export function ListPagination({
+  page,
+  count,
+  pageSize,
+  itemCount,
+  onPageChange,
+  className,
+}: ListPaginationProps) {
+  if (count <= 0) return null;
+  const totalPages = Math.max(1, Math.ceil(count / pageSize));
+  const start = (page - 1) * pageSize + 1;
+  const end = start + itemCount - 1;
+
+  return (
+    <div
+      className={`flex flex-wrap items-center justify-between gap-3 pt-2 ${className ?? ""}`}
+    >
+      <p className="text-xs text-muted-foreground tabular-nums">
+        Showing {start}-{end} of {count.toLocaleString()}
+      </p>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
+          className="h-8 text-xs cursor-pointer"
+        >
+          Previous
+        </Button>
+        <span className="min-w-10 text-center text-xs font-medium text-muted-foreground tabular-nums">
+          {page}/{totalPages}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={page >= totalPages}
+          onClick={() => onPageChange(page + 1)}
+          className="h-8 text-xs cursor-pointer"
+        >
+          Next
+        </Button>
+      </div>
+    </div>
   );
 }

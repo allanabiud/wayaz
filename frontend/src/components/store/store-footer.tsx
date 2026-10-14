@@ -13,7 +13,7 @@ import {
 import { Mail, Phone } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStore } from "@/components/store/store-context";
-import { waLink } from "@/lib/store";
+import { waLink, whatsappNumber } from "@/lib/store";
 
 const PRODUCT_LINKS = [
   { slug: "jeans", name: "Jeans" },
@@ -36,7 +36,7 @@ export function StoreFooter() {
       list.push({ name: "Instagram", href: instagram, Icon: InstagramIcon });
     }
 
-    const waNum = settings?.whatsapp_number || process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "254700000000";
+    const waNum = whatsappNumber(settings);
     const waMsg = settings?.whatsapp_message || "Hi Wayaz, I'd like to know more about your products.";
     list.push({
       name: "WhatsApp",

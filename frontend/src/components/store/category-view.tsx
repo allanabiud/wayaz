@@ -5,7 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/admin/states";
 import { CatalogToolbar } from "@/components/store/catalog-toolbar";
-import { PaginationBar } from "@/components/store/pagination-bar";
+import { PaginationBar } from "@/components/ui/pagination";
 import { ProductCard } from "@/components/store/product-card";
 import { useStore } from "@/components/store/store-context";
 import {

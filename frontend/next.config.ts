@@ -1,11 +1,17 @@
 import type { NextConfig } from "next";
 
+// Dev-server resources are host-restricted by default; extra LAN origins
+// for testing on other devices come from ALLOWED_DEV_ORIGINS (comma-separated).
+const allowedDevOrigins = (process.env.ALLOWED_DEV_ORIGINS ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const nextConfig: NextConfig = {
   // Skip Next's default trailing-slash redirect (308): it strips the slash
   // off /api/v1/... before the rewrites match, breaking every DRF endpoint.
   skipTrailingSlashRedirect: true,
-  // Dev-server resources are host-restricted by default; allow LAN devices.
-  allowedDevOrigins: ["192.168.1.138", "192.168.6.195"],
+  ...(allowedDevOrigins.length > 0 ? { allowedDevOrigins } : {}),
   // Same-origin API: proxy /api/v1/* and /media/* to the Django backend
   // server-side (CORS is only a fallback). API_PROXY_URL selects the backend.
   async rewrites() {
@@ -33,18 +39,6 @@ const nextConfig: NextConfig = {
       {
         protocol: "http",
         hostname: "localhost",
-        port: "8000",
-        pathname: "/media/**",
-      },
-      {
-        protocol: "http",
-        hostname: "192.168.1.138",
-        port: "8000",
-        pathname: "/media/**",
-      },
-      {
-        protocol: "http",
-        hostname: "192.168.6.195",
         port: "8000",
         pathname: "/media/**",
       },

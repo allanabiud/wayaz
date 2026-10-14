@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ListPagination } from "@/components/ui/list-pagination";
+import { ListPagination } from "@/components/ui/pagination";
 import {
   Select,
   SelectContent,

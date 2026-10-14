@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, Plus, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ListPagination } from "@/components/ui/list-pagination";
+import { ListPagination } from "@/components/ui/pagination";
 import {
   Select,
   SelectContent,

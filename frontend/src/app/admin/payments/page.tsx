@@ -5,7 +5,7 @@ import { Banknote, Smartphone } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { ListPagination } from "@/components/ui/list-pagination";
+import { ListPagination } from "@/components/ui/pagination";
 import {
   Select,
   SelectContent,

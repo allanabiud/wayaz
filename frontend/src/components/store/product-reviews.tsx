@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useStore } from "@/components/store/store-context";
 import { ApiError } from "@/lib/api";
-import { ListPagination } from "@/components/ui/list-pagination";
+import { ListPagination } from "@/components/ui/pagination";
 import { useAuth } from "@/lib/auth-context";
 import {
   fetchProductReviews,

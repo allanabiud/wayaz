@@ -25,7 +25,7 @@ import {
 } from "@/components/brand-icons";
 import { useStore } from "@/components/store/store-context";
 import { api, ApiError } from "@/lib/api";
-import { waLink } from "@/lib/store";
+import { waLink, whatsappNumber } from "@/lib/store";
 
 export function ContactForm() {
   const { settings } = useStore();
@@ -65,7 +65,7 @@ export function ContactForm() {
     }
   };
 
-  const waNum = settings?.whatsapp_number || process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "254700000000";
+  const waNum = whatsappNumber(settings);
   const waMsg = settings?.whatsapp_message || "Hi Wayaz, I'd like to get in touch.";
 
   return (
