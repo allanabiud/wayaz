@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { CategoryView } from "@/components/store/category-view";
 import { parseCatalogFilters, toProductQuery } from "@/lib/catalog-filters";
-import type { StoreProduct } from "@/lib/store";
+import type { StoreProduct } from "@/lib/store-api";
 import type { Category, Paginated } from "@/lib/types";
 
 const PAGE_SIZE = 20;

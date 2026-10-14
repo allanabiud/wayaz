@@ -33,7 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { EmptyState, ErrorState, PageHeader } from "@/components/admin/states";
+import { EmptyState, ErrorState, PageHeader } from "@/components/ui/states";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useQuery } from "@/lib/use-query";

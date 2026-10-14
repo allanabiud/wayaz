@@ -32,9 +32,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { EmptyState } from "@/components/admin/states";
+import { EmptyState } from "@/components/ui/states";
 import { useAuth } from "@/lib/auth-context";
-import { useStore } from "@/components/store/store-context";
+import { useStore } from "@/lib/store-context";
 import { ApiError } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import {
@@ -48,7 +48,7 @@ import {
   type CheckoutOrder,
   type CouponValidation,
   type StoreOrder,
-} from "@/lib/store";
+} from "@/lib/store-api";
 import type { Address } from "@/lib/types";
 import { KENYAN_COUNTIES } from "@/lib/locations";
 import { MpesaPaymentModal } from "@/components/store/mpesa-modal";

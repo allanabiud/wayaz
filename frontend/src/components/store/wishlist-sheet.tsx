@@ -7,9 +7,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { EmptyState } from "@/components/admin/states";
+import { EmptyState } from "@/components/ui/states";
 import { mediaUrl } from "@/lib/media";
-import { formatKsh, type StoreProduct } from "@/lib/store";
+import { formatKsh, type StoreProduct } from "@/lib/store-api";
 
 interface WishlistSheetProps {
   open: boolean;

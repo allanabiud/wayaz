@@ -5,10 +5,10 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyState, ErrorState } from "@/components/admin/states";
+import { EmptyState, ErrorState } from "@/components/ui/states";
 import { ProductCard } from "@/components/store/product-card";
-import { useStore } from "@/components/store/store-context";
-import type { StoreProduct, StorefrontCatalog } from "@/lib/store";
+import { useStore } from "@/lib/store-context";
+import type { StoreProduct, StorefrontCatalog } from "@/lib/store-api";
 
 interface Section {
   key: string;

@@ -5,7 +5,7 @@ import { Star } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useStore } from "@/components/store/store-context";
+import { useStore } from "@/lib/store-context";
 import { ApiError } from "@/lib/api";
 import { ListPagination } from "@/components/ui/pagination";
 import { useAuth } from "@/lib/auth-context";
@@ -14,7 +14,7 @@ import {
   submitProductRating,
   type ProductRatingSummary,
   type ProductReview,
-} from "@/lib/store";
+} from "@/lib/store-api";
 
 interface ProductReviewsProps {
   slug: string;

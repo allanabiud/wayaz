@@ -34,7 +34,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/lib/auth-context";
-import { useStore } from "@/components/store/store-context";
+import { useStore } from "@/lib/store-context";
 import { mediaUrl } from "@/lib/media";
 import {
   clearSearchHistory,
@@ -43,7 +43,7 @@ import {
   hotSearches,
   rememberSearch,
   storedSearchHistory,
-} from "@/lib/store";
+} from "@/lib/store-api";
 
 export function StoreHeader() {
   const router = useRouter();

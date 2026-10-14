@@ -4,10 +4,10 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WhatsAppIcon as WhatsAppGlyph } from "@/components/brand-icons";
-import { EmptyState } from "@/components/admin/states";
+import { EmptyState } from "@/components/ui/states";
 import { CartLine } from "@/components/store/cart-line";
-import { useStore } from "@/components/store/store-context";
-import { cartWhatsappLink, formatKsh } from "@/lib/store";
+import { useStore } from "@/lib/store-context";
+import { cartWhatsappLink, formatKsh } from "@/lib/store-api";
 
 export function CartView() {
   const { cart, updateCart, settings } = useStore();

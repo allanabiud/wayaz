@@ -23,9 +23,9 @@ import {
   WhatsAppIcon,
   YouTubeIcon,
 } from "@/components/brand-icons";
-import { useStore } from "@/components/store/store-context";
+import { useStore } from "@/lib/store-context";
 import { api, ApiError } from "@/lib/api";
-import { waLink, whatsappNumber } from "@/lib/store";
+import { waLink, whatsappNumber } from "@/lib/store-api";
 
 export function ContactForm() {
   const { settings } = useStore();

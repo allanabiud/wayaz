@@ -32,7 +32,7 @@ import { WhatsAppIcon } from "@/components/brand-icons";
 import { ProductCard } from "@/components/store/product-card";
 import { ProductReviews } from "@/components/store/product-reviews";
 import { RestockDialog } from "@/components/store/restock-dialog";
-import { useStore } from "@/components/store/store-context";
+import { useStore } from "@/lib/store-context";
 import { useAuth } from "@/lib/auth-context";
 import { mediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
@@ -43,7 +43,7 @@ import {
   waLink,
   type ProductRatingSummary,
   type StoreProductDetail,
-} from "@/lib/store";
+} from "@/lib/store-api";
 
 interface ProductDetailProps {
   product: StoreProductDetail;

@@ -22,7 +22,7 @@ import {
   pollPaymentStatus,
   simulateMockPayment,
   type PaymentStatusResponse,
-} from "@/lib/store";
+} from "@/lib/store-api";
 
 interface MpesaPaymentModalProps {
   open: boolean;

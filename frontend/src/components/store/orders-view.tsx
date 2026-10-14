@@ -13,16 +13,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WhatsAppIcon } from "@/components/brand-icons";
-import { EmptyState, ErrorState } from "@/components/admin/states";
+import { EmptyState, ErrorState } from "@/components/ui/states";
 import { useAuth } from "@/lib/auth-context";
-import { useStore } from "@/components/store/store-context";
+import { useStore } from "@/lib/store-context";
 import { useQuery } from "@/lib/use-query";
 import {
   fetchOrders,
   formatKsh,
   type OrderStatus,
   type StoreOrder,
-} from "@/lib/store";
+} from "@/lib/store-api";
 import type { Paginated } from "@/lib/types";
 
 const PAGE_SIZE = 10;

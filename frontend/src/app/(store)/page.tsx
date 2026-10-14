@@ -1,7 +1,7 @@
 import { Storefront } from "@/components/store/storefront";
 import { api } from "@/lib/api";
 import type { Category, Paginated } from "@/lib/types";
-import type { StoreProduct, StorefrontCatalog } from "@/lib/store";
+import type { StoreProduct, StorefrontCatalog } from "@/lib/store-api";
 
 export const revalidate = 60;
 

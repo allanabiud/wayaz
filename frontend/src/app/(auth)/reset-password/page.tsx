@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api";
-import { resetPassword } from "@/lib/store";
+import { resetPassword } from "@/lib/store-api";
 
 /** True when the 400 came from the link itself (dead or tampered), as
  * opposed to a field problem like a too-weak password. */

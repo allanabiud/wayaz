@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import { ProductDetail } from "@/components/store/product-detail";
-import type { StoreProductDetail } from "@/lib/store";
+import type { StoreProductDetail } from "@/lib/store-api";
 
 interface PageProps {
   params: Promise<{ slug: string }>;

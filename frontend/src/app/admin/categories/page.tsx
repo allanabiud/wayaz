@@ -25,7 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { EmptyState, ErrorState, PageHeader } from "@/components/admin/states";
+import { EmptyState, ErrorState, PageHeader } from "@/components/ui/states";
 import { api, ApiError } from "@/lib/api";
 import { useQuery } from "@/lib/use-query";
 import type { Category, Paginated } from "@/lib/types";

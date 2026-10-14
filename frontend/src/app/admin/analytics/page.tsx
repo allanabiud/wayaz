@@ -28,9 +28,9 @@ import { Button } from "@/components/ui/button";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyState, ErrorState, PageHeader } from "@/components/admin/states";
+import { EmptyState, ErrorState, PageHeader } from "@/components/ui/states";
 import { api } from "@/lib/api";
-import { formatKsh } from "@/lib/store";
+import { formatKsh } from "@/lib/store-api";
 import { useQuery } from "@/lib/use-query";
 import type { AnalyticsData } from "@/lib/types";
 

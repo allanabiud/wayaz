@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyState, ErrorState } from "@/components/admin/states";
+import { EmptyState, ErrorState } from "@/components/ui/states";
 import { ImageManagerDialog } from "@/components/admin/image-manager-dialog";
 import { api, ApiError } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";

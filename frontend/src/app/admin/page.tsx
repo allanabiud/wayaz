@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ErrorState } from "@/components/admin/states";
+import { ErrorState } from "@/components/ui/states";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useQuery } from "@/lib/use-query";

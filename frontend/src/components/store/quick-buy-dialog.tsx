@@ -12,13 +12,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useStore } from "@/components/store/store-context";
+import { useStore } from "@/lib/store-context";
 import { api } from "@/lib/api";
 import {
   formatKsh,
   type StoreProduct,
   type StoreProductDetail,
-} from "@/lib/store";
+} from "@/lib/store-api";
 
 /** Ceiling while the real stock count is still loading. */
 const FALLBACK_MAX_QTY = 10;

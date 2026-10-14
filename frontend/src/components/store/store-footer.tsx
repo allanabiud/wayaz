@@ -12,8 +12,8 @@ import {
 } from "@/components/brand-icons";
 import { Mail, Phone } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useStore } from "@/components/store/store-context";
-import { waLink, whatsappNumber } from "@/lib/store";
+import { useStore } from "@/lib/store-context";
+import { waLink, whatsappNumber } from "@/lib/store-api";
 
 const PRODUCT_LINKS = [
   { slug: "jeans", name: "Jeans" },

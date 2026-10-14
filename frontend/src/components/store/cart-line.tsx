@@ -14,7 +14,7 @@ import {
   updateCartItem,
   type Cart,
   type CartLine as CartLineItem,
-} from "@/lib/store";
+} from "@/lib/store-api";
 
 export function CartLine({
   item,

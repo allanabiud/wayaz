@@ -37,9 +37,9 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { EmptyState, ErrorState } from "@/components/admin/states";
+import { EmptyState, ErrorState } from "@/components/ui/states";
 import { useAuth } from "@/lib/auth-context";
-import { useStore } from "@/components/store/store-context";
+import { useStore } from "@/lib/store-context";
 import { useQuery } from "@/lib/use-query";
 import { ApiError } from "@/lib/api";
 import { KENYAN_COUNTIES } from "@/lib/locations";
@@ -52,7 +52,7 @@ import {
   updateUserProfile,
   updateAddress,
   type AccountProfile,
-} from "@/lib/store";
+} from "@/lib/store-api";
 import type { Address, Paginated } from "@/lib/types";
 
 

@@ -30,7 +30,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ErrorState, PageHeader } from "@/components/admin/states";
+import { ErrorState, PageHeader } from "@/components/ui/states";
 import {
   FacebookIcon,
   InstagramIcon,

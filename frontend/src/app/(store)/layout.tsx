@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { StoreProvider } from "@/components/store/store-context";
+import { StoreProvider } from "@/lib/store-context";
 import { StoreHeader } from "@/components/store/store-header";
 import { StoreFooter } from "@/components/store/store-footer";
 

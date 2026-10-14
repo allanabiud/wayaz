@@ -10,10 +10,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { EmptyState } from "@/components/admin/states";
+import { EmptyState } from "@/components/ui/states";
 import { CartLine } from "@/components/store/cart-line";
-import { cartWhatsappLink, formatKsh, type Cart } from "@/lib/store";
-import { useStore } from "@/components/store/store-context";
+import { cartWhatsappLink, formatKsh, type Cart } from "@/lib/store-api";
+import { useStore } from "@/lib/store-context";
 
 interface CartSheetProps {
   open: boolean;

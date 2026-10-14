@@ -4,18 +4,18 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/admin/states";
+import { EmptyState } from "@/components/ui/states";
 import { CatalogToolbar } from "@/components/store/catalog-toolbar";
 import { PaginationBar } from "@/components/ui/pagination";
 import { ProductCard } from "@/components/store/product-card";
-import { useStore } from "@/components/store/store-context";
+import { useStore } from "@/lib/store-context";
 import {
   buildCatalogHref,
   DEFAULT_FILTERS,
   hasActiveFilters,
   type CatalogFilters,
 } from "@/lib/catalog-filters";
-import { rememberSearch, type StoreProduct } from "@/lib/store";
+import { rememberSearch, type StoreProduct } from "@/lib/store-api";
 
 interface SearchResultsProps {
   query: string;

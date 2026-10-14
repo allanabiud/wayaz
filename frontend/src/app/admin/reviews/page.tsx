@@ -29,7 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyState, ErrorState, PageHeader } from "@/components/admin/states";
+import { EmptyState, ErrorState, PageHeader } from "@/components/ui/states";
 import { FilterSearch, FilterToolbar } from "@/components/admin/filter-toolbar";
 import { api, ApiError } from "@/lib/api";
 import { useQuery } from "@/lib/use-query";

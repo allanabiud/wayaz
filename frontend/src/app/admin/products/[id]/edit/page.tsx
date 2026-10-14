@@ -6,7 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductForm } from "@/components/admin/product-form";
-import { EmptyState, ErrorState } from "@/components/admin/states";
+import { EmptyState, ErrorState } from "@/components/ui/states";
 import { api } from "@/lib/api";
 import { useQuery } from "@/lib/use-query";
 import type { Category, Paginated, Product } from "@/lib/types";

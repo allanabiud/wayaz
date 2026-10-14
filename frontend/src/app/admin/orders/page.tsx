@@ -25,10 +25,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { EmptyState, ErrorState, PageHeader } from "@/components/admin/states";
+import { EmptyState, ErrorState, PageHeader } from "@/components/ui/states";
 import { FilterSearch, FilterToolbar } from "@/components/admin/filter-toolbar";
 import { api, ApiError } from "@/lib/api";
-import { formatKsh } from "@/lib/store";
+import { formatKsh } from "@/lib/store-api";
 import { useQuery } from "@/lib/use-query";
 import type { AdminOrder, AdminOrdersResponse } from "@/lib/types";
 

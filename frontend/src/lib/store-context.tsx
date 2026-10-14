@@ -26,7 +26,7 @@ import {
   type Cart,
   type StoreProduct,
   type StorefrontCatalog,
-} from "@/lib/store";
+} from "@/lib/store-api";
 import type { Paginated, StoreSettings } from "@/lib/types";
 
 interface WishlistResponseItem {

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { SearchResults } from "@/components/store/search-results";
 import { parseCatalogFilters, toProductQuery } from "@/lib/catalog-filters";
-import type { StoreProduct } from "@/lib/store";
+import type { StoreProduct } from "@/lib/store-api";
 import type { Paginated } from "@/lib/types";
 
 const PAGE_SIZE = 20;

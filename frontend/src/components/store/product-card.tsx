@@ -13,11 +13,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { WhatsAppIcon } from "@/components/brand-icons";
-import { useStore } from "@/components/store/store-context";
+import { useStore } from "@/lib/store-context";
 import { QuickBuyDialog } from "@/components/store/quick-buy-dialog";
 import { RestockDialog } from "@/components/store/restock-dialog";
 import { mediaUrl } from "@/lib/media";
-import { formatKsh, productWhatsappLink, type StoreProduct } from "@/lib/store";
+import { formatKsh, productWhatsappLink, type StoreProduct } from "@/lib/store-api";
 import { cn } from "@/lib/utils";
 
 interface ProductCardProps {
