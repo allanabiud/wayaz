@@ -5,13 +5,12 @@ Django settings for Wayaz e-commerce project.
 import os
 import sys
 from pathlib import Path
-from dotenv import load_dotenv
-
-from django.core.exceptions import ImproperlyConfigured
 
 # PyMySQL acts as the MySQLdb API module that Django's MySQL backend expects.
 # Pure Python: no compiler or dev headers required (locally or on cPanel).
 import pymysql
+from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
 
 pymysql.install_as_MySQLdb()
 
@@ -20,6 +19,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Load environment variables from .env file
 load_dotenv(BASE_DIR / ".env")
+
 
 def _env_bool(name: str, default: str = "false") -> bool:
     return os.environ.get(name, default).lower() in ("1", "true", "yes")
@@ -44,8 +44,8 @@ else:
 if not DEBUG and SECRET_KEY == _DEV_SECRET_KEY:
     raise ImproperlyConfigured(
         "SECRET_KEY is still the bundled development value. Generate a real "
-        "one with: python -c \"from django.core.management.utils import "
-        "get_random_secret_key; print(get_random_secret_key())\""
+        'one with: python -c "from django.core.management.utils import '
+        'get_random_secret_key; print(get_random_secret_key())"'
     )
 
 # Host allow-list defaults to localhost only; production/demo hosts
@@ -195,6 +195,7 @@ REST_FRAMEWORK = {
         "forgot-password": "5/min",
         "payments": "30/min",
         "contact": "5/min",
+        "restock-notifications": "10/min",
     },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
@@ -229,9 +230,12 @@ SPECTACULAR_SETTINGS = {
 }
 
 # Throttling is disabled under `manage.py test`: the rate-limit cache is
-# process-wide, so a full suite run would trip anon/auth limits and fail
-# spuriously. Production behaviour is covered by the scope settings above.
-if "test" in sys.argv:
+# Throttling is rate-limiting, not behaviour: it keys on the client IP and so
+# is process-wide, and a full suite would trip anon/auth limits and fail
+# spuriously. Match on any "test" argument so both the "manage.py test" and
+# "manage.py test -v2" forms are caught. Production behaviour is covered by
+# the scope settings above.
+if any(arg.startswith("test") for arg in sys.argv):
     REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []
 
 from datetime import timedelta
@@ -315,7 +319,9 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://127.0.0.1:3000").rstrip("/
 WHATSAPP_SUPPORT_NUMBER = os.environ.get("WHATSAPP_SUPPORT_NUMBER", "254700000000")
 
 # M-Pesa Daraja Gateway Configuration
-MPESA_ENVIRONMENT = os.environ.get("MPESA_ENVIRONMENT", "mock").lower()  # "mock" | "sandbox" | "production"
+MPESA_ENVIRONMENT = os.environ.get(
+    "MPESA_ENVIRONMENT", "mock"
+).lower()  # "mock" | "sandbox" | "production"
 MPESA_CONSUMER_KEY = os.environ.get("MPESA_CONSUMER_KEY", "")
 MPESA_CONSUMER_SECRET = os.environ.get("MPESA_CONSUMER_SECRET", "")
 MPESA_SHORTCODE = os.environ.get("MPESA_SHORTCODE", "174379")

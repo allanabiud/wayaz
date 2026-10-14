@@ -6,13 +6,13 @@ import {
   ChevronRight,
   ClipboardList,
   LogIn,
-  MessageCircle,
   Printer,
   RotateCcw,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WhatsAppIcon } from "@/components/brand-icons";
 import { EmptyState, ErrorState } from "@/components/admin/states";
 import { useAuth } from "@/lib/auth-context";
 import { useStore } from "@/components/store/store-context";
@@ -250,7 +250,7 @@ function OrderCard({
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-xs font-medium text-gold outline-none transition-colors hover:text-primary"
           >
-            <MessageCircle className="size-3.5" aria-hidden="true" />
+            <WhatsAppIcon className="size-3.5" aria-hidden="true" />
             Follow up on WhatsApp
           </a>
           <button

@@ -7,10 +7,8 @@ import {
   EyeOff,
   ExternalLink,
   Loader2,
-  Search,
   Star,
   Trash2,
-  X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,7 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { ListPagination } from "@/components/ui/list-pagination";
 import {
   Select,
@@ -33,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState, PageHeader } from "@/components/admin/states";
+import { FilterSearch, FilterToolbar } from "@/components/admin/filter-toolbar";
 import { api, ApiError } from "@/lib/api";
 import { useQuery } from "@/lib/use-query";
 import type { AdminReview, Paginated } from "@/lib/types";
@@ -135,69 +133,55 @@ export default function AdminReviewsPage() {
       />
 
       {/* Filter toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setAppliedSearch(search.trim());
-            setPage(1);
-          }}
-          className="relative min-w-[200px] flex-1 sm:max-w-xs"
-        >
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
+      <FilterToolbar
+        search={
+          <FilterSearch
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onBlur={() => {
+            onValueChange={setSearch}
+            onSubmit={() => {
               setAppliedSearch(search.trim());
               setPage(1);
             }}
+            onClear={() => {
+              setSearch("");
+              setAppliedSearch("");
+              setPage(1);
+            }}
             placeholder="Search comments, products or reviewers…"
-            className="pl-9 pr-8 h-9 text-xs"
           />
-          {search && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearch("");
-                setAppliedSearch("");
+        }
+        filters={
+          <>
+            <Select
+              value={status}
+              onValueChange={(value) => {
+                setStatus(value);
                 setPage(1);
               }}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
-              <X className="size-3.5" />
-            </button>
-          )}
-        </form>
+              <SelectTrigger className="w-[140px] h-9 text-xs">
+                <SelectValue placeholder="Visibility" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All reviews</SelectItem>
+                <SelectItem value="approved">Visible</SelectItem>
+                <SelectItem value="hidden">Hidden</SelectItem>
+              </SelectContent>
+            </Select>
 
-        <Select
-          value={status}
-          onValueChange={(value) => {
-            setStatus(value);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-[140px] h-9 text-xs">
-            <SelectValue placeholder="Visibility" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All reviews</SelectItem>
-            <SelectItem value="approved">Visible</SelectItem>
-            <SelectItem value="hidden">Hidden</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {filtersActive && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 text-xs text-muted-foreground hover:text-foreground"
-            onClick={resetFilters}
-          >
-            Reset filters
-          </Button>
-        )}
-      </div>
+            {filtersActive && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 text-xs text-muted-foreground hover:text-foreground"
+                onClick={resetFilters}
+              >
+                Reset filters
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {error && <ErrorState message={error} onRetry={refetch} />}
 

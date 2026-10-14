@@ -26,6 +26,7 @@ class CartItemProductSerializer(serializers.ModelSerializer):
             "unit_price",
             "stock_quantity",
             "is_in_stock",
+            "sizes",
             "thumbnail",
         )
 
@@ -124,10 +125,20 @@ class AddToCartSerializer(serializers.Serializer):
 class UpdateCartItemSerializer(serializers.Serializer):
     quantity = serializers.IntegerField(required=False, min_value=1)
     product_id = serializers.IntegerField(required=False)
+    # Cart lines are unique per (cart, product, size), so the cart views can
+    # re-point a line at another size without a second request. Membership in
+    # the product's size list is checked in the view, which has the line.
+    size = serializers.CharField(max_length=50, required=False, allow_blank=True)
 
     def validate(self, attrs):
-        if "quantity" not in attrs and "product_id" not in attrs:
-            raise serializers.ValidationError("Provide either 'quantity' or 'product_id'.")
+        if (
+            "quantity" not in attrs
+            and "product_id" not in attrs
+            and "size" not in attrs
+        ):
+            raise serializers.ValidationError(
+                "Provide 'quantity', 'product_id' or 'size'."
+            )
 
         if "product_id" in attrs:
             try:

@@ -1,9 +1,7 @@
-import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { toast } from "sonner";
-import { Minus, Plus, Trash2 } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { WhatsAppIcon } from "@/components/brand-icons";
 import {
   Sheet,
   SheetContent,
@@ -13,15 +11,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { EmptyState } from "@/components/admin/states";
-import { ApiError } from "@/lib/api";
-import { mediaUrl } from "@/lib/media";
-import {
-  cartWhatsappLink,
-  formatKsh,
-  removeCartItem,
-  updateCartItem,
-  type Cart,
-} from "@/lib/store";
+import { CartLine } from "@/components/store/cart-line";
+import { cartWhatsappLink, formatKsh, type Cart } from "@/lib/store";
 import { useStore } from "@/components/store/store-context";
 
 interface CartSheetProps {
@@ -37,25 +28,12 @@ export function CartSheet({
   cart,
   onCartChange,
 }: CartSheetProps) {
-  const [busyId, setBusyId] = useState<number | null>(null);
   const { settings } = useStore();
   const items = cart?.items ?? [];
-
-  const run = async (
-    itemId: number,
-    action: () => Promise<Cart>,
-    failure: string,
-  ) => {
-    if (busyId !== null) return;
-    setBusyId(itemId);
-    try {
-      onCartChange(await action());
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : failure);
-    } finally {
-      setBusyId(null);
-    }
-  };
+  // A sized line without a size blocks checkout until the picker is used.
+  const unsized = items.find(
+    (item) => item.product.sizes.length > 0 && !item.size,
+  );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -75,101 +53,9 @@ export function CartSheet({
             />
           ) : (
             <ul className="space-y-3">
-              {items.map((item) => {
-                const thumbnail = item.product.thumbnail
-                  ? mediaUrl(item.product.thumbnail)
-                  : null;
-                const busy = busyId === item.id;
-
-                return (
-                  <li
-                    key={item.id}
-                    className="flex gap-3 rounded-xl border bg-card p-2"
-                  >
-                    <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-muted">
-                      {thumbnail && (
-                        <Image
-                          src={thumbnail}
-                          alt={item.product.product_title}
-                          fill
-                          sizes="56px"
-                          className="object-cover"
-                        />
-                      )}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="min-w-0 truncate text-sm font-medium">
-                          {item.product.product_title}
-                        </p>
-                        <button
-                          type="button"
-                          aria-label={`Remove ${item.product.product_title}`}
-                          disabled={busy}
-                          onClick={() =>
-                            run(
-                              item.id,
-                              () => removeCartItem(item.id),
-                              "Could not remove item.",
-                            )
-                          }
-                          className="shrink-0 text-muted-foreground transition-colors hover:text-destructive disabled:opacity-50"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      </div>
-
-                      <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
-                        {item.size ? `Size ${item.size} · ` : ""}Ksh{" "}
-                        {formatKsh(item.unit_price)} each
-                      </p>
-
-                      <div className="mt-2 flex items-center justify-between gap-2">
-                        <div className="flex items-center rounded-lg border">
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            aria-label="Decrease quantity"
-                            disabled={busy || item.quantity <= 1}
-                            onClick={() =>
-                              run(
-                                item.id,
-                                () => updateCartItem(item.id, item.quantity - 1),
-                                "Could not update quantity.",
-                              )
-                            }
-                          >
-                            <Minus />
-                          </Button>
-                          <span className="w-6 text-center text-xs font-medium tabular-nums">
-                            {item.quantity}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            aria-label="Increase quantity"
-                            disabled={busy}
-                            onClick={() =>
-                              run(
-                                item.id,
-                                () => updateCartItem(item.id, item.quantity + 1),
-                                "Could not update quantity.",
-                              )
-                            }
-                          >
-                            <Plus />
-                          </Button>
-                        </div>
-
-                        <span className="text-sm font-semibold tabular-nums">
-                          Ksh {formatKsh(item.line_total)}
-                        </span>
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
+              {items.map((item) => (
+                <CartLine key={item.id} item={item} onCartChange={onCartChange} />
+              ))}
             </ul>
           )}
         </div>
@@ -183,19 +69,49 @@ export function CartSheet({
               </span>
             </div>
 
-            <div className="flex flex-col gap-2 sm:grid sm:grid-cols-2">
+            {unsized && (
+              <p className="text-xs font-medium text-amber-600">
+                Choose a size for {unsized.product.product_title} before
+                checking out.
+              </p>
+            )}
+
+            <Button
+              variant="outline"
+              className="w-full gap-1.5"
+              asChild
+              onClick={() => onOpenChange(false)}
+            >
+              <Link href="/cart">
+                <ShoppingCart className="size-4" />
+                View cart
+              </Link>
+            </Button>
+
+            <div className="grid grid-cols-2 gap-2">
               <Button variant="outline" className="gap-1.5" asChild>
                 <a
                   href={cartWhatsappLink(cart, settings?.whatsapp_number)}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Order on WhatsApp
+                  <WhatsAppIcon className="size-4" />
+                  WhatsApp
                 </a>
               </Button>
-              <Button className="gap-1.5" asChild onClick={() => onOpenChange(false)}>
-                <Link href="/checkout">Checkout</Link>
-              </Button>
+              {unsized ? (
+                <Button className="gap-1.5" disabled>
+                  Checkout
+                </Button>
+              ) : (
+                <Button
+                  className="gap-1.5"
+                  asChild
+                  onClick={() => onOpenChange(false)}
+                >
+                  <Link href="/checkout">Checkout</Link>
+                </Button>
+              )}
             </div>
           </SheetFooter>
         )}

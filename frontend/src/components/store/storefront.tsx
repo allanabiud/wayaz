@@ -86,7 +86,7 @@ function TopShelf({
   title: string;
   products: StoreProduct[];
 }) {
-  const { addingId, addProduct, cartProductIds, openCart } = useStore();
+  const { addingId, addProduct, cartProductIds } = useStore();
   if (products.length === 0) return null;
 
   return (
@@ -109,7 +109,6 @@ function TopShelf({
             // First shelf, first row: this is the homepage LCP candidate.
             eager={index < 4}
             onAdd={(item) => void addProduct(item)}
-            onOpenCart={openCart}
           />
         ))}
       </div>
@@ -131,7 +130,6 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
     addingId,
     addProduct,
     cartProductIds,
-    openCart,
   } = useStore();
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
 
@@ -283,7 +281,6 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
                     adding={addingId === product.id}
                     inCart={cartProductIds.has(product.id)}
                     onAdd={(p) => void addProduct(p)}
-                    onOpenCart={openCart}
                   />
                 ))}
               </div>

@@ -1,6 +1,12 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Category, Product, ProductImage, ProductReview
+from .models import (
+    Category,
+    Product,
+    ProductImage,
+    ProductReview,
+    RestockNotification,
+)
 
 
 class ProductImageInline(admin.TabularInline):
@@ -62,5 +68,18 @@ class ProductReviewAdmin(admin.ModelAdmin):
     readonly_fields = ("product", "user", "rating", "created_at", "updated_at")
 
     # Ratings are storefront-only; admins moderate by deleting, not editing.
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(RestockNotification)
+class RestockNotificationAdmin(admin.ModelAdmin):
+    list_display = ("product", "email", "phone", "is_notified", "created_at")
+    list_filter = ("is_notified", "created_at")
+    search_fields = ("product__title", "email", "phone")
+    # Stock moves constantly; the storefront can't notify for a product that
+    # is already back, so this is a plain intake list to work through.
+    readonly_fields = ("product", "email", "phone", "created_at")
+
     def has_add_permission(self, request):
         return False

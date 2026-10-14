@@ -1,7 +1,13 @@
 from django.conf import settings
+from django.core.signals import request_finished, request_started
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.text import slugify
+
+# StoreSettings is a singleton (pk forced to 1), so reading it is pure
+# overhead once a request has seen it. Order history serializes whatsapp_link
+# per row, which used to re-SELECT this table once per order.
+_REQUEST_CACHE_ATTR = "_wayaz_store_settings"
 
 
 class Category(models.Model):
@@ -72,10 +78,18 @@ class Product(models.Model):
 
     @property
     def primary_image(self):
-        primary = self.images.filter(is_primary=True).first()
-        if not primary:
-            primary = self.images.first()
-        return primary
+        # `select_related("images")` is used everywhere this is read, so
+        # iterating the cached queryset avoids a per-product query that used
+        # to be the storefront's worst N+1. Display order wins; is_primary is
+        # the tiebreak, then insertion order.
+        images = list(self.images.all())
+        if not images:
+            return None
+        ordered = sorted(
+            images,
+            key=lambda i: (i.display_order, 0 if i.is_primary else 1, i.id),
+        )
+        return ordered[0]
 
     @property
     def total_stock(self):
@@ -209,14 +223,82 @@ class StoreSettings(models.Model):
     def save(self, *args, **kwargs):
         self.pk = 1
         super().save(*args, **kwargs)
+        _clear_request_cache()
 
     @classmethod
     def load(cls):
+        # Memoize per request, not across requests: one SELECT serves every
+        # row in a list response, and the value is discarded at request
+        # teardown so a later write (or a rolled-back test transaction) is
+        # never masked by a stale cross-request cache.
+        holder = getattr(settings, _REQUEST_CACHE_ATTR, None)
+        if holder is not None and "store_settings" in holder:
+            return holder["store_settings"]
         obj, _ = cls.objects.get_or_create(pk=1)
+        if holder is not None:
+            holder["store_settings"] = obj
         return obj
 
     def __str__(self):
         return f"{self.store_name} Settings"
+
+
+def _clear_request_cache():
+    holder = getattr(settings, _REQUEST_CACHE_ATTR, None)
+    if holder is not None:
+        holder.pop("store_settings", None)
+
+
+def _activate_request_cache(sender, **kwargs):
+    # One dict per request. settings is a process-wide singleton, so this is
+    # safe: the dict lives exactly as long as the request that created it.
+    if not hasattr(settings, _REQUEST_CACHE_ATTR):
+        setattr(settings, _REQUEST_CACHE_ATTR, {})
+
+
+def _teardown_request_cache(sender, **kwargs):
+    if hasattr(settings, _REQUEST_CACHE_ATTR):
+        delattr(settings, _REQUEST_CACHE_ATTR)
+
+
+request_started.connect(_activate_request_cache)
+request_finished.connect(_teardown_request_cache)
+
+
+class RestockNotification(models.Model):
+    """Shopper opt-in to hear when an out-of-stock piece is back.
+
+    One row per product + email. An existing row is treated as already
+    subscribed, so resubscribing is idempotent rather than a 400."""
+
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name="restock_notifications"
+    )
+    email = models.EmailField()
+    # Optional phone: some shoppers would rather get the WhatsApp ping the
+    # store already sends from, so we keep it when they offer it.
+    phone = models.CharField(max_length=30, blank=True, default="")
+    is_notified = models.BooleanField(
+        default=False,
+        help_text="Set once the restock alert has gone out, so a product that "
+        "sells out again doesn't re-ping the same person.",
+    )
+    notified_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        # The idempotency key: the same shopper can only sit on the list once.
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product", "email"], name="unique_restock_per_email"
+            )
+        ]
+        verbose_name = "Restock Notification"
+        verbose_name_plural = "Restock Notifications"
+
+    def __str__(self):
+        return f"{self.email} <- {self.product.title}"
 
 
 class ContactMessage(models.Model):

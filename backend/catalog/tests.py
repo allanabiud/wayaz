@@ -593,3 +593,74 @@ class ContactMessageTestCase(TestCase):
         self.assertEqual(del_res.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(ContactMessage.objects.filter(id=msg.id).exists())
 
+
+class RestockNotificationTestCase(TestCase):
+    # The view throttles on its own `throttle_classes`, so the emptied global
+    # default doesn't reach it. Throttle caches are shared across every test
+    # in a suite run, so clear it here to keep this class off whatever other
+    # cases already spent.
+    def setUp(self):
+        from django.core.cache import cache
+
+        cache.clear()
+        self.client = APIClient()
+        self.category = Category.objects.create(name="Dresses", slug="dresses")
+        self.product = Product.objects.create(
+            title="Ankara Wrap Dress",
+            category=self.category,
+            base_price=Decimal("3500.00"),
+            stock_quantity=0,
+            sizes=["S", "M"],
+        )
+        self.in_stock = Product.objects.create(
+            title="Linen Shirt",
+            category=self.category,
+            base_price=Decimal("2000.00"),
+            stock_quantity=8,
+        )
+        self.url = "/api/v1/catalog/restock-notifications/"
+
+    def test_subscribe_when_out_of_stock(self):
+        res = self.client.post(
+            self.url,
+            {"product": self.product.id, "email": "Shopper@Example.com "},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+
+        from catalog.models import RestockNotification
+
+        note = RestockNotification.objects.get(product=self.product)
+        # Stored lowercase so "Shopper@" and "shopper@" are one subscription.
+        self.assertEqual(note.email, "shopper@example.com")
+        self.assertFalse(note.is_notified)
+
+    def test_resubscribing_is_not_an_error(self):
+        payload = {"product": self.product.id, "email": "shopper@example.com"}
+        self.client.post(self.url, payload, format="json")
+        again = self.client.post(self.url, payload, format="json")
+        self.assertEqual(again.status_code, status.HTTP_200_OK)
+
+        from catalog.models import RestockNotification
+
+        # Still exactly one row - the unique constraint is doing its job.
+        self.assertEqual(
+            RestockNotification.objects.filter(product=self.product).count(), 1
+        )
+
+    def test_rejects_subscribe_on_an_in_stock_piece(self):
+        res = self.client.post(
+            self.url,
+            {"product": self.in_stock.id, "email": "shopper@example.com"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", res.data)
+
+    def test_rejects_bad_email(self):
+        res = self.client.post(
+            self.url, {"product": self.product.id, "email": "nope"}, format="json"
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("email", res.data)
+

@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   ChevronRight,
   CreditCard,
-  ExternalLink,
   Loader2,
   Lock,
   Package,
@@ -22,6 +21,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { WhatsAppIcon } from "@/components/brand-icons";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -398,7 +398,7 @@ export function CheckoutView() {
                   rel="noopener noreferrer"
                 >
                   Confirm on WhatsApp
-                  <ExternalLink className="size-4" />
+                  <WhatsAppIcon className="size-4" />
                 </a>
               </Button>
             )}

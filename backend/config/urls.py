@@ -1,14 +1,14 @@
-from django.contrib import admin
-from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-
-from config.views import HealthView
+from django.contrib import admin
+from django.urls import include, path
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
+
+from config.views import HealthView
 
 urlpatterns = [
     # Uptime monitor target (kept outside /api/v1/ so version bumps never

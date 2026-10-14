@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, ClipboardList, Search, X } from "lucide-react";
+import { CheckCircle2, ClipboardList, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ListPagination } from "@/components/ui/list-pagination";
 import {
@@ -27,6 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState, ErrorState, PageHeader } from "@/components/admin/states";
+import { FilterSearch, FilterToolbar } from "@/components/admin/filter-toolbar";
 import { api, ApiError } from "@/lib/api";
 import { formatKsh } from "@/lib/store";
 import { useQuery } from "@/lib/use-query";
@@ -132,33 +132,22 @@ export default function AdminOrdersPage() {
       />
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-1 items-center gap-2 max-w-md">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              placeholder="Search order #, customer, email, phone…"
-              className="pl-9 pr-8 h-9 text-xs"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearch("");
-                  setPage(1);
-                }}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <X className="size-3.5" />
-              </button>
-            )}
-          </div>
-
+      <FilterToolbar
+        search={
+          <FilterSearch
+            value={search}
+            onValueChange={(value) => {
+              setSearch(value);
+              setPage(1);
+            }}
+            onClear={() => {
+              setSearch("");
+              setPage(1);
+            }}
+            placeholder="Search order #, customer, email, phone…"
+          />
+        }
+        filters={
           <Select
             value={statusFilter}
             onValueChange={(val) => {
@@ -177,21 +166,22 @@ export default function AdminOrdersPage() {
               ))}
             </SelectContent>
           </Select>
-        </div>
-
-        {data && (
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="h-9 px-3 text-xs font-mono">
-              {data.count} results
-            </Badge>
-            {data.pending_count > 0 && (
-              <Badge variant="warning" className="h-9 px-3 text-xs">
-                {data.pending_count} pending
+        }
+        trailing={
+          data && (
+            <>
+              <Badge variant="outline" className="h-9 px-3 text-xs font-mono">
+                {data.count} results
               </Badge>
-            )}
-          </div>
-        )}
-      </div>
+              {data.pending_count > 0 && (
+                <Badge variant="warning" className="h-9 px-3 text-xs">
+                  {data.pending_count} pending
+                </Badge>
+              )}
+            </>
+          )
+        }
+      />
 
       {error && <ErrorState message={error} onRetry={refetch} />}
 

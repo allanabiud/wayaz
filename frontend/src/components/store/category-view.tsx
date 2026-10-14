@@ -37,7 +37,7 @@ export function CategoryView({
   pages,
   filters,
 }: CategoryViewProps) {
-  const { addingId, addProduct, cartProductIds, openCart } = useStore();
+  const { addingId, addProduct, cartProductIds } = useStore();
 
   const base = `/categories/${category.slug}`;
   const filtered = hasActiveFilters(filters);
@@ -117,7 +117,7 @@ export function CategoryView({
               // First row (up to 4 on desktop) is this page's LCP candidate.
               eager={index < 4}
               onAdd={(p) => void addProduct(p)}
-              onOpenCart={openCart}
+
             />
           ))}
         </div>

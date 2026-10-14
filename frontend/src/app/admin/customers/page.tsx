@@ -6,13 +6,10 @@ import {
   Mail,
   MapPin,
   Phone,
-  Search,
-  X,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { ListPagination } from "@/components/ui/list-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -24,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState, ErrorState, PageHeader } from "@/components/admin/states";
+import { FilterSearch, FilterToolbar } from "@/components/admin/filter-toolbar";
 import { api } from "@/lib/api";
 import { useQuery } from "@/lib/use-query";
 import type { Customer, Paginated } from "@/lib/types";
@@ -80,29 +78,20 @@ export default function CustomersPage() {
       />
 
       {/* Search Bar */}
-      <div className="flex items-center gap-2 max-w-sm">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
+      <FilterToolbar
+        search={
+          <FilterSearch
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onValueChange={setSearch}
             placeholder="Search name, email, username…"
-            className="pl-9 pr-8 h-9 text-xs"
           />
-          {search && (
-            <button
-              type="button"
-              onClick={() => setSearch("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="size-3.5" />
-            </button>
-          )}
-        </div>
-        <Badge variant="secondary" className="h-9 px-3 text-xs">
-          {data?.count ?? 0} total
-        </Badge>
-      </div>
+        }
+        trailing={
+          <Badge variant="secondary" className="h-9 px-3 text-xs">
+            {data?.count ?? 0} total
+          </Badge>
+        }
+      />
 
       {error && <ErrorState message={error} onRetry={refetch} />}
 

@@ -22,6 +22,7 @@ import {
   fetchStorefrontCatalog,
   fetchStoreSettings,
   storedCartId,
+  updateCartItem,
   type Cart,
   type StoreProduct,
   type StorefrontCatalog,
@@ -45,7 +46,14 @@ interface StoreContextValue {
   addProduct: (
     product: { id: number; title: string },
     options?: { quantity?: number; size?: string },
-  ) => Promise<void>;
+  ) => Promise<boolean>;
+  /** Product id whose quantity is being bumped from a card. */
+  bumpingId: number | null;
+  /**
+   * "In Cart" tap: +1 on the product's only line, or opens the cart sheet
+   * when the product sits on several size lines (so the shopper picks one).
+   */
+  bumpProduct: (product: { id: number; title: string }) => Promise<void>;
   /** Wishlisted product ids - account-tied wishlist entries. */
   wishlist: ReadonlySet<number>;
   wishlistCount: number;
@@ -178,12 +186,17 @@ export function StoreProvider({
   // re-login shows the previous ids until the fetch above overwrites them.
   const activeWishlistIds = isAuthenticated ? wishlistIds : EMPTY_WISHLIST_IDS;
 
+  /**
+   * Adds a line to the cart, toasting the outcome. Resolves `true` only
+   * when the item landed in the cart - "Buy now" uses that to decide
+   * whether to jump to checkout or stay put on failure.
+   */
   const addProduct = useCallback(
     async (
       product: { id: number; title: string },
       options?: { quantity?: number; size?: string },
-    ) => {
-      if (addingId !== null) return;
+    ): Promise<boolean> => {
+      if (addingId !== null) return false;
       setAddingId(product.id);
       try {
         const next = await addToCart(
@@ -193,15 +206,52 @@ export function StoreProvider({
         );
         setCart(next);
         toast.success("Added to cart", { description: product.title });
+        return true;
       } catch (err) {
         toast.error(
           err instanceof ApiError ? err.message : "Could not add to cart.",
         );
+        return false;
       } finally {
         setAddingId(null);
       }
     },
     [addingId],
+  );
+
+  const [bumpingId, setBumpingId] = useState<number | null>(null);
+
+  const bumpProduct = useCallback(
+    async (product: { id: number; title: string }) => {
+      if (bumpingId !== null) return;
+      const lines = (cart?.items ?? []).filter(
+        (line) => line.product.id === product.id,
+      );
+      if (lines.length === 0) return;
+      // Several size lines: which one to bump is the shopper's call, so
+      // hand them the cart instead of guessing.
+      if (lines.length > 1) {
+        setCartOpen(true);
+        return;
+      }
+
+      const line = lines[0];
+      setBumpingId(product.id);
+      try {
+        const next = await updateCartItem(line.id, line.quantity + 1);
+        setCart(next);
+        toast.success("Quantity updated", { description: product.title });
+      } catch (err) {
+        toast.error(
+          err instanceof ApiError
+            ? err.message
+            : "Could not update quantity.",
+        );
+      } finally {
+        setBumpingId(null);
+      }
+    },
+    [cart, bumpingId],
   );
 
   const toggleWishlist = useCallback(
@@ -281,6 +331,8 @@ export function StoreProvider({
       openCart: () => setCartOpen(true),
       addingId,
       addProduct,
+      bumpingId,
+      bumpProduct,
       wishlist,
       wishlistCount: activeWishlistIds.length,
       wishlistProducts,
@@ -306,6 +358,8 @@ export function StoreProvider({
       cartOpen,
       addingId,
       addProduct,
+      bumpingId,
+      bumpProduct,
       wishlist,
       activeWishlistIds.length,
       wishlistProducts,

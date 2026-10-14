@@ -118,6 +118,143 @@ class CartAPITestCase(TestCase):
         self.assertEqual(del_res.status_code, status.HTTP_200_OK)
         self.assertEqual(del_res.data["total_items"], 0)
 
+    def test_update_cart_item_size(self):
+        sized = Product.objects.create(
+            title="Denim Jacket",
+            category=self.category,
+            base_price=4000.00,
+            stock_quantity=6,
+            sizes=["M", "L"],
+        )
+        cart_id = self.client.get("/api/v1/orders/cart/").headers["X-Cart-ID"]
+        add_res = self.client.post(
+            "/api/v1/orders/cart/items/",
+            {"product_id": sized.id, "quantity": 2, "size": "M"},
+            HTTP_X_CART_ID=cart_id,
+            format="json",
+        )
+        item_id = add_res.data["items"][0]["id"]
+
+        # Move the line to another size - no duplicate row is created.
+        patch_res = self.client.patch(
+            f"/api/v1/orders/cart/items/{item_id}/",
+            {"size": "L"},
+            HTTP_X_CART_ID=cart_id,
+            format="json",
+        )
+        self.assertEqual(patch_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(patch_res.data["items"]), 1)
+        self.assertEqual(patch_res.data["items"][0]["size"], "L")
+        self.assertEqual(patch_res.data["items"][0]["quantity"], 2)
+
+        # Sizes outside the product's list are rejected.
+        bad_res = self.client.patch(
+            f"/api/v1/orders/cart/items/{item_id}/",
+            {"size": "XL"},
+            HTTP_X_CART_ID=cart_id,
+            format="json",
+        )
+        self.assertEqual(bad_res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("size", bad_res.data)
+
+    def test_size_change_merges_into_the_matching_line(self):
+        sized = Product.objects.create(
+            title="Denim Jacket",
+            category=self.category,
+            base_price=4000.00,
+            stock_quantity=6,
+            sizes=["M", "L"],
+        )
+        cart_id = self.client.get("/api/v1/orders/cart/").headers["X-Cart-ID"]
+
+        self.client.post(
+            "/api/v1/orders/cart/items/",
+            {"product_id": sized.id, "quantity": 2, "size": "M"},
+            HTTP_X_CART_ID=cart_id,
+            format="json",
+        )
+        add_l = self.client.post(
+            "/api/v1/orders/cart/items/",
+            {"product_id": sized.id, "quantity": 1, "size": "L"},
+            HTTP_X_CART_ID=cart_id,
+            format="json",
+        )
+        line_l = next(
+            item for item in add_l.data["items"] if item["size"] == "L"
+        )
+
+        # Moving L onto the occupied M size merges the quantities.
+        res = self.client.patch(
+            f"/api/v1/orders/cart/items/{line_l['id']}/",
+            {"size": "M"},
+            HTTP_X_CART_ID=cart_id,
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data["items"]), 1)
+        self.assertEqual(res.data["items"][0]["size"], "M")
+        self.assertEqual(res.data["items"][0]["quantity"], 3)
+
+    def test_size_merge_respects_stock(self):
+        sized = Product.objects.create(
+            title="Denim Jacket",
+            category=self.category,
+            base_price=4000.00,
+            stock_quantity=6,
+            sizes=["M", "L"],
+        )
+        cart_id = self.client.get("/api/v1/orders/cart/").headers["X-Cart-ID"]
+
+        self.client.post(
+            "/api/v1/orders/cart/items/",
+            {"product_id": sized.id, "quantity": 3, "size": "M"},
+            HTTP_X_CART_ID=cart_id,
+            format="json",
+        )
+        add_l = self.client.post(
+            "/api/v1/orders/cart/items/",
+            {"product_id": sized.id, "quantity": 3, "size": "L"},
+            HTTP_X_CART_ID=cart_id,
+            format="json",
+        )
+        line_l = next(
+            item for item in add_l.data["items"] if item["size"] == "L"
+        )
+
+        # Stock drops (a sale elsewhere) between the two adds and the merge:
+        # 3 + 3 no longer fits in the 5 units that remain.
+        Product.objects.filter(id=sized.id).update(stock_quantity=5)
+
+        res = self.client.patch(
+            f"/api/v1/orders/cart/items/{line_l['id']}/",
+            {"size": "M"},
+            HTTP_X_CART_ID=cart_id,
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", res.data)
+        self.assertEqual(
+            CartItem.objects.filter(cart_id=cart_id, size="L").count(), 1
+        )
+
+    def test_cart_lines_expose_the_size_options(self):
+        sized = Product.objects.create(
+            title="Denim Jacket",
+            category=self.category,
+            base_price=4000.00,
+            stock_quantity=6,
+            sizes=["M", "L"],
+        )
+        cart_id = self.client.get("/api/v1/orders/cart/").headers["X-Cart-ID"]
+        res = self.client.post(
+            "/api/v1/orders/cart/items/",
+            {"product_id": sized.id, "quantity": 1, "size": "M"},
+            HTTP_X_CART_ID=cart_id,
+            format="json",
+        )
+        # The cart views render the size picker from this list.
+        self.assertEqual(res.data["items"][0]["product"]["sizes"], ["M", "L"])
+
     def test_cart_merge_on_login(self):
         # 1. Guest adds item to guest cart
         init_res = self.client.get("/api/v1/orders/cart/")
@@ -282,6 +419,34 @@ class CheckoutAPITestCase(TestCase):
         res = self.checkout(cart_id=str(empty_cart.id))
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Order.objects.count(), 0)
+
+    def test_checkout_requires_a_size_for_sized_products(self):
+        """Cart lines may sit size-less until the shopper picks one, but the
+        order itself must never be placed without a size."""
+        sized = Product.objects.create(
+            title="Denim Jacket",
+            category=self.category,
+            base_price=4000.00,
+            stock_quantity=6,
+            sizes=["M", "L"],
+        )
+        CartItem.objects.create(
+            cart=self.cart, product=sized, quantity=1, size=""
+        )
+
+        res = self.checkout()
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Order.objects.count(), 0)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock_quantity, 5)
+
+        # Choosing a size unblocks the same cart.
+        line = CartItem.objects.get(product=sized, cart=self.cart)
+        line.size = "M"
+        line.save()
+        ok = self.checkout()
+        self.assertEqual(ok.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Order.objects.count(), 1)
 
     def test_checkout_rejects_unknown_delivery_zone(self):
         payload = {**self.checkout_payload, "delivery_method": "mars_base"}

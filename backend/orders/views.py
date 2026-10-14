@@ -186,6 +186,49 @@ class CartItemDetailView(APIView):
                 cart_item.product = new_product
                 cart_item.size = new_size
 
+        # Re-point the line at another size if requested. Lines are unique
+        # per (cart, product, size), so moving onto an occupied size merges
+        # the quantities instead of creating a duplicate row.
+        if "size" in serializer.validated_data:
+            requested = serializer.validated_data["size"].strip()
+            product = cart_item.product
+            if product.sizes:
+                if requested and requested not in product.sizes:
+                    return Response(
+                        {"size": f"Choose one of: {', '.join(product.sizes)}."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            else:
+                requested = ""
+
+            if requested != cart_item.size:
+                duplicate = (
+                    CartItem.objects.filter(
+                        cart=cart, product=product, size=requested
+                    )
+                    .exclude(id=cart_item.id)
+                    .first()
+                )
+                if duplicate:
+                    combined = duplicate.quantity + cart_item.quantity
+                    if combined > product.stock_quantity:
+                        return Response(
+                            {
+                                "detail": (
+                                    f"Only {product.stock_quantity} unit(s) "
+                                    "available."
+                                ),
+                                "available_stock": product.stock_quantity,
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                    duplicate.quantity = combined
+                    duplicate.save()
+                    cart_item.delete()
+                    cart_item = duplicate
+                else:
+                    cart_item.size = requested
+
         # Update quantity if requested
         if "quantity" in serializer.validated_data:
             qty = serializer.validated_data["quantity"]
@@ -333,6 +376,27 @@ class CheckoutView(APIView):
                                 "available_stock": product.stock_quantity,
                             }
                         )
+
+                # A sized piece must have picked its size: cart lines are
+                # allowed to sit size-less until the shopper chooses one.
+                unsized = next(
+                    (
+                        item
+                        for item in items
+                        if item.product.sizes and not item.size
+                    ),
+                    None,
+                )
+                if unsized is not None:
+                    raise ValidationError(
+                        {
+                            "detail": (
+                                f"Choose a size for {unsized.product.title} "
+                                "before checking out."
+                            ),
+                            "missing_size_item_id": unsized.id,
+                        }
+                    )
 
                 subtotal = sum(item.line_total for item in items)
                 shipping_fee = delivery_fee(data["delivery_method"], subtotal)

@@ -1,13 +1,20 @@
 from django.db import models
 from django.db.models import Q, F, Avg, Count, Case, DecimalField, When
-from rest_framework import viewsets, permissions, generics
+from rest_framework import viewsets, permissions, generics, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.throttling import ScopedRateThrottle
 from drf_spectacular.utils import extend_schema
 
-from .models import Category, ContactMessage, Product, ProductReview, StoreSettings
+from .models import (
+    Category,
+    ContactMessage,
+    Product,
+    ProductReview,
+    RestockNotification,
+    StoreSettings,
+)
 from .serializers import (
     CategorySerializer,
     ContactMessageCreateSerializer,
@@ -15,6 +22,7 @@ from .serializers import (
     ProductDetailSerializer,
     ProductReviewListSerializer,
     ProductReviewSerializer,
+    RestockNotificationCreateSerializer,
     StoreSettingsSerializer,
 )
 
@@ -276,6 +284,44 @@ class StoreSettingsView(APIView):
         settings = StoreSettings.load()
         serializer = StoreSettingsSerializer(settings, context={"request": request})
         return Response(serializer.data)
+
+
+class RestockNotificationCreateView(generics.CreateAPIView):
+    """Public opt-in: "tell me when this piece is back."
+
+    Subscribing twice is a no-op (200) instead of an error, so a shopper can
+    tap the button again after a page refresh without seeing a failure."""
+
+    queryset = RestockNotification.objects.all()
+    serializer_class = RestockNotificationCreateSerializer
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    # Own scope: the contact-form tests share the "contact" counter and a
+    # full-suite run would drain it, 429-ing an unrelated test.
+    throttle_scope = "restock-notifications"
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        product = serializer.validated_data["product"]
+        if product.is_in_stock:
+            # Something restocked before they got here - no point on the list.
+            return Response(
+                {"detail": "This piece is already back in stock."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        email = serializer.validated_data["email"]
+        _, created = RestockNotification.objects.get_or_create(
+            product=product,
+            email=email,
+            defaults={"phone": serializer.validated_data.get("phone", "")},
+        )
+        return Response(
+            serializer.data if created else {"detail": "Already on the list."},
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
 
 
 class ContactMessageCreateView(generics.CreateAPIView):

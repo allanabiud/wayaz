@@ -56,6 +56,8 @@ export interface CartProduct {
   unit_price: string;
   stock_quantity: number;
   is_in_stock: boolean;
+  /** Size options the product offers - drives the cart's size picker. */
+  sizes: string[];
   thumbnail: string | null;
 }
 
@@ -282,6 +284,21 @@ export function updateCartItem(item_id: number, quantity: number): Promise<Cart>
     .patch<Cart>(
       `/api/v1/orders/cart/items/${item_id}/`,
       { quantity },
+      { headers: cartHeaders() },
+    )
+    .then(rememberCart);
+}
+
+/**
+ * Move a cart line to another size. The server merges quantities when the
+ * target size already has a line, so the response is the whole cart either
+ * way.
+ */
+export function setCartItemSize(item_id: number, size: string): Promise<Cart> {
+  return api
+    .patch<Cart>(
+      `/api/v1/orders/cart/items/${item_id}/`,
+      { size },
       { headers: cartHeaders() },
     )
     .then(rememberCart);

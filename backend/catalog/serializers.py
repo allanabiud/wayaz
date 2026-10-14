@@ -1,6 +1,14 @@
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
-from .models import Category, ContactMessage, Product, ProductImage, ProductReview, StoreSettings
+from .models import (
+    Category,
+    ContactMessage,
+    Product,
+    ProductImage,
+    ProductReview,
+    RestockNotification,
+    StoreSettings,
+)
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -214,5 +222,22 @@ class ContactMessageCreateSerializer(serializers.ModelSerializer):
         val = value.strip()
         if not val:
             raise serializers.ValidationError("Message cannot be blank.")
+        return val
+
+
+class RestockNotificationCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RestockNotification
+        fields = ("id", "product", "email", "phone", "created_at")
+        read_only_fields = ("id", "created_at")
+        # The (product, email) uniqueness is handled as "already subscribed"
+        # in the view, not as a 400. The auto-generated validator would fire
+        # first and turn a harmless repeat tap into an error.
+        validators = []
+
+    def validate_email(self, value):
+        val = value.strip().lower()
+        if not val:
+            raise serializers.ValidationError("Email cannot be blank.")
         return val
 

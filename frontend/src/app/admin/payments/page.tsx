@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Banknote, Search, Smartphone, X } from "lucide-react";
+import { Banknote, Smartphone } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { ListPagination } from "@/components/ui/list-pagination";
 import {
   Select,
@@ -24,6 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState, ErrorState, PageHeader } from "@/components/admin/states";
+import { FilterSearch, FilterToolbar } from "@/components/admin/filter-toolbar";
 import { api } from "@/lib/api";
 import { formatKsh } from "@/lib/store";
 import { useQuery } from "@/lib/use-query";
@@ -143,76 +143,65 @@ export default function AdminPaymentsPage() {
       />
 
       {/* Filter bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        {/* Search — takes available space on the left */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
+      <FilterToolbar
+        search={
+          <FilterSearch
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onValueChange={setSearch}
             placeholder="Search order #, phone, receipt…"
-            className="pl-9 pr-8 h-9 text-xs"
           />
-          {search && (
-            <button
-              type="button"
-              onClick={() => setSearch("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+        }
+        filters={
+          <>
+            {/* Method filter */}
+            <Select
+              value={method}
+              onValueChange={(val) => {
+                setMethod(val as PaymentMethodFilter);
+                setPage(1);
+              }}
             >
-              <X className="size-3.5" />
-            </button>
-          )}
-        </div>
+              <SelectTrigger className="w-[150px] h-9 text-xs">
+                <SelectValue placeholder="Method" />
+              </SelectTrigger>
+              <SelectContent>
+                {METHOD_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-        {/* Filters + count — sit on the right */}
-        <div className="flex items-center gap-2">
-          {/* Method filter */}
-          <Select
-            value={method}
-            onValueChange={(val) => {
-              setMethod(val as PaymentMethodFilter);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[150px] h-9 text-xs">
-              <SelectValue placeholder="Method" />
-            </SelectTrigger>
-            <SelectContent>
-              {METHOD_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {/* Status filter */}
-          <Select
-            value={statusFilter}
-            onValueChange={(val) => {
-              setStatusFilter(val as PaymentStatusFilter);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[150px] h-9 text-xs">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {data && (
+            {/* Status filter */}
+            <Select
+              value={statusFilter}
+              onValueChange={(val) => {
+                setStatusFilter(val as PaymentStatusFilter);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-[150px] h-9 text-xs">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        }
+        trailing={
+          data && (
             <Badge variant="outline" className="h-9 px-3 text-xs font-mono">
               {data.count} results
             </Badge>
-          )}
-        </div>
-      </div>
+          )
+        }
+      />
 
       {error && <ErrorState message={error} onRetry={refetch} />}
 

@@ -2,10 +2,9 @@
 
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, Plus, Search, Star, X } from "lucide-react";
+import { Eye, Plus, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ListPagination } from "@/components/ui/list-pagination";
 import {
   Select,
@@ -24,6 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState, ErrorState } from "@/components/admin/states";
+import { FilterSearch, FilterToolbar } from "@/components/admin/filter-toolbar";
 import { api } from "@/lib/api";
 import { useQuery } from "@/lib/use-query";
 import type { Category, Paginated, Product } from "@/lib/types";
@@ -96,58 +96,48 @@ function ProductsContent() {
       </div>
 
       {/* Filter toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <form
-          onSubmit={(e) => { e.preventDefault(); submitSearch(); }}
-          className="relative min-w-[200px] flex-1 sm:max-w-xs"
-        >
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
+      <FilterToolbar
+        search={
+          <FilterSearch
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onBlur={submitSearch}
+            onValueChange={setSearch}
+            onSubmit={submitSearch}
+            onClear={() => { setSearch(""); setAppliedSearch(""); setPage(1); }}
             placeholder="Search products by title or category…"
-            className="pl-9 pr-8 h-9 text-xs"
           />
-          {search && (
-            <button
-              type="button"
-              onClick={() => { setSearch(""); setAppliedSearch(""); setPage(1); }}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="size-3.5" />
-            </button>
-          )}
-        </form>
+        }
+        filters={
+          <>
+            <Select value={category} onValueChange={applyFilter(setCategory)}>
+              <SelectTrigger className="w-[145px] h-9 text-xs"><SelectValue placeholder="Category" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All categories</SelectItem>
+                {categories?.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
 
-        <Select value={category} onValueChange={applyFilter(setCategory)}>
-          <SelectTrigger className="w-[145px] h-9 text-xs"><SelectValue placeholder="Category" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All categories</SelectItem>
-            {categories?.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+            <Select value={inStock} onValueChange={applyFilter(setInStock)}>
+              <SelectTrigger className="w-[130px] h-9 text-xs"><SelectValue placeholder="Stock status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>Any stock</SelectItem>
+                <SelectItem value="true">In stock</SelectItem>
+                <SelectItem value="false">Out of stock</SelectItem>
+              </SelectContent>
+            </Select>
 
-        <Select value={inStock} onValueChange={applyFilter(setInStock)}>
-          <SelectTrigger className="w-[130px] h-9 text-xs"><SelectValue placeholder="Stock status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>Any stock</SelectItem>
-            <SelectItem value="true">In stock</SelectItem>
-            <SelectItem value="false">Out of stock</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {filtersActive && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => { setSearch(""); setAppliedSearch(""); setCategory(ALL); setInStock(ALL); setPage(1); }}
-          >
-            Reset filters
-          </Button>
-        )}
-      </div>
+            {filtersActive && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => { setSearch(""); setAppliedSearch(""); setCategory(ALL); setInStock(ALL); setPage(1); }}
+              >
+                Reset filters
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {error && <ErrorState message={error} onRetry={refetch} />}
 

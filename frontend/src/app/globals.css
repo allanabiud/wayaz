@@ -24,6 +24,9 @@
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
   --color-gold: var(--gold);
+  --color-amber-600: var(--amber-600);
+  --color-amber-700: var(--amber-700);
+  --color-amber-ring: var(--amber-ring);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -64,6 +67,12 @@
   --muted: #f4f4f5;
   --muted-foreground: #71717a;
   --gold: #c8a44d;
+  /* Restock/notify actions: deliberately off-palette (warm amber) so a
+     "Notify on restock" button never reads as a purchase CTA. */
+  --amber-600: #d97706;
+  --amber-700: #b45309;
+  --amber-foreground: #ffffff;
+  --amber-ring: #fbbf24;
   --accent: #fee2e2;
   --accent-foreground: #991b1b;
   --destructive: #ef4444;
@@ -104,6 +113,11 @@
   --muted: #2a2c32;
   --muted-foreground: #a1a1aa;
   --gold: #d9b968;
+  /* Lifted for the dark card so the button stays legible on #222428. */
+  --amber-600: #f59e0b;
+  --amber-700: #d97706;
+  --amber-foreground: #17181a;
+  --amber-ring: #fbbf24;
   --accent: rgb(224 6 19 / 0.16);
   --accent-foreground: #fca5a5;
   --destructive: #f87171;
@@ -177,5 +191,36 @@
   .print-target header,
   .print-target [class*="bg-muted"] {
     background: transparent;
+  }
+}
+
+/* ---- Notify-on-restock actions ----
+   Off-palette warm amber, shared by the product card, the product detail
+   page, its sticky bar, and the opt-in dialog. Deliberately not
+   primary/secondary so a "waiting for stock" action never reads as a
+   purchase CTA, and never sits next to Add to Cart / Buy now.
+
+   The `!` on background-color is load-bearing, not defensive styling. All
+   Tailwind rules land in one @layer utilities, sorted by declaration order,
+   so bg-card (emitted ~31.6k) and hover:bg-muted (~67.2k) come AFTER a
+   custom utility (~29.4k) and would win the cascade - which is exactly why
+   an earlier non-important version of this rendered card-white instead of
+   amber. `!important` beats any layer regardless of order, so the fill holds
+   against every variant's background, dark-mode overrides included. */
+@utility restock-button {
+  background-color: var(--amber-600) !important;
+  color: var(--amber-foreground);
+
+  &:hover:not(:disabled) {
+    background-color: var(--amber-700) !important;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--amber-ring);
+  }
+
+  &:disabled {
+    opacity: 0.5;
   }
 }

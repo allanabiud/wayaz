@@ -10,27 +10,32 @@ import {
 } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  BellRing,
   Check,
   Heart,
   Image as ImageIcon,
-  MessageCircle,
   Minus,
   Plus,
   Share2,
   ShoppingBag,
   Star,
+  Zap,
   ZoomIn,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { WhatsAppIcon } from "@/components/brand-icons";
 import { ProductCard } from "@/components/store/product-card";
 import { ProductReviews } from "@/components/store/product-reviews";
+import { RestockDialog } from "@/components/store/restock-dialog";
 import { useStore } from "@/components/store/store-context";
 import { useAuth } from "@/lib/auth-context";
 import { mediaUrl } from "@/lib/media";
+import { cn } from "@/lib/utils";
 import {
   fetchProductRating,
   formatKsh,
@@ -60,6 +65,7 @@ function StarGlyph({ fill }: { fill: number }) {
 }
 
 export function ProductDetail({ product }: ProductDetailProps) {
+  const router = useRouter();
   const {
     catalog,
     cart,
@@ -219,6 +225,22 @@ export function ProductDetail({ product }: ProductDetailProps) {
   const handleAdd = () => {
     if (sizeInCart) openCart();
     else void addProduct(product, { quantity, size });
+  };
+
+  // Quick checkout: make sure the chosen size/quantity is in the cart, then
+  // land on /checkout. Already in the cart? Skip straight there.
+  const [buying, setBuying] = useState(false);
+  const [notifyOpen, setNotifyOpen] = useState(false);
+  const handleBuyNow = async () => {
+    if (buying || !canAdd) return;
+    setBuying(true);
+    try {
+      if (!sizeInCart && !(await addProduct(product, { quantity, size })))
+        return;
+      router.push("/checkout");
+    } finally {
+      setBuying(false);
+    }
   };
 
   // Share: native share sheet where supported, otherwise copy + toast.
@@ -544,40 +566,66 @@ export function ProductDetail({ product }: ProductDetailProps) {
           )}
 
           {/* Actions - once this row scrolls out of view the sticky bar
-              takes over as the way to buy */}
-          <div
-            ref={actionsRef}
-            className="mt-5 flex flex-col gap-3 sm:mt-6 sm:flex-row"
-          >
-            <Button
-              size="lg"
-              className="w-full gap-2 sm:flex-1"
-              disabled={!canAdd}
-              onClick={handleAdd}
-            >
-              {sizeInCart ? (
-                <Check className="size-4" />
-              ) : (
-                <ShoppingBag className="size-4" />
-              )}
-              {addLabel}
-            </Button>
+              takes over as the way to buy. Sold-out pieces swap the whole
+              row for the notify offer instead of greyed-out buttons. */}
+          {!product.is_in_stock ? (
             <Button
               size="lg"
               variant="outline"
-              className="w-full gap-2 sm:flex-1"
-              asChild
+              className={cn(
+                "mt-5 w-full gap-2 sm:mt-6",
+                "restock-button",
+              )}
+              onClick={() => setNotifyOpen(true)}
             >
-              <a
-                href={productWhatsappLink(product, settings?.whatsapp_number)}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <MessageCircle className="size-4" />
-                Order on WhatsApp
-              </a>
+              <BellRing className="size-4" />
+              Notify on restock
             </Button>
-          </div>
+          ) : (
+            <div
+              ref={actionsRef}
+              className="mt-5 flex flex-col gap-3 sm:mt-6 sm:flex-row"
+            >
+              <Button
+                size="lg"
+                className="w-full gap-2 sm:flex-1"
+                disabled={!canAdd}
+                onClick={handleAdd}
+              >
+                {sizeInCart ? (
+                  <Check className="size-4" />
+                ) : (
+                  <ShoppingBag className="size-4" />
+                )}
+                {addLabel}
+              </Button>
+              <Button
+                size="lg"
+                variant="secondary"
+                className="w-full gap-2 sm:flex-1"
+                disabled={!canAdd || buying}
+                onClick={() => void handleBuyNow()}
+              >
+                <Zap className="size-4" />
+                {buying ? "Adding…" : "Buy now"}
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="w-full gap-2 sm:flex-1"
+                asChild
+              >
+                <a
+                  href={productWhatsappLink(product, settings?.whatsapp_number)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <WhatsAppIcon className="size-4" />
+                  Order on WhatsApp
+                </a>
+              </Button>
+            </div>
+          )}
 
           {product.description && (
             <div className="mt-5 sm:mt-6">
@@ -661,7 +709,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 adding={addingId === item.id}
                 inCart={cartProductIds.has(item.id)}
                 onAdd={(p) => void addProduct(p)}
-                onOpenCart={openCart}
+
               />
             ))}
           </div>
@@ -722,12 +770,13 @@ export function ProductDetail({ product }: ProductDetailProps) {
             </div>
           </div>
 
-          {/* CTAs */}
-          <div className="flex gap-2 sm:ml-auto sm:gap-3">
+          {/* CTAs - WhatsApp spans the row on small screens so the two
+              buy actions keep their labels */}
+          <div className="grid grid-cols-2 gap-2 sm:ml-auto sm:flex sm:gap-3">
             <Button
               size="lg"
               variant="outline"
-              className="shrink-0 gap-2 rounded-full"
+              className="col-span-2 gap-2 rounded-full sm:col-span-1"
               asChild
             >
               <a
@@ -735,13 +784,14 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <MessageCircle className="size-4" />
+                <WhatsAppIcon className="size-4" />
                 WhatsApp
               </a>
             </Button>
             <Button
               size="lg"
-              className="min-w-0 flex-1 gap-2 rounded-full sm:w-auto sm:min-w-40"
+              className="gap-2 rounded-full sm:min-w-40"
+              variant={product.is_in_stock ? "default" : "outline"}
               disabled={!canAdd}
               onClick={handleAdd}
             >
@@ -752,9 +802,39 @@ export function ProductDetail({ product }: ProductDetailProps) {
               )}
               {addLabel}
             </Button>
+            {product.is_in_stock ? (
+              <Button
+                size="lg"
+                variant="secondary"
+                className="gap-2 rounded-full sm:min-w-32"
+                disabled={!canAdd || buying}
+                onClick={() => void handleBuyNow()}
+              >
+                <Zap className="size-4" />
+                {buying ? "Adding…" : "Buy now"}
+              </Button>
+            ) : (
+              <Button
+                size="lg"
+                className={cn(
+                  "gap-2 rounded-full sm:min-w-44",
+                  "restock-button",
+                )}
+                onClick={() => setNotifyOpen(true)}
+              >
+                <BellRing className="size-4" />
+                Notify on restock
+              </Button>
+            )}
           </div>
         </div>
       </div>
+
+      <RestockDialog
+        product={product}
+        open={notifyOpen}
+        onOpenChange={setNotifyOpen}
+      />
     </div>
   );
 }

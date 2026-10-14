@@ -37,7 +37,7 @@ export function SearchResults({
   pages,
   filters,
 }: SearchResultsProps) {
-  const { addingId, addProduct, cartProductIds, openCart } = useStore();
+  const { addingId, addProduct, cartProductIds } = useStore();
 
   // Keep this device's recent searches in sync even for direct visits.
   useEffect(() => {
@@ -140,7 +140,7 @@ export function SearchResults({
                   // First row (up to 4 on desktop) is this page's LCP candidate.
                   eager={index < 4}
                   onAdd={(p) => void addProduct(p)}
-                  onOpenCart={openCart}
+
                 />
               ))}
             </div>
