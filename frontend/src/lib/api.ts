@@ -30,7 +30,8 @@ export const tokenStore = {
   save(tokens: { access: string; refresh?: string }) {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(ACCESS_KEY, tokens.access);
-    if (tokens.refresh) window.localStorage.setItem(REFRESH_KEY, tokens.refresh);
+    if (tokens.refresh)
+      window.localStorage.setItem(REFRESH_KEY, tokens.refresh);
   },
   clear() {
     if (typeof window === "undefined") return;
@@ -97,7 +98,10 @@ interface RequestOptions extends Omit<RequestInit, "body"> {
   raw?: BodyInit;
 }
 
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+async function request<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
   const { body, anonymous, raw, headers, ...rest } = options;
 
   const doFetch = (token: string | null) =>
@@ -126,7 +130,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const text = await res.text();
   const parsed: unknown = text ? safeParse(text) : null;
 
-  if (!res.ok) throw new ApiError(res.status, readError(parsed, res.status), parsed);
+  if (!res.ok)
+    throw new ApiError(res.status, readError(parsed, res.status), parsed);
 
   return parsed as T;
 }

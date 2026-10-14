@@ -49,42 +49,56 @@ export function OrdersSheet() {
   const [open, setOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
-  const [expandedOrderNumber, setExpandedOrderNumber] = useState<string | null>(null);
-  const [updatingOrderNumber, setUpdatingOrderNumber] = useState<string | null>(null);
+  const [expandedOrderNumber, setExpandedOrderNumber] = useState<string | null>(
+    null,
+  );
+  const [updatingOrderNumber, setUpdatingOrderNumber] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     let active = true;
     const search = query.trim();
-    const timer = setTimeout(() => {
-      const params = new URLSearchParams();
-      if (statusFilter !== "all") params.set("status", statusFilter);
-      if (search) params.set("search", search);
-      setFetching(true);
-      api
-        .get<AdminOrdersResponse>(`/api/v1/admin/orders/?${params.toString()}`)
-        .then((res) => {
-          if (active) setOrders(res);
-        })
-        .catch(() => {
-          // Keep the last good snapshot; an empty sheet beats a broken header.
-        })
-        .finally(() => {
-          if (active) setFetching(false);
-        });
-    }, search ? 250 : 0);
+    const timer = setTimeout(
+      () => {
+        const params = new URLSearchParams();
+        if (statusFilter !== "all") params.set("status", statusFilter);
+        if (search) params.set("search", search);
+        setFetching(true);
+        api
+          .get<AdminOrdersResponse>(
+            `/api/v1/admin/orders/?${params.toString()}`,
+          )
+          .then((res) => {
+            if (active) setOrders(res);
+          })
+          .catch(() => {
+            // Keep the last good snapshot; an empty sheet beats a broken header.
+          })
+          .finally(() => {
+            if (active) setFetching(false);
+          });
+      },
+      search ? 250 : 0,
+    );
     return () => {
       active = false;
       clearTimeout(timer);
     };
   }, [statusFilter, query]);
 
-  const handleQuickStatusChange = async (orderNumber: string, nextStatus: string) => {
+  const handleQuickStatusChange = async (
+    orderNumber: string,
+    nextStatus: string,
+  ) => {
     setUpdatingOrderNumber(orderNumber);
     try {
       await api.patch(`/api/v1/admin/orders/${orderNumber}/`, {
         status: nextStatus,
       });
-      toast.success(`Order #${orderNumber} updated to ${nextStatus.replace(/_/g, " ")}`);
+      toast.success(
+        `Order #${orderNumber} updated to ${nextStatus.replace(/_/g, " ")}`,
+      );
       setOrders((prev) => {
         if (!prev) return null;
         return {
@@ -95,9 +109,10 @@ export function OrdersSheet() {
                   ...o,
                   status: nextStatus,
                   status_display:
-                    ORDER_STATUSES.find(([v]) => v === nextStatus)?.[1] ?? nextStatus,
+                    ORDER_STATUSES.find(([v]) => v === nextStatus)?.[1] ??
+                    nextStatus,
                 }
-              : o
+              : o,
           ),
         };
       });
@@ -189,7 +204,9 @@ export function OrdersSheet() {
                   >
                     <div
                       onClick={() =>
-                        setExpandedOrderNumber(isExpanded ? null : order.order_number)
+                        setExpandedOrderNumber(
+                          isExpanded ? null : order.order_number,
+                        )
                       }
                       className="flex cursor-pointer items-center justify-between gap-2"
                     >
@@ -211,19 +228,25 @@ export function OrdersSheet() {
                     </div>
 
                     <div className="mt-1.5 flex items-center justify-between gap-2 text-muted-foreground">
-                      <span className="truncate font-medium text-foreground">{order.customer}</span>
+                      <span className="truncate font-medium text-foreground">
+                        {order.customer}
+                      </span>
                       <span className="shrink-0 text-[11px]">
-                        {new Date(order.created_at).toLocaleDateString("en-KE", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
+                        {new Date(order.created_at).toLocaleDateString(
+                          "en-KE",
+                          {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          },
+                        )}
                       </span>
                     </div>
 
                     <div className="mt-1 flex items-center justify-between gap-2">
                       <span className="text-muted-foreground text-[11px]">
-                        {order.item_count} item{order.item_count === 1 ? "" : "s"} ·{" "}
+                        {order.item_count} item
+                        {order.item_count === 1 ? "" : "s"} ·{" "}
                         {order.payment_method_display}
                       </span>
                       <span className="font-bold text-primary tabular-nums">
@@ -255,7 +278,11 @@ export function OrdersSheet() {
                           </SelectTrigger>
                           <SelectContent>
                             {ORDER_STATUSES.map(([val, label]) => (
-                              <SelectItem key={val} value={val} className="text-xs">
+                              <SelectItem
+                                key={val}
+                                value={val}
+                                className="text-xs"
+                              >
                                 {label}
                               </SelectItem>
                             ))}
@@ -283,7 +310,11 @@ export function OrdersSheet() {
                             <div className="flex items-start gap-1.5 text-muted-foreground">
                               <MapPin className="size-3 shrink-0 mt-0.5" />
                               <span>
-                                {[order.street_address, order.town, order.county]
+                                {[
+                                  order.street_address,
+                                  order.town,
+                                  order.county,
+                                ]
                                   .filter(Boolean)
                                   .join(", ")}
                               </span>
@@ -330,10 +361,13 @@ export function OrdersSheet() {
           )}
         </div>
         <SheetFooter className="border-t">
-          <Button variant="outline" className="w-full" asChild onClick={() => setOpen(false)}>
-            <Link href="/admin/orders">
-              Open orders page
-            </Link>
+          <Button
+            variant="outline"
+            className="w-full"
+            asChild
+            onClick={() => setOpen(false)}
+          >
+            <Link href="/admin/orders">Open orders page</Link>
           </Button>
         </SheetFooter>
       </SheetContent>

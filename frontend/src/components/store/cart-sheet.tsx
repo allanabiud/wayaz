@@ -54,7 +54,11 @@ export function CartSheet({
           ) : (
             <ul className="space-y-3">
               {items.map((item) => (
-                <CartLine key={item.id} item={item} onCartChange={onCartChange} />
+                <CartLine
+                  key={item.id}
+                  item={item}
+                  onCartChange={onCartChange}
+                />
               ))}
             </ul>
           )}

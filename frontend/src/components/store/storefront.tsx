@@ -50,7 +50,11 @@ function buildSections(catalog: StorefrontCatalog): Section[] {
     }
   }
   if (leftovers.length > 0) {
-    sections.push({ key: "more", name: "More to explore", products: leftovers });
+    sections.push({
+      key: "more",
+      name: "More to explore",
+      products: leftovers,
+    });
   }
 
   return sections;
@@ -176,8 +180,8 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
             Shop the collection.
           </h1>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Fresh fits delivered across Kenya - order on WhatsApp or add
-            pieces to your cart.
+            Fresh fits delivered across Kenya - order on WhatsApp or add pieces
+            to your cart.
           </p>
 
           {catalogLoading && !catalog ? (
@@ -207,7 +211,11 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
         )}
 
         <TopShelf eyebrow="Handpicked" title="Featured" products={featured} />
-        <TopShelf eyebrow="Just in" title="New Arrivals" products={newArrivals} />
+        <TopShelf
+          eyebrow="Just in"
+          title="New Arrivals"
+          products={newArrivals}
+        />
 
         {catalog && sections.length === 0 && (
           <EmptyState

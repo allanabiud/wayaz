@@ -40,7 +40,9 @@ interface Props {
 export function ProductForm({ categories, product, onImagesChanged }: Props) {
   const router = useRouter();
   const isEdit = Boolean(product);
-  const backHref = product ? `/admin/products/${product.id}` : "/admin/products";
+  const backHref = product
+    ? `/admin/products/${product.id}`
+    : "/admin/products";
 
   const [title, setTitle] = useState(product?.title ?? "");
   const [description, setDescription] = useState(product?.description ?? "");
@@ -110,15 +112,15 @@ export function ProductForm({ categories, product, onImagesChanged }: Props) {
       return setError("Sale price must be a valid number.");
     }
     const stock = Number(stockQuantity);
-    if (
-      !Number.isInteger(stock) ||
-      stock < 0
-    ) {
+    if (!Number.isInteger(stock) || stock < 0) {
       return setError("Stock quantity must be a whole number of 0 or more.");
     }
     const sizeList = [
       ...new Set(
-        sizes.split(",").map((entry) => entry.trim()).filter(Boolean),
+        sizes
+          .split(",")
+          .map((entry) => entry.trim())
+          .filter(Boolean),
       ),
     ];
     if (sizeList.some((entry) => entry.length > 50)) {
@@ -317,7 +319,8 @@ export function ProductForm({ categories, product, onImagesChanged }: Props) {
                 onDrop={(e) => {
                   e.preventDefault();
                   setDragging(false);
-                  if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+                  if (e.dataTransfer.files.length)
+                    addFiles(e.dataTransfer.files);
                 }}
                 className={[
                   "space-y-3 rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors",
@@ -413,7 +416,9 @@ export function ProductForm({ categories, product, onImagesChanged }: Props) {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base font-semibold">Category</CardTitle>
+              <CardTitle className="text-base font-semibold">
+                Category
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <Select
@@ -471,7 +476,9 @@ export function ProductForm({ categories, product, onImagesChanged }: Props) {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base font-semibold">Inventory</CardTitle>
+              <CardTitle className="text-base font-semibold">
+                Inventory
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               <Label htmlFor="p-stock">Stock Quantity (units)</Label>

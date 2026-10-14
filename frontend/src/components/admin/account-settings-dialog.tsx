@@ -22,7 +22,10 @@ interface AccountSettingsDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function AccountSettingsDialog({ open, onOpenChange }: AccountSettingsDialogProps) {
+export function AccountSettingsDialog({
+  open,
+  onOpenChange,
+}: AccountSettingsDialogProps) {
   const { user, signIn } = useAuth();
   const [tab, setTab] = useState<"profile" | "security">("profile");
 
@@ -133,11 +136,19 @@ export function AccountSettingsDialog({ open, onOpenChange }: AccountSettingsDia
         </DialogHeader>
 
         <div className="flex border-b border-border/60 text-xs">
-          <button type="button" onClick={() => setTab("profile")} className={tabClass(tab === "profile")}>
+          <button
+            type="button"
+            onClick={() => setTab("profile")}
+            className={tabClass(tab === "profile")}
+          >
             <User className="size-3.5" />
             Profile Details
           </button>
-          <button type="button" onClick={() => setTab("security")} className={tabClass(tab === "security")}>
+          <button
+            type="button"
+            onClick={() => setTab("security")}
+            className={tabClass(tab === "security")}
+          >
             <KeyRound className="size-3.5" />
             Password & Security
           </button>

@@ -37,7 +37,9 @@ export function StoreFooter() {
     }
 
     const waNum = whatsappNumber(settings);
-    const waMsg = settings?.whatsapp_message || "Hi Wayaz, I'd like to know more about your products.";
+    const waMsg =
+      settings?.whatsapp_message ||
+      "Hi Wayaz, I'd like to know more about your products.";
     list.push({
       name: "WhatsApp",
       href: waLink(waMsg, waNum),
@@ -53,15 +55,27 @@ export function StoreFooter() {
     }
 
     if (settings?.tiktok_url) {
-      list.push({ name: "TikTok", href: settings.tiktok_url, Icon: TikTokIcon });
+      list.push({
+        name: "TikTok",
+        href: settings.tiktok_url,
+        Icon: TikTokIcon,
+      });
     }
 
     if (settings?.twitter_url) {
-      list.push({ name: "X (Twitter)", href: settings.twitter_url, Icon: TwitterIcon });
+      list.push({
+        name: "X (Twitter)",
+        href: settings.twitter_url,
+        Icon: TwitterIcon,
+      });
     }
 
     if (settings?.youtube_url) {
-      list.push({ name: "YouTube", href: settings.youtube_url, Icon: YouTubeIcon });
+      list.push({
+        name: "YouTube",
+        href: settings.youtube_url,
+        Icon: YouTubeIcon,
+      });
     }
 
     return list;
@@ -135,7 +149,8 @@ export function StoreFooter() {
                   Contact Us
                 </Link>
               </li>
-              {settings?.support_phones && settings.support_phones.length > 0 ? (
+              {settings?.support_phones &&
+              settings.support_phones.length > 0 ? (
                 settings.support_phones.map((phone, i) => (
                   <li key={i}>
                     <a
@@ -143,7 +158,9 @@ export function StoreFooter() {
                       className="inline-flex items-center gap-1.5 rounded-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
                     >
                       <Phone className="size-3 shrink-0" />
-                      <span>{phone.label}: {phone.number}</span>
+                      <span>
+                        {phone.label}: {phone.number}
+                      </span>
                     </a>
                   </li>
                 ))
@@ -195,7 +212,10 @@ export function StoreFooter() {
         </div>
 
         <div className="mt-8 flex flex-col gap-3 border-t pt-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <p>© {year} {settings?.store_name || "Wayaz Collection"}. All rights reserved.</p>
+          <p>
+            © {year} {settings?.store_name || "Wayaz Collection"}. All rights
+            reserved.
+          </p>
         </div>
       </div>
     </footer>

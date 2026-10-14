@@ -26,11 +26,7 @@ interface Props {
   description?: string;
 }
 
-export function LoginDialog({
-  open,
-  onOpenChange,
-  onSuccess,
-}: Props) {
+export function LoginDialog({ open, onOpenChange, onSuccess }: Props) {
   const { signIn } = useAuth();
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -109,7 +105,9 @@ export function LoginDialog({
       tokenStore.save({ access: result.access, refresh: result.refresh });
       signIn(result.user);
 
-      toast.success(`Account created! Welcome, ${result.user.display_name || result.user.username}.`);
+      toast.success(
+        `Account created! Welcome, ${result.user.display_name || result.user.username}.`,
+      );
       onOpenChange(false);
       setRegFullName("");
       setRegEmail("");

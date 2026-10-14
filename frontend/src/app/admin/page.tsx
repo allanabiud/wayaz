@@ -8,7 +8,10 @@ import { useAuth } from "@/lib/auth-context";
 import { useQuery } from "@/lib/use-query";
 import type { Overview } from "@/lib/types";
 import { OverviewHero } from "@/components/admin/overview/hero";
-import { RevenueCard, type PeriodTab } from "@/components/admin/overview/revenue-card";
+import {
+  RevenueCard,
+  type PeriodTab,
+} from "@/components/admin/overview/revenue-card";
 import { StockByCategoryCard } from "@/components/admin/overview/stock-card";
 import { TopProductsCard } from "@/components/admin/overview/top-products-card";
 import { OrdersCard } from "@/components/admin/overview/orders-card";
@@ -45,7 +48,7 @@ export default function AdminOverviewPage() {
       ? (data?.revenue_series_today ?? [])
       : revenuePeriod === "week"
         ? (data?.revenue_series_week ?? [])
-        : (data?.revenue_series_month ?? (data?.revenue_series ?? []));
+        : (data?.revenue_series_month ?? data?.revenue_series ?? []);
 
   return (
     <div className="space-y-6">

@@ -17,7 +17,11 @@ import { useStore } from "@/lib/store-context";
 import { QuickBuyDialog } from "@/components/store/quick-buy-dialog";
 import { RestockDialog } from "@/components/store/restock-dialog";
 import { mediaUrl } from "@/lib/media";
-import { formatKsh, productWhatsappLink, type StoreProduct } from "@/lib/store-api";
+import {
+  formatKsh,
+  productWhatsappLink,
+  type StoreProduct,
+} from "@/lib/store-api";
 import { cn } from "@/lib/utils";
 
 interface ProductCardProps {
@@ -39,8 +43,14 @@ export function ProductCard({
   eager = false,
   onAdd,
 }: ProductCardProps) {
-  const { wishlist, toggleWishlist, settings, addProduct, bumpProduct, bumpingId } =
-    useStore();
+  const {
+    wishlist,
+    toggleWishlist,
+    settings,
+    addProduct,
+    bumpProduct,
+    bumpingId,
+  } = useStore();
   const router = useRouter();
   const wishlisted = wishlist.has(product.id);
   const image = product.primary_image ? mediaUrl(product.primary_image) : null;
@@ -187,10 +197,7 @@ export function ProductCard({
         {!product.is_in_stock ? (
           <Button
             variant="outline"
-            className={cn(
-              "mt-auto w-full gap-1.5",
-              "restock-button",
-            )}
+            className={cn("mt-auto w-full gap-1.5", "restock-button")}
             onClick={() => setNotifyOpen(true)}
           >
             <BellRing className="size-4" />

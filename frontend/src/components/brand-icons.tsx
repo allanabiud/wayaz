@@ -50,4 +50,3 @@ export function YouTubeIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
-

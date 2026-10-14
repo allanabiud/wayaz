@@ -55,10 +55,13 @@ import {
 } from "@/lib/store-api";
 import type { Address, Paginated } from "@/lib/types";
 
-
 function ProfileTab() {
-  const { data: profile, error, loading, refetch } =
-    useQuery<AccountProfile>(fetchUserProfile);
+  const {
+    data: profile,
+    error,
+    loading,
+    refetch,
+  } = useQuery<AccountProfile>(fetchUserProfile);
 
   if (loading && !profile) {
     return (
@@ -73,9 +76,7 @@ function ProfileTab() {
   if (error) return <ErrorState message={error} onRetry={refetch} />;
   if (!profile) return null;
 
-  return (
-    <ProfileForm key={profile.id} profile={profile} onSaved={refetch} />
-  );
+  return <ProfileForm key={profile.id} profile={profile} onSaved={refetch} />;
 }
 
 function ProfileForm({
@@ -181,7 +182,6 @@ function ProfileForm({
   );
 }
 
-
 function PasswordTab() {
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -257,7 +257,6 @@ function PasswordTab() {
     </form>
   );
 }
-
 
 const EMPTY_ADDRESS = {
   full_name: "",
@@ -411,7 +410,9 @@ function AddressForm({
             />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="addrStreet">Street Address / House / Building</Label>
+            <Label htmlFor="addrStreet">
+              Street Address / House / Building
+            </Label>
             <Input
               id="addrStreet"
               required
@@ -449,9 +450,8 @@ function AddressForm({
 }
 
 function AddressesTab() {
-  const { data, error, loading, refetch } = useQuery<Paginated<Address>>(
-    fetchUserAddresses,
-  );
+  const { data, error, loading, refetch } =
+    useQuery<Paginated<Address>>(fetchUserAddresses);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Address | null>(null);
@@ -511,7 +511,10 @@ function AddressesTab() {
       {loading && !data ? (
         <div className="space-y-3" aria-hidden="true">
           {Array.from({ length: 2 }).map((_, index) => (
-            <div key={index} className="h-24 animate-pulse rounded-xl bg-muted" />
+            <div
+              key={index}
+              className="h-24 animate-pulse rounded-xl bg-muted"
+            />
           ))}
         </div>
       ) : error ? (
@@ -543,7 +546,9 @@ function AddressesTab() {
               <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
                 <div className="flex items-center gap-2">
                   <MapPin className="size-4 text-primary" aria-hidden="true" />
-                  <span className="text-sm font-semibold">{address.full_name}</span>
+                  <span className="text-sm font-semibold">
+                    {address.full_name}
+                  </span>
                   {address.is_default && (
                     <Badge
                       variant="outline"
@@ -639,7 +644,6 @@ function AddressesTab() {
     </div>
   );
 }
-
 
 export function AccountView() {
   const { ready, isAuthenticated } = useAuth();

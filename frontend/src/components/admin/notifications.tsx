@@ -68,7 +68,9 @@ export function NotificationsMenu() {
           size="lg"
           className="relative gap-2 cursor-pointer"
           aria-label={
-            unread > 0 ? `Notifications: ${unread} unread messages` : "Notifications"
+            unread > 0
+              ? `Notifications: ${unread} unread messages`
+              : "Notifications"
           }
         >
           <Bell className="size-4" />
@@ -124,7 +126,10 @@ export function NotificationsMenu() {
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild className="cursor-pointer">
-          <Link href="/admin/messages" className="flex w-full items-center justify-between">
+          <Link
+            href="/admin/messages"
+            className="flex w-full items-center justify-between"
+          >
             <span>View all messages</span>
             {unread > PREVIEW_COUNT && (
               <Badge variant="secondary" className="tabular-nums">

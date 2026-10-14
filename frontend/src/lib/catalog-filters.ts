@@ -46,7 +46,9 @@ export function parseCatalogFilters(
 
 export function hasActiveFilters(filters: CatalogFilters): boolean {
   return (
-    filters.sort !== "newest" || Boolean(filters.min || filters.max) || filters.sale
+    filters.sort !== "newest" ||
+    Boolean(filters.min || filters.max) ||
+    filters.sale
   );
 }
 

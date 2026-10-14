@@ -30,7 +30,11 @@ interface CatalogToolbarProps {
 
 /** Sort + price filters; every change rewrites the URL (dropping `page`) so
  *  the server page re-renders with filtered results. */
-export function CatalogToolbar({ filters, basePath, search }: CatalogToolbarProps) {
+export function CatalogToolbar({
+  filters,
+  basePath,
+  search,
+}: CatalogToolbarProps) {
   const router = useRouter();
   const [min, setMin] = useState(filters.min ?? "");
   const [max, setMax] = useState(filters.max ?? "");
@@ -63,7 +67,10 @@ export function CatalogToolbar({ filters, basePath, search }: CatalogToolbarProp
         value={filters.sort}
         onValueChange={(value) => go({ sort: value as CatalogSort })}
       >
-        <SelectTrigger className="h-9 w-[190px] text-xs" aria-label="Sort products">
+        <SelectTrigger
+          className="h-9 w-[190px] text-xs"
+          aria-label="Sort products"
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -98,7 +105,12 @@ export function CatalogToolbar({ filters, basePath, search }: CatalogToolbarProp
           aria-label="Maximum price in Ksh"
           className="h-9 w-[4.5rem] text-xs"
         />
-        <Button type="submit" variant="outline" size="sm" className="h-9 text-xs">
+        <Button
+          type="submit"
+          variant="outline"
+          size="sm"
+          className="h-9 text-xs"
+        >
           Apply
         </Button>
       </form>

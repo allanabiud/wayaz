@@ -1,12 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Heart,
-  Mail,
-  MapPin,
-  Phone,
-} from "lucide-react";
+import { Heart, Mail, MapPin, Phone } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -74,7 +69,11 @@ export default function CustomersPage() {
       <PageHeader
         eyebrow="People"
         title="Customers"
-        description={data ? `${data.count.toLocaleString()} registered shoppers and staff accounts` : undefined}
+        description={
+          data
+            ? `${data.count.toLocaleString()} registered shoppers and staff accounts`
+            : undefined
+        }
       />
 
       <FilterToolbar
@@ -134,7 +133,16 @@ export default function CustomersPage() {
                       </p>
                     </div>
                   </div>
-                  <Badge variant={c.role === "admin" ? "default" : c.role === "staff" ? "secondary" : "outline"} className="capitalize text-[11px]">
+                  <Badge
+                    variant={
+                      c.role === "admin"
+                        ? "default"
+                        : c.role === "staff"
+                          ? "secondary"
+                          : "outline"
+                    }
+                    className="capitalize text-[11px]"
+                  >
                     {c.role}
                   </Badge>
                 </div>
@@ -175,12 +183,24 @@ export default function CustomersPage() {
             <Table className="table-fixed">
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableHead className="w-[26%] font-semibold text-xs">Customer</TableHead>
-                  <TableHead className="w-[28%] font-semibold text-xs">Contact</TableHead>
-                  <TableHead className="w-[12%] font-semibold text-xs">Role</TableHead>
-                  <TableHead className="w-[12%] font-semibold text-xs text-right">Addresses</TableHead>
-                  <TableHead className="w-[10%] font-semibold text-xs text-right">Wishlist</TableHead>
-                  <TableHead className="w-[12%] font-semibold text-xs text-right">Joined</TableHead>
+                  <TableHead className="w-[26%] font-semibold text-xs">
+                    Customer
+                  </TableHead>
+                  <TableHead className="w-[28%] font-semibold text-xs">
+                    Contact
+                  </TableHead>
+                  <TableHead className="w-[12%] font-semibold text-xs">
+                    Role
+                  </TableHead>
+                  <TableHead className="w-[12%] font-semibold text-xs text-right">
+                    Addresses
+                  </TableHead>
+                  <TableHead className="w-[10%] font-semibold text-xs text-right">
+                    Wishlist
+                  </TableHead>
+                  <TableHead className="w-[12%] font-semibold text-xs text-right">
+                    Joined
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -208,13 +228,22 @@ export default function CustomersPage() {
 
                     <TableCell>
                       <Badge
-                        variant={c.role === "admin" ? "default" : c.role === "staff" ? "secondary" : "outline"}
+                        variant={
+                          c.role === "admin"
+                            ? "default"
+                            : c.role === "staff"
+                              ? "secondary"
+                              : "outline"
+                        }
                         className="capitalize text-xs font-medium"
                       >
                         {c.role}
                       </Badge>
                       {!c.is_active && (
-                        <Badge variant="destructive" className="ml-1 text-[10px]">
+                        <Badge
+                          variant="destructive"
+                          className="ml-1 text-[10px]"
+                        >
                           inactive
                         </Badge>
                       )}

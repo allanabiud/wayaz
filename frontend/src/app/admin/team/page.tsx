@@ -90,7 +90,9 @@ export default function AdminTeamPage() {
   const canManage = Boolean(me && (me.role === "admin" || me.is_superuser));
 
   const [page, setPage] = useState(1);
-  const { data, error, loading, refetch } = useQuery<Paginated<AdminTeamMember>>(
+  const { data, error, loading, refetch } = useQuery<
+    Paginated<AdminTeamMember>
+  >(
     () =>
       api.get<Paginated<AdminTeamMember>>(
         `/api/v1/admin/team/?page=${page}&page_size=${PAGE_SIZE}`,
@@ -189,7 +191,9 @@ export default function AdminTeamPage() {
       refetch();
     } catch (err) {
       toast.error(
-        err instanceof ApiError ? err.message : "Could not update this teammate.",
+        err instanceof ApiError
+          ? err.message
+          : "Could not update this teammate.",
       );
       refetch();
     } finally {
@@ -460,7 +464,10 @@ export default function AdminTeamPage() {
         </>
       )}
 
-      <Dialog open={form !== null} onOpenChange={(open) => !open && closeForm()}>
+      <Dialog
+        open={form !== null}
+        onOpenChange={(open) => !open && closeForm()}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>

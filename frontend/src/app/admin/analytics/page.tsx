@@ -26,7 +26,13 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { AnimatedNumber } from "@/components/ui/animated-number";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState, PageHeader } from "@/components/ui/states";
 import { api } from "@/lib/api";
@@ -92,9 +98,10 @@ export default function AnalyticsPage() {
   const [customEnd] = useState("");
   const [useCustomRange, setUseCustomRange] = useState(false);
 
-  const queryUrl = useCustomRange && customStart && customEnd
-    ? `/api/v1/admin/analytics/?start_date=${customStart}&end_date=${customEnd}`
-    : `/api/v1/admin/analytics/?period=${period}`;
+  const queryUrl =
+    useCustomRange && customStart && customEnd
+      ? `/api/v1/admin/analytics/?start_date=${customStart}&end_date=${customEnd}`
+      : `/api/v1/admin/analytics/?period=${period}`;
 
   // Without these deps the selector would update state but never re-request.
   const { data, error, loading, refetch } = useQuery<AnalyticsData>(
@@ -115,10 +122,15 @@ export default function AnalyticsPage() {
     try {
       const rows = [
         ["Date", "Revenue (Ksh)", "Orders"],
-        ...timeline.map((t) => [t.date, t.revenue.toString(), t.orders.toString()]),
+        ...timeline.map((t) => [
+          t.date,
+          t.revenue.toString(),
+          t.orders.toString(),
+        ]),
       ];
       const csvContent =
-        "data:text/csv;charset=utf-8," + rows.map((e) => e.join(",")).join("\n");
+        "data:text/csv;charset=utf-8," +
+        rows.map((e) => e.join(",")).join("\n");
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
@@ -144,23 +156,25 @@ export default function AnalyticsPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex items-center rounded-lg border border-border/60 bg-muted/40 p-0.5 text-xs">
-          {(["7d", "30d", "90d", "month", "year", "all"] as PresetPeriod[]).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => {
-                setUseCustomRange(false);
-                setPeriod(tab);
-              }}
-              className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
-                !useCustomRange && period === tab
-                  ? "bg-card dark:bg-background text-foreground shadow-xs font-semibold"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {PERIOD_LABELS[tab]}
-            </button>
-          ))}
+          {(["7d", "30d", "90d", "month", "year", "all"] as PresetPeriod[]).map(
+            (tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => {
+                  setUseCustomRange(false);
+                  setPeriod(tab);
+                }}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
+                  !useCustomRange && period === tab
+                    ? "bg-card dark:bg-background text-foreground shadow-xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {PERIOD_LABELS[tab]}
+              </button>
+            ),
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -183,7 +197,9 @@ export default function AnalyticsPage() {
             className="size-8"
             title="Refresh"
           >
-            <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`size-3.5 ${loading ? "animate-spin" : ""}`}
+            />
           </Button>
         </div>
       </div>
@@ -231,7 +247,12 @@ export default function AnalyticsPage() {
                   />
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Across <AnimatedNumber value={kpis.total_orders} formatter={formatWhole} /> total orders
+                  Across{" "}
+                  <AnimatedNumber
+                    value={kpis.total_orders}
+                    formatter={formatWhole}
+                  />{" "}
+                  total orders
                 </p>
               </CardContent>
             </Card>
@@ -273,7 +294,11 @@ export default function AnalyticsPage() {
                   />
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  <AnimatedNumber value={kpis.completed_orders} formatter={formatWhole} /> orders delivered safely
+                  <AnimatedNumber
+                    value={kpis.completed_orders}
+                    formatter={formatWhole}
+                  />{" "}
+                  orders delivered safely
                 </p>
               </CardContent>
             </Card>
@@ -308,7 +333,8 @@ export default function AnalyticsPage() {
                     Revenue & Order Volume Trend
                   </CardTitle>
                   <CardDescription className="text-xs mt-0.5">
-                    Daily trajectory for period ({data.start_date} to {data.end_date})
+                    Daily trajectory for period ({data.start_date} to{" "}
+                    {data.end_date})
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -337,12 +363,30 @@ export default function AnalyticsPage() {
                       margin={{ top: 8, right: 12, bottom: 0, left: 0 }}
                     >
                       <defs>
-                        <linearGradient id="analyticsRevFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#e00613" stopOpacity={0.35} />
-                          <stop offset="100%" stopColor="#e00613" stopOpacity={0.01} />
+                        <linearGradient
+                          id="analyticsRevFill"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="0%"
+                            stopColor="#e00613"
+                            stopOpacity={0.35}
+                          />
+                          <stop
+                            offset="100%"
+                            stopColor="#e00613"
+                            stopOpacity={0.01}
+                          />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
+                      <CartesianGrid
+                        vertical={false}
+                        stroke="var(--border)"
+                        strokeDasharray="3 3"
+                      />
                       <XAxis
                         dataKey="date"
                         tickFormatter={formatDay}
@@ -438,7 +482,9 @@ export default function AnalyticsPage() {
                     return (
                       <div key={item.status} className="space-y-1">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="font-medium text-foreground">{item.label}</span>
+                          <span className="font-medium text-foreground">
+                            {item.label}
+                          </span>
                           <span className="tabular-nums text-muted-foreground">
                             <AnimatedNumber
                               value={item.count}
@@ -453,7 +499,8 @@ export default function AnalyticsPage() {
                             className="h-full rounded-full transition-all duration-300"
                             style={{
                               width: `${pct}%`,
-                              backgroundColor: STATUS_COLORS[item.status] || "var(--primary)",
+                              backgroundColor:
+                                STATUS_COLORS[item.status] || "var(--primary)",
                             }}
                           />
                         </div>
@@ -492,10 +539,14 @@ export default function AnalyticsPage() {
                           </div>
                           <div>
                             <p className="font-semibold text-foreground">
-                              {PAYMENT_METHOD_LABELS[pm.payment_method] || pm.payment_method}
+                              {PAYMENT_METHOD_LABELS[pm.payment_method] ||
+                                pm.payment_method}
                             </p>
                             <p className="text-muted-foreground text-[11px]">
-                              <AnimatedNumber value={pm.count} formatter={formatOrderWord} />
+                              <AnimatedNumber
+                                value={pm.count}
+                                formatter={formatOrderWord}
+                              />
                             </p>
                           </div>
                         </div>
@@ -536,13 +587,17 @@ export default function AnalyticsPage() {
                       <li
                         key={p.product_id}
                         className={`flex items-center justify-between gap-3 text-xs py-2.5 ${
-                          idx === topProducts.length - 1 ? "" : "border-b border-border/60"
+                          idx === topProducts.length - 1
+                            ? ""
+                            : "border-b border-border/60"
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <span
                             className={`flex size-6 shrink-0 items-center justify-center rounded-md font-bold text-[11px] tabular-nums ${
-                              idx === 0 ? "bg-gold text-black" : "bg-muted text-muted-foreground"
+                              idx === 0
+                                ? "bg-gold text-black"
+                                : "bg-muted text-muted-foreground"
                             }`}
                           >
                             #{idx + 1}
@@ -555,7 +610,10 @@ export default function AnalyticsPage() {
                               {p.title}
                             </Link>
                             <p className="text-muted-foreground text-[11px]">
-                              <AnimatedNumber value={p.units_sold} formatter={formatUnitWord} />
+                              <AnimatedNumber
+                                value={p.units_sold}
+                                formatter={formatUnitWord}
+                              />
                             </p>
                           </div>
                         </div>
@@ -594,16 +652,23 @@ export default function AnalyticsPage() {
                       <li
                         key={d.county}
                         className={`flex items-center justify-between text-xs py-2.5 ${
-                          idx === destinations.length - 1 ? "" : "border-b border-border/60"
+                          idx === destinations.length - 1
+                            ? ""
+                            : "border-b border-border/60"
                         }`}
                       >
                         <div className="flex items-center gap-2">
                           <MapPin className="size-3.5 text-muted-foreground shrink-0" />
-                          <span className="font-medium text-foreground">{d.county}</span>
+                          <span className="font-medium text-foreground">
+                            {d.county}
+                          </span>
                         </div>
                         <div className="flex items-center gap-3 tabular-nums">
                           <span className="text-muted-foreground">
-                            <AnimatedNumber value={d.orders} formatter={formatOrderWord} />
+                            <AnimatedNumber
+                              value={d.orders}
+                              formatter={formatOrderWord}
+                            />
                           </span>
                           <span className="font-semibold text-foreground">
                             <AnimatedNumber
@@ -631,7 +696,8 @@ export default function AnalyticsPage() {
                   </CardTitle>
                 </div>
                 <CardDescription className="text-xs">
-                  The following stocked products had 0 sales in the selected period. Consider promotional campaigns or discount bundling.
+                  The following stocked products had 0 sales in the selected
+                  period. Consider promotional campaigns or discount bundling.
                 </CardDescription>
               </CardHeader>
               <CardContent>

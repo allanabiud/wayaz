@@ -1,13 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Loader2,
-  Mail,
-  MailOpen,
-  Phone,
-  Trash2,
-} from "lucide-react";
+import { Loader2, Mail, MailOpen, Phone, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,11 +49,15 @@ export default function AdminMessagesPage() {
   const [status, setStatus] = useState(ALL);
   const [page, setPage] = useState(1);
 
-  const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
+  const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(
+    null,
+  );
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const [pendingDelete, setPendingDelete] = useState<ContactMessage | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<ContactMessage | null>(
+    null,
+  );
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -73,7 +71,10 @@ export default function AdminMessagesPage() {
   }, [appliedSearch, status, page]);
 
   const { data, error, loading, refetch } = useQuery<Paginated<ContactMessage>>(
-    () => api.get<Paginated<ContactMessage>>(`/api/v1/admin/contact-messages/?${query}`),
+    () =>
+      api.get<Paginated<ContactMessage>>(
+        `/api/v1/admin/contact-messages/?${query}`,
+      ),
     [query],
   );
 
@@ -93,16 +94,21 @@ export default function AdminMessagesPage() {
     setTogglingId(msg.id);
     setActionError(null);
     try {
-      const updated = await api.patch<ContactMessage>(`/api/v1/admin/contact-messages/${msg.id}/`, {
-        is_read: !msg.is_read,
-      });
+      const updated = await api.patch<ContactMessage>(
+        `/api/v1/admin/contact-messages/${msg.id}/`,
+        {
+          is_read: !msg.is_read,
+        },
+      );
       if (selectedMessage?.id === msg.id) {
         setSelectedMessage(updated);
       }
       refetch();
     } catch (err) {
       setActionError(
-        err instanceof ApiError ? err.message : "Could not update this message.",
+        err instanceof ApiError
+          ? err.message
+          : "Could not update this message.",
       );
     } finally {
       setTogglingId(null);
@@ -112,7 +118,10 @@ export default function AdminMessagesPage() {
   const viewMessage = (msg: ContactMessage) => {
     setSelectedMessage(msg);
     if (!msg.is_read) {
-      api.patch<ContactMessage>(`/api/v1/admin/contact-messages/${msg.id}/`, { is_read: true })
+      api
+        .patch<ContactMessage>(`/api/v1/admin/contact-messages/${msg.id}/`, {
+          is_read: true,
+        })
         .then((updated) => {
           setSelectedMessage(updated);
           refetch();
@@ -151,7 +160,9 @@ export default function AdminMessagesPage() {
       refetch();
     } catch (err) {
       setDeleteError(
-        err instanceof ApiError ? err.message : "Could not delete this message.",
+        err instanceof ApiError
+          ? err.message
+          : "Could not delete this message.",
       );
     } finally {
       setDeleting(false);
@@ -200,9 +211,15 @@ export default function AdminMessagesPage() {
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL} className="text-xs">All Messages</SelectItem>
-                <SelectItem value="unread" className="text-xs">Unread</SelectItem>
-                <SelectItem value="read" className="text-xs">Read</SelectItem>
+                <SelectItem value={ALL} className="text-xs">
+                  All Messages
+                </SelectItem>
+                <SelectItem value="unread" className="text-xs">
+                  Unread
+                </SelectItem>
+                <SelectItem value="read" className="text-xs">
+                  Read
+                </SelectItem>
               </SelectContent>
             </Select>
 
@@ -261,16 +278,24 @@ export default function AdminMessagesPage() {
               <div className="space-y-1 min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   {!msg.is_read ? (
-                    <Badge variant="default" className="text-[10px] bg-primary text-primary-foreground font-semibold px-1.5 py-0">
+                    <Badge
+                      variant="default"
+                      className="text-[10px] bg-primary text-primary-foreground font-semibold px-1.5 py-0"
+                    >
                       Unread
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="text-[10px] text-muted-foreground font-normal px-1.5 py-0">
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] text-muted-foreground font-normal px-1.5 py-0"
+                    >
                       Read
                     </Badge>
                   )}
                   <span className="text-sm font-semibold">{msg.name}</span>
-                  <span className="text-xs text-muted-foreground">&lt;{msg.email}&gt;</span>
+                  <span className="text-xs text-muted-foreground">
+                    &lt;{msg.email}&gt;
+                  </span>
                   {msg.phone && (
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Phone className="size-3" />
@@ -281,8 +306,12 @@ export default function AdminMessagesPage() {
                     {formatDate(msg.created_at)}
                   </span>
                 </div>
-                <p className="text-sm text-foreground truncate">{msg.subject}</p>
-                <p className="text-xs text-muted-foreground line-clamp-1">{msg.message}</p>
+                <p className="text-sm text-foreground truncate">
+                  {msg.subject}
+                </p>
+                <p className="text-xs text-muted-foreground line-clamp-1">
+                  {msg.message}
+                </p>
               </div>
 
               <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
@@ -341,12 +370,32 @@ export default function AdminMessagesPage() {
             </DialogTitle>
             <DialogDescription className="text-xs space-y-1 pt-1">
               <div className="flex items-center justify-between">
-                <span>From: <strong>{selectedMessage?.name}</strong></span>
-                <span>{selectedMessage && formatDate(selectedMessage.created_at)}</span>
+                <span>
+                  From: <strong>{selectedMessage?.name}</strong>
+                </span>
+                <span>
+                  {selectedMessage && formatDate(selectedMessage.created_at)}
+                </span>
               </div>
-              <div>Email: <a href={`mailto:${selectedMessage?.email}`} className="text-primary hover:underline">{selectedMessage?.email}</a></div>
+              <div>
+                Email:{" "}
+                <a
+                  href={`mailto:${selectedMessage?.email}`}
+                  className="text-primary hover:underline"
+                >
+                  {selectedMessage?.email}
+                </a>
+              </div>
               {selectedMessage?.phone && (
-                <div>Phone: <a href={`tel:${selectedMessage.phone}`} className="text-primary hover:underline">{selectedMessage.phone}</a></div>
+                <div>
+                  Phone:{" "}
+                  <a
+                    href={`tel:${selectedMessage.phone}`}
+                    className="text-primary hover:underline"
+                  >
+                    {selectedMessage.phone}
+                  </a>
+                </div>
               )}
             </DialogDescription>
           </DialogHeader>
@@ -402,11 +451,14 @@ export default function AdminMessagesPage() {
           <DialogHeader>
             <DialogTitle className="text-base">Delete message?</DialogTitle>
             <DialogDescription className="text-xs">
-              This message from <strong>{pendingDelete?.name}</strong> will be permanently deleted.
+              This message from <strong>{pendingDelete?.name}</strong> will be
+              permanently deleted.
             </DialogDescription>
           </DialogHeader>
           {deleteError && (
-            <p className="text-xs font-medium text-destructive">{deleteError}</p>
+            <p className="text-xs font-medium text-destructive">
+              {deleteError}
+            </p>
           )}
           <DialogFooter className="gap-2 sm:gap-0">
             <Button

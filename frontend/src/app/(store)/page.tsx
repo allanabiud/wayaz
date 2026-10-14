@@ -9,7 +9,9 @@ async function getInitialCatalog(): Promise<StorefrontCatalog | null> {
   try {
     const [categoriesRes, productsRes] = await Promise.all([
       api.get<Paginated<Category>>("/api/v1/catalog/categories/?page_size=100"),
-      api.get<Paginated<StoreProduct>>("/api/v1/catalog/products/?page_size=100"),
+      api.get<Paginated<StoreProduct>>(
+        "/api/v1/catalog/products/?page_size=100",
+      ),
     ]);
     return {
       categories: categoriesRes.results,

@@ -117,10 +117,7 @@ export function RestockDialog({
             <Button
               type="submit"
               size="lg"
-              className={cn(
-                "w-full gap-2 sm:w-auto",
-                "restock-button",
-              )}
+              className={cn("w-full gap-2 sm:w-auto", "restock-button")}
               disabled={busy || !canSubmit}
             >
               <BellRing className="size-4" />

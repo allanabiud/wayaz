@@ -2,7 +2,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ProductLoading() {
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6" aria-hidden="true">
+    <div
+      className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6"
+      aria-hidden="true"
+    >
       <Skeleton className="h-4 w-28" />
       <div className="mt-6 grid gap-8 lg:grid-cols-2">
         <Skeleton className="aspect-[3/4] w-full rounded-2xl" />

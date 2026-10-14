@@ -52,11 +52,19 @@ export function TopProductsCard({
             Top Products
           </p>
           <div className="inline-flex items-center rounded-lg border border-border/60 bg-muted/40 p-0.5 text-xs">
-            <button type="button" onClick={() => onTabChange("sales")} className={tabClass(tab === "sales")}>
+            <button
+              type="button"
+              onClick={() => onTabChange("sales")}
+              className={tabClass(tab === "sales")}
+            >
               <ShoppingBag className="size-3" />
               By Sales
             </button>
-            <button type="button" onClick={() => onTabChange("wishlisted")} className={tabClass(tab === "wishlisted")}>
+            <button
+              type="button"
+              onClick={() => onTabChange("wishlisted")}
+              className={tabClass(tab === "wishlisted")}
+            >
               <Heart className="size-3" />
               By Wishlist
             </button>
@@ -104,7 +112,8 @@ export function TopProductsCard({
                       {prod.title}
                     </Link>
                     <p className="truncate text-xs text-muted-foreground">
-                      {prod.units_sold.toLocaleString()} unit{prod.units_sold === 1 ? "" : "s"} sold
+                      {prod.units_sold.toLocaleString()} unit
+                      {prod.units_sold === 1 ? "" : "s"} sold
                     </p>
                   </div>
                   <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
@@ -114,40 +123,39 @@ export function TopProductsCard({
               ))}
             </ul>
           )
+        ) : topWishlisted.length === 0 ? (
+          <ChartEmptyState
+            icon={Heart}
+            title="No wishlist saves yet"
+            description="Products saved to shoppers' wishlists will rank here."
+          />
         ) : (
-          topWishlisted.length === 0 ? (
-            <ChartEmptyState
-              icon={Heart}
-              title="No wishlist saves yet"
-              description="Products saved to shoppers' wishlists will rank here."
-            />
-          ) : (
-            <ul className="flex flex-col">
-              {topWishlisted.map((prod, index) => (
-                <li
-                  key={prod.id}
-                  className={`flex items-center gap-3 ${index === topWishlisted.length - 1 ? "" : "border-b border-border/60 pb-3 mb-3"}`}
-                >
-                  <RankBadge index={index} />
-                  <div className="min-w-0 flex-1">
-                    <Link
-                      href={`/admin/products/${prod.id}`}
-                      className="block truncate text-sm font-medium text-foreground hover:text-primary transition-colors"
-                    >
-                      {prod.title}
-                    </Link>
-                    <p className="truncate text-xs text-muted-foreground">
-                      Ksh {formatKsh(prod.price)} · {prod.stock > 0 ? `${prod.stock} in stock` : "Out of stock"}
-                    </p>
-                  </div>
-                  <span className="shrink-0 flex items-center gap-1 text-sm font-semibold tabular-nums text-primary">
-                    <Heart className="size-3.5 fill-primary text-primary" />
-                    {prod.saves.toLocaleString()}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )
+          <ul className="flex flex-col">
+            {topWishlisted.map((prod, index) => (
+              <li
+                key={prod.id}
+                className={`flex items-center gap-3 ${index === topWishlisted.length - 1 ? "" : "border-b border-border/60 pb-3 mb-3"}`}
+              >
+                <RankBadge index={index} />
+                <div className="min-w-0 flex-1">
+                  <Link
+                    href={`/admin/products/${prod.id}`}
+                    className="block truncate text-sm font-medium text-foreground hover:text-primary transition-colors"
+                  >
+                    {prod.title}
+                  </Link>
+                  <p className="truncate text-xs text-muted-foreground">
+                    Ksh {formatKsh(prod.price)} ·{" "}
+                    {prod.stock > 0 ? `${prod.stock} in stock` : "Out of stock"}
+                  </p>
+                </div>
+                <span className="shrink-0 flex items-center gap-1 text-sm font-semibold tabular-nums text-primary">
+                  <Heart className="size-3.5 fill-primary text-primary" />
+                  {prod.saves.toLocaleString()}
+                </span>
+              </li>
+            ))}
+          </ul>
         )}
       </CardContent>
     </Card>

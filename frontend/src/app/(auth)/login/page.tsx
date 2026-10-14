@@ -107,7 +107,6 @@ function LoginForm() {
           </div>
         </div>
 
-
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="username" className="text-xs font-medium">
@@ -199,7 +198,9 @@ function LoginForm() {
       </main>
 
       <footer className="flex flex-col sm:flex-row items-center justify-between text-xs text-muted-foreground gap-2 pt-6">
-        <span>&copy; {new Date().getFullYear()} Wayaz Collection · Nairobi, Kenya</span>
+        <span>
+          &copy; {new Date().getFullYear()} Wayaz Collection · Nairobi, Kenya
+        </span>
         <span>Protected by Wayaz Session Authentication</span>
       </footer>
     </div>

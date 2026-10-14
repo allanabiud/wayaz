@@ -70,12 +70,20 @@ function ProductsContent() {
 
   const products = data?.results ?? [];
 
-  const applyFilter = (setter: (v: string) => void) => (value: string) => { setter(value); setPage(1); };
-  const submitSearch = () => { setAppliedSearch(search.trim()); setPage(1); };
+  const applyFilter = (setter: (v: string) => void) => (value: string) => {
+    setter(value);
+    setPage(1);
+  };
+  const submitSearch = () => {
+    setAppliedSearch(search.trim());
+    setPage(1);
+  };
   const openCreate = () => router.push("/admin/products/new");
-  const openProduct = (prod: Product) => router.push(`/admin/products/${prod.id}`);
+  const openProduct = (prod: Product) =>
+    router.push(`/admin/products/${prod.id}`);
 
-  const filtersActive = Boolean(appliedSearch) || category !== ALL || inStock !== ALL;
+  const filtersActive =
+    Boolean(appliedSearch) || category !== ALL || inStock !== ALL;
 
   return (
     <div className="space-y-5">
@@ -86,11 +94,17 @@ function ProductsContent() {
           </p>
           <h1 className="text-2xl font-semibold tracking-tight">Products</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {data ? `${data.count.toLocaleString()} products in catalog` : "Manage products and inventory"}
+            {data
+              ? `${data.count.toLocaleString()} products in catalog`
+              : "Manage products and inventory"}
           </p>
         </div>
-        <Button onClick={openCreate} className="gap-1.5 shadow-sm cursor-pointer">
-          <Plus className="size-4" />Add Product
+        <Button
+          onClick={openCreate}
+          className="gap-1.5 shadow-sm cursor-pointer"
+        >
+          <Plus className="size-4" />
+          Add Product
         </Button>
       </div>
 
@@ -100,22 +114,34 @@ function ProductsContent() {
             value={search}
             onValueChange={setSearch}
             onSubmit={submitSearch}
-            onClear={() => { setSearch(""); setAppliedSearch(""); setPage(1); }}
+            onClear={() => {
+              setSearch("");
+              setAppliedSearch("");
+              setPage(1);
+            }}
             placeholder="Search products by title or category…"
           />
         }
         filters={
           <>
             <Select value={category} onValueChange={applyFilter(setCategory)}>
-              <SelectTrigger className="w-[145px] h-9 text-xs"><SelectValue placeholder="Category" /></SelectTrigger>
+              <SelectTrigger className="w-[145px] h-9 text-xs">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value={ALL}>All categories</SelectItem>
-                {categories?.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+                {categories?.map((c) => (
+                  <SelectItem key={c.id} value={String(c.id)}>
+                    {c.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
             <Select value={inStock} onValueChange={applyFilter(setInStock)}>
-              <SelectTrigger className="w-[130px] h-9 text-xs"><SelectValue placeholder="Stock status" /></SelectTrigger>
+              <SelectTrigger className="w-[130px] h-9 text-xs">
+                <SelectValue placeholder="Stock status" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value={ALL}>Any stock</SelectItem>
                 <SelectItem value="true">In stock</SelectItem>
@@ -128,7 +154,13 @@ function ProductsContent() {
                 variant="ghost"
                 size="sm"
                 className="h-9 text-xs text-muted-foreground hover:text-foreground"
-                onClick={() => { setSearch(""); setAppliedSearch(""); setCategory(ALL); setInStock(ALL); setPage(1); }}
+                onClick={() => {
+                  setSearch("");
+                  setAppliedSearch("");
+                  setCategory(ALL);
+                  setInStock(ALL);
+                  setPage(1);
+                }}
               >
                 Reset filters
               </Button>
@@ -141,17 +173,32 @@ function ProductsContent() {
 
       {loading && !data && (
         <div className="space-y-2">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-xl" />
+          ))}
         </div>
       )}
 
       {!loading && data && products.length === 0 && (
         <EmptyState
-          title={filtersActive ? "No products match those filters" : "Catalog is empty"}
-          hint={filtersActive ? "Try resetting your search query or filters." : "Add your first product to start populating your catalog."}
-          action={filtersActive ? undefined : (
-            <Button onClick={openCreate} className="gap-2"><Plus className="size-4" />Add Product</Button>
-          )}
+          title={
+            filtersActive
+              ? "No products match those filters"
+              : "Catalog is empty"
+          }
+          hint={
+            filtersActive
+              ? "Try resetting your search query or filters."
+              : "Add your first product to start populating your catalog."
+          }
+          action={
+            filtersActive ? undefined : (
+              <Button onClick={openCreate} className="gap-2">
+                <Plus className="size-4" />
+                Add Product
+              </Button>
+            )
+          }
         />
       )}
 
@@ -160,7 +207,8 @@ function ProductsContent() {
           {/* Mobile: card list; the table is unusable on small screens. */}
           <div className="space-y-3 md:hidden">
             {products.map((product) => {
-              const isZero = !product.is_in_stock || product.stock_quantity <= 0;
+              const isZero =
+                !product.is_in_stock || product.stock_quantity <= 0;
               const isLow = !isZero && product.stock_quantity <= 5;
 
               return (
@@ -196,10 +244,14 @@ function ProductsContent() {
                       </p>
                     </div>
                     <Badge
-                      variant={isZero ? "destructive" : isLow ? "warning" : "secondary"}
+                      variant={
+                        isZero ? "destructive" : isLow ? "warning" : "secondary"
+                      }
                       className="shrink-0 text-xs font-semibold tabular-nums"
                     >
-                      {isZero ? "Out of stock" : `${product.stock_quantity} units`}
+                      {isZero
+                        ? "Out of stock"
+                        : `${product.stock_quantity} units`}
                     </Badge>
                   </div>
 
@@ -223,16 +275,27 @@ function ProductsContent() {
             <Table className="table-fixed">
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableHead className="w-[36%] font-semibold text-xs">Name</TableHead>
-                  <TableHead className="w-[20%] font-semibold text-xs">Category</TableHead>
-                  <TableHead className="w-[16%] font-semibold text-xs">Price</TableHead>
-                  <TableHead className="w-[14%] font-semibold text-xs">Stock</TableHead>
-                  <TableHead className="w-[14%] text-right font-semibold text-xs">Action</TableHead>
+                  <TableHead className="w-[36%] font-semibold text-xs">
+                    Name
+                  </TableHead>
+                  <TableHead className="w-[20%] font-semibold text-xs">
+                    Category
+                  </TableHead>
+                  <TableHead className="w-[16%] font-semibold text-xs">
+                    Price
+                  </TableHead>
+                  <TableHead className="w-[14%] font-semibold text-xs">
+                    Stock
+                  </TableHead>
+                  <TableHead className="w-[14%] text-right font-semibold text-xs">
+                    Action
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {products.map((product) => {
-                  const isZero = !product.is_in_stock || product.stock_quantity <= 0;
+                  const isZero =
+                    !product.is_in_stock || product.stock_quantity <= 0;
                   const isLow = !isZero && product.stock_quantity <= 5;
 
                   return (
@@ -264,17 +327,31 @@ function ProductsContent() {
                       </TableCell>
 
                       <TableCell className="truncate text-sm font-semibold tabular-nums">
-                        <span className={product.sale_price ? "text-primary" : "text-foreground"}>
+                        <span
+                          className={
+                            product.sale_price
+                              ? "text-primary"
+                              : "text-foreground"
+                          }
+                        >
                           Ksh {money(product.sale_price ?? product.base_price)}
                         </span>
                       </TableCell>
 
                       <TableCell>
                         <Badge
-                          variant={isZero ? "destructive" : isLow ? "warning" : "secondary"}
+                          variant={
+                            isZero
+                              ? "destructive"
+                              : isLow
+                                ? "warning"
+                                : "secondary"
+                          }
                           className="text-xs font-semibold tabular-nums"
                         >
-                          {isZero ? "Out of stock" : `${product.stock_quantity} units`}
+                          {isZero
+                            ? "Out of stock"
+                            : `${product.stock_quantity} units`}
                         </Badge>
                       </TableCell>
 
@@ -314,7 +391,13 @@ function ProductsContent() {
 
 export default function ProductsPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-xs text-muted-foreground">Loading products…</div>}>
+    <Suspense
+      fallback={
+        <div className="p-8 text-center text-xs text-muted-foreground">
+          Loading products…
+        </div>
+      }
+    >
       <ProductsContent />
     </Suspense>
   );

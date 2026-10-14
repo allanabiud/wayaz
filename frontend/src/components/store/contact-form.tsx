@@ -1,14 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import {
-  CheckCircle2,
-  Loader2,
-  Mail,
-  MapPin,
-  Phone,
-  Send,
-} from "lucide-react";
+import { CheckCircle2, Loader2, Mail, MapPin, Phone, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -58,7 +51,10 @@ export function ContactForm() {
       setSubmitted(true);
       toast.success("Thank you! Your message has been sent.");
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : "Failed to send message. Please try again.";
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : "Failed to send message. Please try again.";
       toast.error(msg);
     } finally {
       setSubmitting(false);
@@ -66,7 +62,8 @@ export function ContactForm() {
   };
 
   const waNum = whatsappNumber(settings);
-  const waMsg = settings?.whatsapp_message || "Hi Wayaz, I'd like to get in touch.";
+  const waMsg =
+    settings?.whatsapp_message || "Hi Wayaz, I'd like to get in touch.";
 
   return (
     <div className="grid gap-10 lg:grid-cols-3">
@@ -74,7 +71,9 @@ export function ContactForm() {
         <Card className="border shadow-xs">
           <CardContent className="p-6 space-y-6">
             <div>
-              <h2 className="text-base font-bold tracking-tight">Direct Channels</h2>
+              <h2 className="text-base font-bold tracking-tight">
+                Direct Channels
+              </h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 We typically respond within an hour during business hours.
               </p>
@@ -86,7 +85,9 @@ export function ContactForm() {
                   <WhatsAppIcon className="size-4" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">WhatsApp</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase">
+                    WhatsApp
+                  </p>
                   <a
                     href={waLink(waMsg, waNum)}
                     target="_blank"
@@ -98,14 +99,17 @@ export function ContactForm() {
                 </div>
               </div>
 
-              {settings?.support_phones && settings.support_phones.length > 0 ? (
+              {settings?.support_phones &&
+              settings.support_phones.length > 0 ? (
                 settings.support_phones.map((p, i) => (
                   <div key={i} className="flex items-start gap-3">
                     <div className="rounded-full bg-primary/10 p-2 text-primary shrink-0">
                       <Phone className="size-4" />
                     </div>
                     <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase">{p.label}</p>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase">
+                        {p.label}
+                      </p>
                       <a
                         href={`tel:${p.number.replace(/\s+/g, "")}`}
                         className="font-medium hover:text-primary transition-colors"
@@ -121,7 +125,9 @@ export function ContactForm() {
                     <Phone className="size-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase">Phone</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase">
+                      Phone
+                    </p>
                     <a
                       href={`tel:${settings.contact_phone.replace(/\s+/g, "")}`}
                       className="font-medium hover:text-primary transition-colors"
@@ -138,7 +144,9 @@ export function ContactForm() {
                     <Mail className="size-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase">Email</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase">
+                      Email
+                    </p>
                     <a
                       href={`mailto:${settings.contact_email}`}
                       className="font-medium hover:text-primary transition-colors"
@@ -155,7 +163,9 @@ export function ContactForm() {
                     <MapPin className="size-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase">Location</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase">
+                      Location
+                    </p>
                     <p className="font-medium">{settings.address}</p>
                   </div>
                 </div>
@@ -163,7 +173,9 @@ export function ContactForm() {
             </div>
 
             <div className="pt-4 border-t space-y-3">
-              <p className="text-xs font-semibold text-muted-foreground uppercase">Follow Us</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase">
+                Follow Us
+              </p>
               <div className="flex items-center gap-3">
                 {settings?.instagram_url && (
                   <a
@@ -234,9 +246,12 @@ export function ContactForm() {
                 <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
                   <CheckCircle2 className="size-6" />
                 </div>
-                <h3 className="text-lg font-bold">Message Sent Successfully!</h3>
+                <h3 className="text-lg font-bold">
+                  Message Sent Successfully!
+                </h3>
                 <p className="mx-auto max-w-sm text-sm text-muted-foreground">
-                  Thank you for reaching out to us. A member of our team will get back to you shortly at <strong>{email}</strong>.
+                  Thank you for reaching out to us. A member of our team will
+                  get back to you shortly at <strong>{email}</strong>.
                 </p>
                 <Button
                   variant="outline"
@@ -258,7 +273,10 @@ export function ContactForm() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label htmlFor="contact-name" className="text-xs font-semibold">
+                    <Label
+                      htmlFor="contact-name"
+                      className="text-xs font-semibold"
+                    >
                       Your Name <span className="text-destructive">*</span>
                     </Label>
                     <Input
@@ -272,7 +290,10 @@ export function ContactForm() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="contact-email" className="text-xs font-semibold">
+                    <Label
+                      htmlFor="contact-email"
+                      className="text-xs font-semibold"
+                    >
                       Email Address <span className="text-destructive">*</span>
                     </Label>
                     <Input
@@ -288,7 +309,10 @@ export function ContactForm() {
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label htmlFor="contact-phone" className="text-xs font-semibold">
+                    <Label
+                      htmlFor="contact-phone"
+                      className="text-xs font-semibold"
+                    >
                       Phone Number (optional)
                     </Label>
                     <Input
@@ -301,7 +325,10 @@ export function ContactForm() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="contact-subject" className="text-xs font-semibold">
+                    <Label
+                      htmlFor="contact-subject"
+                      className="text-xs font-semibold"
+                    >
                       Subject <span className="text-destructive">*</span>
                     </Label>
                     <Input
@@ -316,7 +343,10 @@ export function ContactForm() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="contact-message" className="text-xs font-semibold">
+                  <Label
+                    htmlFor="contact-message"
+                    className="text-xs font-semibold"
+                  >
                     Message <span className="text-destructive">*</span>
                   </Label>
                   <Textarea

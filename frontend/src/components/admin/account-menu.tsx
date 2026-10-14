@@ -124,11 +124,26 @@ export function AccountMenu() {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Sign Out</DialogTitle>
-            <DialogDescription>Are you sure you want to sign out?</DialogDescription>
+            <DialogDescription>
+              Are you sure you want to sign out?
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4 gap-2">
-            <Button variant="outline" onClick={() => setShowLogoutDialog(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={() => { setShowLogoutDialog(false); signOut(); }}>Sign Out</Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowLogoutDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setShowLogoutDialog(false);
+                signOut();
+              }}
+            >
+              Sign Out
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

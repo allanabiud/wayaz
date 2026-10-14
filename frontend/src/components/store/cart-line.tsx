@@ -65,10 +65,7 @@ export function CartLine({
             aria-label={`Remove ${product.product_title} from cart`}
             disabled={busy}
             onClick={() =>
-              run(
-                () => removeCartItem(item.id),
-                "Could not remove item.",
-              )
+              run(() => removeCartItem(item.id), "Could not remove item.")
             }
             className="shrink-0 text-muted-foreground transition-colors hover:text-destructive disabled:opacity-50"
           >

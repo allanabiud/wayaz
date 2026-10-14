@@ -73,7 +73,11 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const user = useSyncExternalStore(subscribe, readStoredUser, () => null);
-  const ready = useSyncExternalStore(subscribeReady, () => true, () => false);
+  const ready = useSyncExternalStore(
+    subscribeReady,
+    () => true,
+    () => false,
+  );
 
   const signIn = useCallback((next: SessionUser) => {
     window.localStorage.setItem(USER_KEY, JSON.stringify(next));
@@ -100,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const staffRoles: UserRole[] = ["admin", "staff"];
     const canManage = Boolean(
       user &&
-        (staffRoles.includes(user.role) || user.is_staff || user.is_superuser),
+      (staffRoles.includes(user.role) || user.is_staff || user.is_superuser),
     );
 
     return {

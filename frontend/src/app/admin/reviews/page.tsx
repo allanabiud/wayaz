@@ -2,14 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  Eye,
-  EyeOff,
-  ExternalLink,
-  Loader2,
-  Star,
-  Trash2,
-} from "lucide-react";
+import { Eye, EyeOff, ExternalLink, Loader2, Star, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -202,11 +195,13 @@ export default function AdminReviewsPage() {
               ? "Try clearing the search or the visibility filter."
               : "Shopper reviews appear here as they are posted."
           }
-          action={filtersActive ? (
-            <Button variant="outline" onClick={resetFilters}>
-              Clear filters
-            </Button>
-          ) : undefined}
+          action={
+            filtersActive ? (
+              <Button variant="outline" onClick={resetFilters}>
+                Clear filters
+              </Button>
+            ) : undefined
+          }
         />
       )}
 
@@ -249,7 +244,10 @@ export default function AdminReviewsPage() {
                     </div>
 
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-0.5" aria-label={`${review.rating} out of 5 stars`}>
+                      <span
+                        className="flex items-center gap-0.5"
+                        aria-label={`${review.rating} out of 5 stars`}
+                      >
                         {[1, 2, 3, 4, 5].map((star) => (
                           <Star
                             key={star}

@@ -137,7 +137,6 @@ export function SearchResults({
                   // First row (up to 4 on desktop) is this page's LCP candidate.
                   eager={index < 4}
                   onAdd={(p) => void addProduct(p)}
-
                 />
               ))}
             </div>

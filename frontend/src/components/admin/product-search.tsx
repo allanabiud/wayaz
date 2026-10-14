@@ -45,7 +45,10 @@ export function ProductSearch({
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
       }
     }
@@ -61,7 +64,7 @@ export function ProductSearch({
       setSearching(true);
       try {
         const res = await api.get<Paginated<Product>>(
-          `/api/v1/admin/products/?search=${encodeURIComponent(q)}`
+          `/api/v1/admin/products/?search=${encodeURIComponent(q)}`,
         );
         setResults(res.results.slice(0, 8));
       } catch (err) {
@@ -119,7 +122,11 @@ export function ProductSearch({
         <button
           type="button"
           onMouseDown={(e) => e.preventDefault()}
-          onClick={() => { setQuery(""); setResults([]); setOpen(false); }}
+          onClick={() => {
+            setQuery("");
+            setResults([]);
+            setOpen(false);
+          }}
           className="absolute right-2 top-1/2 -translate-y-1/2 flex size-4 items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
         >
           <X className="size-3" />
@@ -147,7 +154,8 @@ export function ProductSearch({
           ) : (
             <div className="max-h-72 overflow-y-auto space-y-0.5">
               {results.map((prod) => {
-                const isOutOfStock = !prod.is_in_stock || prod.stock_quantity <= 0;
+                const isOutOfStock =
+                  !prod.is_in_stock || prod.stock_quantity <= 0;
                 return (
                   <div
                     key={prod.id}
@@ -155,15 +163,23 @@ export function ProductSearch({
                     className="flex items-center gap-2.5 rounded-lg p-2 text-xs cursor-pointer hover:bg-accent transition-colors"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold text-foreground leading-tight">{prod.title}</p>
+                      <p className="truncate font-semibold text-foreground leading-tight">
+                        {prod.title}
+                      </p>
                       <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
                         <span>{prod.category_name || "Catalog"}</span>
                       </div>
                     </div>
                     <div className="flex flex-col items-end shrink-0">
-                      <span className="font-bold text-primary">Ksh {formatKsh(prod.sale_price ?? prod.base_price)}</span>
-                      <span className={`text-[10px] font-medium ${isOutOfStock ? "text-destructive" : "text-muted-foreground"}`}>
-                        {isOutOfStock ? "Out of stock" : `${prod.stock_quantity} pcs`}
+                      <span className="font-bold text-primary">
+                        Ksh {formatKsh(prod.sale_price ?? prod.base_price)}
+                      </span>
+                      <span
+                        className={`text-[10px] font-medium ${isOutOfStock ? "text-destructive" : "text-muted-foreground"}`}
+                      >
+                        {isOutOfStock
+                          ? "Out of stock"
+                          : `${prod.stock_quantity} pcs`}
                       </span>
                     </div>
                   </div>

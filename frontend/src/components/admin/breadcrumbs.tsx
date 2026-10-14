@@ -13,9 +13,7 @@ const SEGMENT_LABELS: Record<string, string> = {
 };
 
 function titleize(segment: string): string {
-  return segment
-    .replace(/[-_]/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return segment.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export function Breadcrumbs() {
@@ -74,7 +72,10 @@ export function Breadcrumbs() {
     <nav aria-label="breadcrumb" className="min-w-0">
       <ol className="flex items-center gap-1.5 text-sm">
         {crumbs.map((crumb, index) => (
-          <li key={`${crumb.label}-${index}`} className="flex min-w-0 items-center gap-1.5">
+          <li
+            key={`${crumb.label}-${index}`}
+            className="flex min-w-0 items-center gap-1.5"
+          >
             {index > 0 && (
               <ChevronRight
                 aria-hidden

@@ -71,7 +71,9 @@ function reachLine(coupon: AdminCoupon): string | null {
 
 function formatDiscount(coupon: AdminCoupon): string {
   const value = Number(coupon.discount_value);
-  const pretty = Number.isFinite(value) ? value.toLocaleString("en-KE") : coupon.discount_value;
+  const pretty = Number.isFinite(value)
+    ? value.toLocaleString("en-KE")
+    : coupon.discount_value;
   return coupon.discount_type === "percent" ? `${pretty}%` : `Ksh ${pretty}`;
 }
 
@@ -155,7 +157,9 @@ export default function AdminCouponsPage() {
       setForm(null);
       refetch();
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Could not save the coupon.");
+      setFormError(
+        err instanceof ApiError ? err.message : "Could not save the coupon.",
+      );
     } finally {
       setSaving(false);
     }
@@ -397,14 +401,17 @@ export default function AdminCouponsPage() {
         </>
       )}
 
-      <Dialog open={form !== null} onOpenChange={(open) => !open && closeForm()}>
+      <Dialog
+        open={form !== null}
+        onOpenChange={(open) => !open && closeForm()}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{form?.id ? "Edit Coupon" : "New Coupon"}</DialogTitle>
             <DialogDescription>
-              Shoppers type the code at checkout - or let it apply itself
-              for the carts you target. Codes are stored in capitals, so
-              welcome10 and WELCOME10 are the same coupon.
+              Shoppers type the code at checkout - or let it apply itself for
+              the carts you target. Codes are stored in capitals, so welcome10
+              and WELCOME10 are the same coupon.
             </DialogDescription>
           </DialogHeader>
 
@@ -460,7 +467,9 @@ export default function AdminCouponsPage() {
                     onChange={(e) =>
                       setForm({ ...form, discount_value: e.target.value })
                     }
-                    placeholder={form.discount_type === "percent" ? "10" : "500"}
+                    placeholder={
+                      form.discount_type === "percent" ? "10" : "500"
+                    }
                   />
                 </div>
               </div>
@@ -476,7 +485,10 @@ export default function AdminCouponsPage() {
                     })
                   }
                 >
-                  <SelectTrigger id="coupon-audience" className="w-full h-9 text-xs">
+                  <SelectTrigger
+                    id="coupon-audience"
+                    className="w-full h-9 text-xs"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -498,8 +510,7 @@ export default function AdminCouponsPage() {
                 <div>
                   <p className="text-sm font-medium">Apply automatically</p>
                   <p className="text-xs text-muted-foreground">
-                    Claims eligible carts at checkout, so nobody has to
-                    type it.
+                    Claims eligible carts at checkout, so nobody has to type it.
                   </p>
                 </div>
                 <Switch
@@ -515,8 +526,7 @@ export default function AdminCouponsPage() {
                 <div>
                   <p className="text-sm font-medium">Active</p>
                   <p className="text-xs text-muted-foreground">
-                    Inactive codes are refused at checkout but kept for
-                    history.
+                    Inactive codes are refused at checkout but kept for history.
                   </p>
                 </div>
                 <Switch
@@ -561,8 +571,8 @@ export default function AdminCouponsPage() {
             <DialogTitle>Delete Coupon</DialogTitle>
             <DialogDescription>
               Delete &ldquo;{pendingDelete?.code}&rdquo;? Orders that already
-              used it keep their discount - only the code goes away. To stop
-              it working, deactivate it instead. This cannot be undone.
+              used it keep their discount - only the code goes away. To stop it
+              working, deactivate it instead. This cannot be undone.
             </DialogDescription>
           </DialogHeader>
           {deleteError && (

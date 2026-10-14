@@ -28,7 +28,6 @@ import { api } from "@/lib/api";
 import { formatKsh } from "@/lib/store-api";
 import { useQuery } from "@/lib/use-query";
 
-
 type PaymentMethodFilter = "all" | "mpesa" | "cod";
 type PaymentStatusFilter = "all" | "COMPLETED" | "PENDING" | "FAILED";
 
@@ -51,7 +50,6 @@ interface PaymentsResponse {
   total_pages: number;
   results: PaymentEntry[];
 }
-
 
 const PAGE_SIZE = 10;
 
@@ -96,7 +94,6 @@ function formatDate(iso: string): string {
       });
 }
 
-
 export default function AdminPaymentsPage() {
   const [search, setSearch] = useState("");
   const [method, setMethod] = useState<PaymentMethodFilter>("all");
@@ -131,11 +128,7 @@ export default function AdminPaymentsPage() {
       <PageHeader
         eyebrow="Finance"
         title="Payments"
-        description={
-          data
-            ? `${data.count} total transactions`
-            : undefined
-        }
+        description={data ? `${data.count} total transactions` : undefined}
       />
 
       <FilterToolbar
@@ -160,7 +153,11 @@ export default function AdminPaymentsPage() {
               </SelectTrigger>
               <SelectContent>
                 {METHOD_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                  <SelectItem
+                    key={opt.value}
+                    value={opt.value}
+                    className="text-xs"
+                  >
                     {opt.label}
                   </SelectItem>
                 ))}
@@ -179,7 +176,11 @@ export default function AdminPaymentsPage() {
               </SelectTrigger>
               <SelectContent>
                 {STATUS_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                  <SelectItem
+                    key={opt.value}
+                    value={opt.value}
+                    className="text-xs"
+                  >
                     {opt.label}
                   </SelectItem>
                 ))}
@@ -227,13 +228,27 @@ export default function AdminPaymentsPage() {
             <Table className="table-fixed">
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableHead className="w-[10%] font-semibold text-xs">Method</TableHead>
-                  <TableHead className="w-[18%] font-semibold text-xs">Order</TableHead>
-                  <TableHead className="w-[12%] font-semibold text-xs text-right">Amount</TableHead>
-                  <TableHead className="w-[14%] font-semibold text-xs">Phone</TableHead>
-                  <TableHead className="w-[16%] font-semibold text-xs">Receipt / Reference</TableHead>
-                  <TableHead className="w-[12%] font-semibold text-xs">Status</TableHead>
-                  <TableHead className="w-[18%] font-semibold text-xs text-right">Date</TableHead>
+                  <TableHead className="w-[10%] font-semibold text-xs">
+                    Method
+                  </TableHead>
+                  <TableHead className="w-[18%] font-semibold text-xs">
+                    Order
+                  </TableHead>
+                  <TableHead className="w-[12%] font-semibold text-xs text-right">
+                    Amount
+                  </TableHead>
+                  <TableHead className="w-[14%] font-semibold text-xs">
+                    Phone
+                  </TableHead>
+                  <TableHead className="w-[16%] font-semibold text-xs">
+                    Receipt / Reference
+                  </TableHead>
+                  <TableHead className="w-[12%] font-semibold text-xs">
+                    Status
+                  </TableHead>
+                  <TableHead className="w-[18%] font-semibold text-xs text-right">
+                    Date
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -258,7 +273,9 @@ export default function AdminPaymentsPage() {
                         {tx.order_number}
                       </span>
                       {tx.note && (
-                        <p className="text-xs text-muted-foreground truncate">{tx.note}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {tx.note}
+                        </p>
                       )}
                     </TableCell>
 
@@ -306,7 +323,9 @@ export default function AdminPaymentsPage() {
                     <span className="font-semibold text-sm tabular-nums">
                       {tx.order_number}
                     </span>
-                    <p className="text-xs text-muted-foreground font-mono">{tx.phone}</p>
+                    <p className="text-xs text-muted-foreground font-mono">
+                      {tx.phone}
+                    </p>
                   </div>
                   <Badge
                     variant={STATUS_BADGE_VARIANT[tx.status] ?? "secondary"}

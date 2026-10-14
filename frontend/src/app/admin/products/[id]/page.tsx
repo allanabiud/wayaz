@@ -32,7 +32,11 @@ function formatDate(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? "-"
-    : d.toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" });
+    : d.toLocaleDateString("en-KE", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
 }
 
 export default function ProductDetailPage() {
@@ -64,7 +68,9 @@ export default function ProductDetailPage() {
       router.push("/admin/products");
     } catch (err) {
       setDeleteError(
-        err instanceof ApiError ? err.message : "Could not delete this product.",
+        err instanceof ApiError
+          ? err.message
+          : "Could not delete this product.",
       );
       setDeleting(false);
     }
@@ -221,7 +227,9 @@ export default function ProductDetailPage() {
             </Card>
             <Card>
               <CardContent>
-                <span className="text-[11px] text-muted-foreground">Photos</span>
+                <span className="text-[11px] text-muted-foreground">
+                  Photos
+                </span>
                 <p className="mt-0.5 text-lg font-bold tabular-nums">
                   {product.images.length}
                 </p>
@@ -229,17 +237,17 @@ export default function ProductDetailPage() {
             </Card>
             <Card>
               <CardContent>
-                <span className="text-[11px] text-muted-foreground">Status</span>
+                <span className="text-[11px] text-muted-foreground">
+                  Status
+                </span>
                 <p className="mt-1">
                   <Badge
-                    variant={isZero ? "destructive" : isLow ? "warning" : "secondary"}
+                    variant={
+                      isZero ? "destructive" : isLow ? "warning" : "secondary"
+                    }
                     className="text-xs font-semibold tabular-nums"
                   >
-                    {isZero
-                      ? "Out of stock"
-                      : isLow
-                        ? "Low stock"
-                        : "In stock"}
+                    {isZero ? "Out of stock" : isLow ? "Low stock" : "In stock"}
                   </Badge>
                 </p>
               </CardContent>
@@ -248,7 +256,9 @@ export default function ProductDetailPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base font-semibold">Description</CardTitle>
+              <CardTitle className="text-base font-semibold">
+                Description
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-foreground/90 whitespace-pre-line leading-relaxed">
@@ -317,7 +327,8 @@ export default function ProductDetailPage() {
           <div>
             <CardTitle className="text-base font-semibold">Photos</CardTitle>
             <p className="text-xs text-muted-foreground">
-              {product.images.length} photo{product.images.length === 1 ? "" : "s"} uploaded
+              {product.images.length} photo
+              {product.images.length === 1 ? "" : "s"} uploaded
             </p>
           </div>
           <Button
@@ -416,7 +427,11 @@ export default function ProductDetailPage() {
             >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={() => void handleDelete()} disabled={deleting}>
+            <Button
+              variant="destructive"
+              onClick={() => void handleDelete()}
+              disabled={deleting}
+            >
               {deleting ? "Deleting…" : "Delete"}
             </Button>
           </DialogFooter>

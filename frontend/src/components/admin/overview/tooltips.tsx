@@ -8,17 +8,25 @@ export function ChartTooltip({
   label,
 }: {
   active?: boolean;
-  payload?: Array<{ name?: string; value?: number | string; payload?: Record<string, unknown> }>;
+  payload?: Array<{
+    name?: string;
+    value?: number | string;
+    payload?: Record<string, unknown>;
+  }>;
   label?: string | number;
 }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-border/60 bg-popover px-3 py-2 text-xs shadow-lg">
-      {label !== undefined && <p className="mb-1 font-medium text-foreground">{label}</p>}
+      {label !== undefined && (
+        <p className="mb-1 font-medium text-foreground">{label}</p>
+      )}
       {payload.map((entry, i) => (
         <p key={i} className="text-muted-foreground">
           <span className="font-medium text-foreground">
-            {typeof entry.value === "number" ? entry.value.toLocaleString() : entry.value}
+            {typeof entry.value === "number"
+              ? entry.value.toLocaleString()
+              : entry.value}
           </span>{" "}
           {entry.name}
         </p>
@@ -32,18 +40,28 @@ export function RevenueTooltip({
   payload,
 }: {
   active?: boolean;
-  payload?: Array<{ payload?: { date?: string; revenue?: number; orders?: number } }>;
+  payload?: Array<{
+    payload?: { date?: string; revenue?: number; orders?: number };
+  }>;
 }) {
   if (!active || !payload?.length || !payload[0]?.payload) return null;
   const point = payload[0].payload;
   return (
     <div className="rounded-lg border border-border/60 bg-popover px-3 py-2 text-xs shadow-lg">
-      <p className="mb-1 font-medium text-foreground">{point.date ? formatDay(point.date) : ""}</p>
-      <p className="text-muted-foreground">
-        <span className="font-semibold text-foreground">Ksh {formatKsh(point.revenue ?? 0)}</span> revenue
+      <p className="mb-1 font-medium text-foreground">
+        {point.date ? formatDay(point.date) : ""}
       </p>
       <p className="text-muted-foreground">
-        <span className="font-semibold text-foreground">{point.orders ?? 0}</span> order
+        <span className="font-semibold text-foreground">
+          Ksh {formatKsh(point.revenue ?? 0)}
+        </span>{" "}
+        revenue
+      </p>
+      <p className="text-muted-foreground">
+        <span className="font-semibold text-foreground">
+          {point.orders ?? 0}
+        </span>{" "}
+        order
         {(point.orders ?? 0) === 1 ? "" : "s"}
       </p>
     </div>
@@ -66,7 +84,10 @@ export function OrdersTooltip({
     <div className="rounded-lg border border-border/60 bg-popover px-3 py-2 text-xs shadow-lg">
       <p className="mb-1 font-medium text-foreground">{label}</p>
       <p className="text-muted-foreground">
-        <span className="font-semibold text-foreground">{point.orders ?? 0}</span> order
+        <span className="font-semibold text-foreground">
+          {point.orders ?? 0}
+        </span>{" "}
+        order
         {(point.orders ?? 0) === 1 ? "" : "s"}
       </p>
     </div>

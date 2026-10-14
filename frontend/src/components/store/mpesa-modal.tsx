@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  AlertCircle,
-  CheckCircle2,
-  Loader2,
-  Smartphone,
-} from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -52,7 +47,9 @@ export function MpesaPaymentModal({
   onCancelOrFailed,
 }: MpesaPaymentModalProps) {
   const [secondsLeft, setSecondsLeft] = useState(TOTAL_TIMEOUT_SECONDS);
-  const [status, setStatus] = useState<"polling" | "success" | "failed">("polling");
+  const [status, setStatus] = useState<"polling" | "success" | "failed">(
+    "polling",
+  );
   const [statusMessage, setStatusMessage] = useState(
     "Check your phone for the M-Pesa PIN prompt...",
   );
@@ -99,7 +96,9 @@ export function MpesaPaymentModal({
           clearInterval(pollInterval);
           clearInterval(timer);
           setStatus("failed");
-          setStatusMessage(res.result_desc || "M-Pesa payment was cancelled or failed.");
+          setStatusMessage(
+            res.result_desc || "M-Pesa payment was cancelled or failed.",
+          );
         }
       } catch {
         // Keep polling through network errors.
@@ -126,10 +125,14 @@ export function MpesaPaymentModal({
     }
   };
 
-  const progressPercent = ((TOTAL_TIMEOUT_SECONDS - secondsLeft) / TOTAL_TIMEOUT_SECONDS) * 100;
+  const progressPercent =
+    ((TOTAL_TIMEOUT_SECONDS - secondsLeft) / TOTAL_TIMEOUT_SECONDS) * 100;
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onCancelOrFailed("User dismissed")}>
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => !isOpen && onCancelOrFailed("User dismissed")}
+    >
       <DialogContent className="sm:max-w-md p-6" showCloseButton={false}>
         <DialogHeader className="text-center sm:text-center">
           <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-emerald-600/10 text-emerald-600">
@@ -164,8 +167,12 @@ export function MpesaPaymentModal({
                 <span>Waiting for M-Pesa PIN...</span>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Unlock your phone and enter your M-Pesa PIN to complete payment for Order{" "}
-                <span className="font-semibold text-foreground">{orderNumber}</span>.
+                Unlock your phone and enter your M-Pesa PIN to complete payment
+                for Order{" "}
+                <span className="font-semibold text-foreground">
+                  {orderNumber}
+                </span>
+                .
               </p>
             </div>
 
@@ -181,10 +188,13 @@ export function MpesaPaymentModal({
               <div className="rounded-lg border border-dashed border-gold/40 bg-gold/5 p-3 text-xs space-y-2">
                 <div className="flex items-center justify-between font-semibold text-gold">
                   <span>Development Test Mode</span>
-                  <span className="rounded bg-gold/20 px-1.5 py-0.5 text-[10px]">Mock Gateway</span>
+                  <span className="rounded bg-gold/20 px-1.5 py-0.5 text-[10px]">
+                    Mock Gateway
+                  </span>
                 </div>
                 <p className="text-muted-foreground">
-                  Simulate shopper PIN confirmation without waiting for Safaricom SMS:
+                  Simulate shopper PIN confirmation without waiting for
+                  Safaricom SMS:
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -222,7 +232,8 @@ export function MpesaPaymentModal({
         {status === "failed" && (
           <div className="py-3 space-y-3">
             <p className="text-center text-xs text-muted-foreground">
-              Didn&apos;t receive the prompt or entered the wrong PIN? You can try again or switch to Cash on Delivery.
+              Didn&apos;t receive the prompt or entered the wrong PIN? You can
+              try again or switch to Cash on Delivery.
             </p>
             <div className="flex flex-col gap-2">
               <Button

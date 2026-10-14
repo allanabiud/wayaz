@@ -36,13 +36,10 @@ export function ImageManagerDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data, loading, refetch } = useQuery<Product | null>(
-    async () => {
-      if (!productId || !open) return null;
-      return api.get<Product>(`/api/v1/admin/products/${productId}/`);
-    },
-    [productId, open],
-  );
+  const { data, loading, refetch } = useQuery<Product | null>(async () => {
+    if (!productId || !open) return null;
+    return api.get<Product>(`/api/v1/admin/products/${productId}/`);
+  }, [productId, open]);
 
   const images: ProductImage[] = data?.images ?? [];
 
@@ -66,7 +63,10 @@ export function ImageManagerDialog({
           form.append("image", file);
           form.append("alt_text", file.name.replace(/\.[^.]+$/, ""));
           form.append("is_primary", images.length === 0 ? "true" : "false");
-          await api.upload(`/api/v1/admin/products/${productId}/upload-image/`, form);
+          await api.upload(
+            `/api/v1/admin/products/${productId}/upload-image/`,
+            form,
+          );
         }
         refetch();
       } catch (err) {
@@ -111,7 +111,9 @@ export function ImageManagerDialog({
       );
       refetch();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not remove the image.");
+      setError(
+        err instanceof ApiError ? err.message : "Could not remove the image.",
+      );
     } finally {
       setBusy(false);
     }
@@ -122,7 +124,9 @@ export function ImageManagerDialog({
       <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Product images</DialogTitle>
-          <DialogDescription className="truncate">{productTitle}</DialogDescription>
+          <DialogDescription className="truncate">
+            {productTitle}
+          </DialogDescription>
         </DialogHeader>
 
         <div
@@ -178,7 +182,10 @@ export function ImageManagerDialog({
         {loading ? (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="aspect-[3/4] animate-pulse rounded-md bg-muted" />
+              <div
+                key={i}
+                className="aspect-[3/4] animate-pulse rounded-md bg-muted"
+              />
             ))}
           </div>
         ) : images.length === 0 ? (
@@ -199,7 +206,10 @@ export function ImageManagerDialog({
                   className="aspect-[3/4] w-full object-cover"
                 />
                 {image.is_primary && (
-                  <Badge className="absolute top-1.5 left-1.5" variant="secondary">
+                  <Badge
+                    className="absolute top-1.5 left-1.5"
+                    variant="secondary"
+                  >
                     Primary
                   </Badge>
                 )}

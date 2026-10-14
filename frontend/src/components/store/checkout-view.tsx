@@ -58,7 +58,9 @@ export function CheckoutView() {
   const { cart, clearCart, openLogin } = useStore();
 
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
-  const [selectedAddressId, setSelectedAddressId] = useState<number | "new">("new");
+  const [selectedAddressId, setSelectedAddressId] = useState<number | "new">(
+    "new",
+  );
   const [saveToAccount, setSaveToAccount] = useState(false);
   const [saveAsDefault, setSaveAsDefault] = useState(false);
   const [editingAddress, setEditingAddress] = useState(false);
@@ -188,7 +190,9 @@ export function CheckoutView() {
       }
     } catch (err) {
       setCouponError(
-        err instanceof ApiError ? err.message : "That coupon code is not valid.",
+        err instanceof ApiError
+          ? err.message
+          : "That coupon code is not valid.",
       );
     } finally {
       setCouponBusy(false);
@@ -227,8 +231,7 @@ export function CheckoutView() {
         // The server re-validates; omitting the key lets an auto coupon
         // claim the order, a blank means "no coupon at all".
         coupon_code:
-          appliedCoupon?.code ??
-          (couponOverrideRef.current ? "" : undefined),
+          appliedCoupon?.code ?? (couponOverrideRef.current ? "" : undefined),
       });
 
       if (isAuthenticated && selectedAddressId === "new" && saveToAccount) {
@@ -308,7 +311,9 @@ export function CheckoutView() {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Recipient:</span>
-              <span className="font-medium">{completedOrder.shipping_name}</span>
+              <span className="font-medium">
+                {completedOrder.shipping_name}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Destination:</span>
@@ -357,7 +362,8 @@ export function CheckoutView() {
                     <span className="font-medium text-emerald-600 dark:text-emerald-400">
                       {completedOrder.coupon_code}
                     </span>
-                  )}:
+                  )}
+                  :
                 </span>
                 <span className="font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
                   - Ksh {formatKsh(completedOrder.discount_amount)}
@@ -374,7 +380,10 @@ export function CheckoutView() {
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
             {completedOrder.whatsapp_link && (
-              <Button asChild className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+              <Button
+                asChild
+                className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+              >
                 <a
                   href={completedOrder.whatsapp_link}
                   target="_blank"
@@ -456,18 +465,20 @@ export function CheckoutView() {
                   <Truck className="size-5 text-primary" />
                   Shipping Details
                 </span>
-                {isAuthenticated && savedAddresses.length > 0 && selectedAddressId !== "new" && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleSelectNewAddress}
-                    className="h-7 text-xs gap-1 text-primary cursor-pointer"
-                  >
-                    <Plus className="size-3.5" />
-                    New address
-                  </Button>
-                )}
+                {isAuthenticated &&
+                  savedAddresses.length > 0 &&
+                  selectedAddressId !== "new" && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSelectNewAddress}
+                      className="h-7 text-xs gap-1 text-primary cursor-pointer"
+                    >
+                      <Plus className="size-3.5" />
+                      New address
+                    </Button>
+                  )}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -530,7 +541,9 @@ export function CheckoutView() {
               )}
 
               {/* Email stays editable: it isn't part of a saved address. */}
-              {isAuthenticated && selectedAddressId !== "new" && !editingAddress ? (
+              {isAuthenticated &&
+              selectedAddressId !== "new" &&
+              !editingAddress ? (
                 <div className="space-y-4">
                   <div className="flex items-start justify-between gap-3 rounded-xl border bg-muted/30 p-4">
                     <div className="min-w-0">
@@ -594,7 +607,9 @@ export function CheckoutView() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="phone">Phone Number (M-Pesa / Delivery)</Label>
+                    <Label htmlFor="phone">
+                      Phone Number (M-Pesa / Delivery)
+                    </Label>
                     <Input
                       id="phone"
                       type="tel"
@@ -633,7 +648,9 @@ export function CheckoutView() {
                   </div>
 
                   <div className="space-y-1.5 sm:col-span-2">
-                    <Label htmlFor="address">Street Address / House / Building</Label>
+                    <Label htmlFor="address">
+                      Street Address / House / Building
+                    </Label>
                     <Input
                       id="address"
                       required
@@ -656,19 +673,21 @@ export function CheckoutView() {
                       </span>
                     </label>
                   )}
-                  {isAuthenticated && selectedAddressId === "new" && saveToAccount && (
-                    <label className="flex items-center gap-2 sm:col-span-2 cursor-pointer pl-6">
-                      <input
-                        type="checkbox"
-                        checked={saveAsDefault}
-                        onChange={(e) => setSaveAsDefault(e.target.checked)}
-                        className="size-4 accent-primary"
-                      />
-                      <span className="text-sm text-muted-foreground">
-                        Set as my default address
-                      </span>
-                    </label>
-                  )}
+                  {isAuthenticated &&
+                    selectedAddressId === "new" &&
+                    saveToAccount && (
+                      <label className="flex items-center gap-2 sm:col-span-2 cursor-pointer pl-6">
+                        <input
+                          type="checkbox"
+                          checked={saveAsDefault}
+                          onChange={(e) => setSaveAsDefault(e.target.checked)}
+                          className="size-4 accent-primary"
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          Set as my default address
+                        </span>
+                      </label>
+                    )}
                 </div>
               )}
             </CardContent>
@@ -696,7 +715,9 @@ export function CheckoutView() {
                     <Banknote className="size-5" />
                   </div>
                   <div>
-                    <div className="font-medium text-foreground">Cash on Delivery</div>
+                    <div className="font-medium text-foreground">
+                      Cash on Delivery
+                    </div>
                     <div className="text-xs text-muted-foreground">
                       Pay with cash or M-Pesa upon receiving your order
                     </div>
@@ -719,11 +740,16 @@ export function CheckoutView() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-foreground">Lipa na M-Pesa</span>
-                      <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600">STK Push</span>
+                      <span className="font-medium text-foreground">
+                        Lipa na M-Pesa
+                      </span>
+                      <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600">
+                        STK Push
+                      </span>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Prompt sent to your Safaricom phone ({phone || "your number"})
+                      Prompt sent to your Safaricom phone (
+                      {phone || "your number"})
                     </div>
                   </div>
                 </div>

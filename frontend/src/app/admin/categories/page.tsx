@@ -189,7 +189,9 @@ export default function AdminCategoriesPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{category.name}</p>
+                    <p className="truncate text-sm font-medium">
+                      {category.name}
+                    </p>
                     <p className="truncate text-[11px] text-muted-foreground">
                       /categories/{category.slug}
                     </p>
@@ -247,9 +249,14 @@ export default function AdminCategoriesPage() {
               </TableHeader>
               <TableBody>
                 {categories.map((category) => (
-                  <TableRow key={category.id} className="transition-colors hover:bg-muted/50">
+                  <TableRow
+                    key={category.id}
+                    className="transition-colors hover:bg-muted/50"
+                  >
                     <TableCell className="truncate">
-                      <p className="truncate text-sm font-medium">{category.name}</p>
+                      <p className="truncate text-sm font-medium">
+                        {category.name}
+                      </p>
                       <p className="truncate text-[11px] text-muted-foreground">
                         /categories/{category.slug}
                       </p>
@@ -304,7 +311,10 @@ export default function AdminCategoriesPage() {
         </>
       )}
 
-      <Dialog open={form !== null} onOpenChange={(open) => !open && closeForm()}>
+      <Dialog
+        open={form !== null}
+        onOpenChange={(open) => !open && closeForm()}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
@@ -372,7 +382,11 @@ export default function AdminCategoriesPage() {
               Cancel
             </Button>
             <Button onClick={() => void save()} disabled={saving}>
-              {saving ? "Saving…" : form?.id ? "Save changes" : "Create category"}
+              {saving
+                ? "Saving…"
+                : form?.id
+                  ? "Save changes"
+                  : "Create category"}
             </Button>
           </DialogFooter>
         </DialogContent>

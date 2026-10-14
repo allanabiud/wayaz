@@ -84,8 +84,10 @@
   --chart-4: #991b1b; /* maroon */
   --chart-5: #71717a; /* grey */
   --radius: 0.375rem;
-  --shadow-card: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06);
-  --shadow-card-hover: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.06);
+  --shadow-card:
+    0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06);
+  --shadow-card-hover:
+    0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.06);
   --sidebar: #fafafa;
   --sidebar-foreground: #000000;
   --sidebar-primary: #e00613;
@@ -127,8 +129,10 @@
   --chart-3: #d9b968; /* gold */
   --chart-4: #f87171; /* maroon lifted for dark card */
   --chart-5: #71717a; /* grey */
-  --shadow-card: 0 4px 6px -1px rgb(0 0 0 / 0.45), 0 2px 4px -2px rgb(0 0 0 / 0.35);
-  --shadow-card-hover: 0 10px 15px -3px rgb(0 0 0 / 0.55), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+  --shadow-card:
+    0 4px 6px -1px rgb(0 0 0 / 0.45), 0 2px 4px -2px rgb(0 0 0 / 0.35);
+  --shadow-card-hover:
+    0 10px 15px -3px rgb(0 0 0 / 0.55), 0 4px 6px -4px rgb(0 0 0 / 0.4);
   --sidebar: #18191c;
   --sidebar-foreground: #ffffff;
   --sidebar-primary: #e00613;

@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { Star } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -239,7 +245,10 @@ export function ProductReviews({
       ) : reviews === null ? (
         <div className="mt-6 space-y-3" aria-hidden="true">
           {[0, 1, 2].map((row) => (
-            <div key={row} className="h-20 animate-pulse rounded-2xl bg-muted" />
+            <div
+              key={row}
+              className="h-20 animate-pulse rounded-2xl bg-muted"
+            />
           ))}
         </div>
       ) : reviews.length === 0 ? (

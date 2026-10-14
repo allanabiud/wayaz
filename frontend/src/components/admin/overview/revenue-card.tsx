@@ -3,12 +3,23 @@
 import { Coins } from "lucide-react";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { formatKsh } from "@/lib/store-api";
 import type { RevenuePoint, RevenueSummary, TimeMetric } from "@/lib/types";
 import { formatCompact, formatDay } from "@/components/admin/overview/format";
 import { Delta, RevenueTooltip } from "@/components/admin/overview/tooltips";
-import { ChartEmptyState, SegmentedControl } from "@/components/admin/overview/parts";
+import {
+  ChartEmptyState,
+  SegmentedControl,
+} from "@/components/admin/overview/parts";
 
 export type PeriodTab = "today" | "week" | "month";
 
@@ -88,13 +99,23 @@ export function RevenueCard({
                 <defs>
                   <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#e00613" stopOpacity={0.38} />
-                    <stop offset="100%" stopColor="#e00613" stopOpacity={0.01} />
+                    <stop
+                      offset="100%"
+                      stopColor="#e00613"
+                      stopOpacity={0.01}
+                    />
                   </linearGradient>
                 </defs>
-                <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
+                <CartesianGrid
+                  vertical={false}
+                  stroke="var(--border)"
+                  strokeDasharray="3 3"
+                />
                 <XAxis
                   dataKey="date"
-                  tickFormatter={(d: string) => (d.includes(":") ? d : formatDay(d))}
+                  tickFormatter={(d: string) =>
+                    d.includes(":") ? d : formatDay(d)
+                  }
                   minTickGap={32}
                   tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                   tickLine={false}
@@ -107,14 +128,22 @@ export function RevenueCard({
                   axisLine={false}
                   width={44}
                 />
-                <Tooltip cursor={{ stroke: "var(--border)" }} content={<RevenueTooltip />} />
+                <Tooltip
+                  cursor={{ stroke: "var(--border)" }}
+                  content={<RevenueTooltip />}
+                />
                 <Area
                   type="monotone"
                   dataKey="revenue"
                   stroke="#e00613"
                   strokeWidth={2.5}
                   fill="url(#revenueFill)"
-                  activeDot={{ r: 4, stroke: "#e00613", strokeWidth: 2, fill: "#fff" }}
+                  activeDot={{
+                    r: 4,
+                    stroke: "#e00613",
+                    strokeWidth: 2,
+                    fill: "#fff",
+                  }}
                 />
               </AreaChart>
             </ResponsiveContainer>

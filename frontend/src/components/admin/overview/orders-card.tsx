@@ -3,12 +3,24 @@
 import { ClipboardList } from "lucide-react";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import type { OrderPoint, RevenueSummary, TimeMetric } from "@/lib/types";
 import { formatDay } from "@/components/admin/overview/format";
 import { Delta, OrdersTooltip } from "@/components/admin/overview/tooltips";
 import { ChartEmptyState } from "@/components/admin/overview/parts";
-import { PeriodTabs, PERIOD_LABELS, type PeriodTab } from "@/components/admin/overview/revenue-card";
+import {
+  PeriodTabs,
+  PERIOD_LABELS,
+  type PeriodTab,
+} from "@/components/admin/overview/revenue-card";
 
 export function OrdersCard({
   period,
@@ -60,10 +72,16 @@ export function OrdersCard({
                 data={series}
                 margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
               >
-                <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
+                <CartesianGrid
+                  vertical={false}
+                  stroke="var(--border)"
+                  strokeDasharray="3 3"
+                />
                 <XAxis
                   dataKey="date"
-                  tickFormatter={(d: string) => (d.includes(":") ? d : formatDay(d))}
+                  tickFormatter={(d: string) =>
+                    d.includes(":") ? d : formatDay(d)
+                  }
                   minTickGap={32}
                   tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                   tickLine={false}

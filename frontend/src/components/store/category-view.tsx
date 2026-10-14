@@ -81,7 +81,9 @@ export function CategoryView({
       {products.length === 0 ? (
         <div className="mt-8">
           <EmptyState
-            title={filtered ? "No items match those filters" : "Nothing here yet"}
+            title={
+              filtered ? "No items match those filters" : "Nothing here yet"
+            }
             hint={
               filtered
                 ? "Try widening the price range, or clear the filters to see everything."
@@ -114,7 +116,6 @@ export function CategoryView({
               // First row (up to 4 on desktop) is this page's LCP candidate.
               eager={index < 4}
               onAdd={(p) => void addProduct(p)}
-
             />
           ))}
         </div>

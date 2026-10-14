@@ -405,5 +405,3 @@ export interface StoreSettings {
   mpesa_shortcode: string;
   updated_at?: string;
 }
-
-

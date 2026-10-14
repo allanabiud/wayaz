@@ -10,7 +10,10 @@ export function ErrorState({
 }) {
   return (
     <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-8 text-center">
-      <AlertCircle className="mx-auto mb-3 h-8 w-8 text-destructive" aria-hidden />
+      <AlertCircle
+        className="mx-auto mb-3 h-8 w-8 text-destructive"
+        aria-hidden
+      />
       <p className="text-sm font-medium">{message}</p>
       {onRetry && (
         <Button variant="outline" size="sm" className="mt-4" onClick={onRetry}>
@@ -33,7 +36,10 @@ export function EmptyState({
 }) {
   return (
     <div className="rounded-2xl border border-dashed px-4 py-12 text-center">
-      <PackageOpen className="mx-auto mb-3 h-8 w-8 text-muted-foreground" aria-hidden />
+      <PackageOpen
+        className="mx-auto mb-3 h-8 w-8 text-muted-foreground"
+        aria-hidden
+      />
       <p className="text-sm font-medium">{title}</p>
       {hint && <p className="mt-1 text-sm text-muted-foreground">{hint}</p>}
       {action && <div className="mt-4">{action}</div>}

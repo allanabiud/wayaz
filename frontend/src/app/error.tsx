@@ -28,8 +28,8 @@ export default function RouteError({
         Something went wrong
       </h1>
       <p className="mt-2 max-w-md text-sm text-muted-foreground">
-        An unexpected error occurred while loading this page. Your cart is
-        safe - please try again, or head back to the store.
+        An unexpected error occurred while loading this page. Your cart is safe
+        - please try again, or head back to the store.
       </p>
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <Button onClick={retry} className="bg-emerald-600 hover:bg-emerald-700">

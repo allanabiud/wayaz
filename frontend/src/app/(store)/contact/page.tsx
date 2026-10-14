@@ -18,7 +18,8 @@ export default function ContactPage() {
           Contact Us
         </h1>
         <p className="mt-3 text-sm text-muted-foreground sm:text-base">
-          Have a question about an order, styling advice, or wholesale inquiries? Send us a message or reach out via our direct lines below.
+          Have a question about an order, styling advice, or wholesale
+          inquiries? Send us a message or reach out via our direct lines below.
         </p>
       </div>
 

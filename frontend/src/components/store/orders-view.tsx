@@ -227,7 +227,9 @@ function OrderCard({
           </div>
           <div className="flex justify-between gap-3 text-sm font-semibold text-foreground">
             <dt>Total</dt>
-            <dd className="tabular-nums">Ksh {formatKsh(order.total_amount)}</dd>
+            <dd className="tabular-nums">
+              Ksh {formatKsh(order.total_amount)}
+            </dd>
           </div>
         </dl>
 
@@ -281,12 +283,12 @@ export function OrdersView() {
   }, [printingId]);
 
   // Skips the network while signed out; fetches once isAuthenticated flips.
-  const { data, error, loading, refetch } = useQuery<
-    Paginated<StoreOrder> | null
-  >(
-    () => (isAuthenticated ? fetchOrders(page, PAGE_SIZE) : Promise.resolve(null)),
-    [page, isAuthenticated],
-  );
+  const { data, error, loading, refetch } =
+    useQuery<Paginated<StoreOrder> | null>(
+      () =>
+        isAuthenticated ? fetchOrders(page, PAGE_SIZE) : Promise.resolve(null),
+      [page, isAuthenticated],
+    );
 
   const orders = data?.results ?? [];
   const totalPages = Math.max(1, Math.ceil((data?.count ?? 0) / PAGE_SIZE));

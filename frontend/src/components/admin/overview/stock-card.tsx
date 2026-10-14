@@ -37,7 +37,9 @@ export function StockByCategoryCard({
         </div>
         <p className="text-2xl font-bold tracking-tight tabular-nums sm:text-3xl">
           <AnimatedNumber value={totalStockUnits} />
-          <span className="ml-1.5 text-sm font-medium text-muted-foreground">units</span>
+          <span className="ml-1.5 text-sm font-medium text-muted-foreground">
+            units
+          </span>
         </p>
       </CardHeader>
       <CardContent>
@@ -78,7 +80,8 @@ export function StockByCategoryCard({
                   <span
                     className="size-2.5 shrink-0 rounded-full"
                     style={{
-                      backgroundColor: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+                      backgroundColor:
+                        CATEGORY_COLORS[index % CATEGORY_COLORS.length],
                     }}
                   />
                   <span className="min-w-0 flex-1 truncate text-muted-foreground">

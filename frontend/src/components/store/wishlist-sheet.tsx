@@ -27,7 +27,6 @@ export function WishlistSheet({
   total,
   onToggle,
 }: WishlistSheetProps) {
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="gap-0">

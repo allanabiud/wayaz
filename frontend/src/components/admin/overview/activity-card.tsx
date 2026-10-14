@@ -39,15 +39,17 @@ function TimelineItem({ item }: { item: RecentActivity }) {
             {timeAgo(item.at)}
           </time>
         </div>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          {item.detail}
-        </p>
+        <p className="text-xs text-muted-foreground mt-0.5">{item.detail}</p>
       </div>
     </div>
   );
 }
 
-export function RecentActivityCard({ activity }: { activity: RecentActivity[] }) {
+export function RecentActivityCard({
+  activity,
+}: {
+  activity: RecentActivity[];
+}) {
   return (
     <Card className="transition-shadow">
       <CardHeader className="pb-3 border-b">

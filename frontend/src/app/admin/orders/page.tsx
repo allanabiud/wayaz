@@ -91,11 +91,17 @@ export default function AdminOrdersPage() {
   }
 
   const { data, error, loading, refetch } = useQuery<AdminOrdersResponse>(
-    () => api.get<AdminOrdersResponse>(`/api/v1/admin/orders/?${queryParams.toString()}`),
+    () =>
+      api.get<AdminOrdersResponse>(
+        `/api/v1/admin/orders/?${queryParams.toString()}`,
+      ),
     [page, statusFilter, search],
   );
 
-  const handleStatusChange = async (orderNumber: string, nextStatus: string) => {
+  const handleStatusChange = async (
+    orderNumber: string,
+    nextStatus: string,
+  ) => {
     setUpdatingStatus(true);
     try {
       await api.patch(`/api/v1/admin/orders/${orderNumber}/`, {
@@ -106,7 +112,9 @@ export default function AdminOrdersPage() {
       );
       if (selectedOrder && selectedOrder.order_number === orderNumber) {
         setSelectedOrder((prev) =>
-          prev ? { ...prev, status: nextStatus, status_display: nextStatus } : null,
+          prev
+            ? { ...prev, status: nextStatus, status_display: nextStatus }
+            : null,
         );
       }
       refetch();
@@ -159,7 +167,11 @@ export default function AdminOrdersPage() {
             </SelectTrigger>
             <SelectContent>
               {STATUS_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                <SelectItem
+                  key={opt.value}
+                  value={opt.value}
+                  className="text-xs"
+                >
                   {opt.label}
                 </SelectItem>
               ))}
@@ -194,7 +206,11 @@ export default function AdminOrdersPage() {
 
       {data && data.results.length === 0 && (
         <EmptyState
-          title={search || statusFilter !== "all" ? "No matching orders" : "No orders yet"}
+          title={
+            search || statusFilter !== "all"
+              ? "No matching orders"
+              : "No orders yet"
+          }
           hint={
             search || statusFilter !== "all"
               ? "Try adjusting your search query or status filter."
@@ -209,12 +225,24 @@ export default function AdminOrdersPage() {
             <Table className="table-fixed">
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableHead className="w-[20%] font-semibold text-xs">Order</TableHead>
-                  <TableHead className="w-[24%] font-semibold text-xs">Customer</TableHead>
-                  <TableHead className="w-[16%] font-semibold text-xs">Status</TableHead>
-                  <TableHead className="w-[14%] font-semibold text-xs">Payment</TableHead>
-                  <TableHead className="w-[12%] font-semibold text-xs text-right">Total</TableHead>
-                  <TableHead className="w-[14%] font-semibold text-xs text-right">Date</TableHead>
+                  <TableHead className="w-[20%] font-semibold text-xs">
+                    Order
+                  </TableHead>
+                  <TableHead className="w-[24%] font-semibold text-xs">
+                    Customer
+                  </TableHead>
+                  <TableHead className="w-[16%] font-semibold text-xs">
+                    Status
+                  </TableHead>
+                  <TableHead className="w-[14%] font-semibold text-xs">
+                    Payment
+                  </TableHead>
+                  <TableHead className="w-[12%] font-semibold text-xs text-right">
+                    Total
+                  </TableHead>
+                  <TableHead className="w-[14%] font-semibold text-xs text-right">
+                    Date
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -230,7 +258,8 @@ export default function AdminOrdersPage() {
                           {order.order_number}
                         </span>
                         <p className="text-xs text-muted-foreground">
-                          {order.item_count} item{order.item_count === 1 ? "" : "s"}
+                          {order.item_count} item
+                          {order.item_count === 1 ? "" : "s"}
                         </p>
                       </div>
                     </TableCell>
@@ -246,7 +275,9 @@ export default function AdminOrdersPage() {
 
                     <TableCell>
                       <Badge
-                        variant={STATUS_BADGE_VARIANT[order.status] ?? "secondary"}
+                        variant={
+                          STATUS_BADGE_VARIANT[order.status] ?? "secondary"
+                        }
                         className="text-xs font-medium"
                       >
                         {order.status_display}
@@ -287,7 +318,9 @@ export default function AdminOrdersPage() {
                     <span className="font-semibold text-sm tabular-nums">
                       {order.order_number}
                     </span>
-                    <p className="text-xs text-muted-foreground">{order.customer}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {order.customer}
+                    </p>
                   </div>
                   <Badge
                     variant={STATUS_BADGE_VARIANT[order.status] ?? "secondary"}
@@ -360,7 +393,10 @@ export default function AdminOrdersPage() {
                     size="sm"
                     disabled={updatingStatus}
                     onClick={() =>
-                      handleStatusChange(selectedOrder.order_number, "CONFIRMED")
+                      handleStatusChange(
+                        selectedOrder.order_number,
+                        "CONFIRMED",
+                      )
                     }
                     className="gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
                   >
@@ -377,9 +413,13 @@ export default function AdminOrdersPage() {
                   <Button
                     key={st}
                     size="xs"
-                    variant={selectedOrder.status === st ? "default" : "outline"}
+                    variant={
+                      selectedOrder.status === st ? "default" : "outline"
+                    }
                     disabled={updatingStatus || selectedOrder.status === st}
-                    onClick={() => handleStatusChange(selectedOrder.order_number, st)}
+                    onClick={() =>
+                      handleStatusChange(selectedOrder.order_number, st)
+                    }
                     className="text-xs cursor-pointer"
                   >
                     {STATUS_LABELS[st]}
@@ -397,7 +437,9 @@ export default function AdminOrdersPage() {
                   {selectedOrder.customer}
                 </p>
                 <p className="text-muted-foreground">{selectedOrder.email}</p>
-                <p className="text-muted-foreground">{selectedOrder.phone_number}</p>
+                <p className="text-muted-foreground">
+                  {selectedOrder.phone_number}
+                </p>
               </div>
 
               <div className="rounded-xl border p-3">

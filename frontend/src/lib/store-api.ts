@@ -75,10 +75,7 @@ export interface Cart {
 }
 
 export type OrderStatus =
-  | "PROCESSING"
-  | "CONFIRMED"
-  | "DELIVERED"
-  | "CANCELLED";
+  "PROCESSING" | "CONFIRMED" | "DELIVERED" | "CANCELLED";
 
 interface StoreOrderItem {
   id: number;
@@ -131,8 +128,12 @@ export interface ProductRatingSummary {
   user_rating: number | null;
 }
 
-export function fetchProductRating(slug: string): Promise<ProductRatingSummary> {
-  return api.get(`/api/v1/catalog/products/${encodeURIComponent(slug)}/review/`);
+export function fetchProductRating(
+  slug: string,
+): Promise<ProductRatingSummary> {
+  return api.get(
+    `/api/v1/catalog/products/${encodeURIComponent(slug)}/review/`,
+  );
 }
 
 export interface ProductReview {
@@ -162,7 +163,10 @@ export function submitProductRating(
 ): Promise<ProductRatingSummary> {
   const body: { rating: number; comment?: string } = { rating };
   if (comment !== undefined) body.comment = comment;
-  return api.post(`/api/v1/catalog/products/${encodeURIComponent(slug)}/review/`, body);
+  return api.post(
+    `/api/v1/catalog/products/${encodeURIComponent(slug)}/review/`,
+    body,
+  );
 }
 
 export function formatKsh(value: string | number): string {
@@ -212,7 +216,9 @@ export function cartWhatsappLink(cart: Cart, customNumber?: string): string {
   );
 }
 
-export async function fetchStoreSettings(): Promise<import("./types").StoreSettings> {
+export async function fetchStoreSettings(): Promise<
+  import("./types").StoreSettings
+> {
   return api.get<import("./types").StoreSettings>("/api/v1/catalog/settings/");
 }
 
@@ -257,7 +263,10 @@ export function addToCart(
     .then(rememberCart);
 }
 
-export function updateCartItem(item_id: number, quantity: number): Promise<Cart> {
+export function updateCartItem(
+  item_id: number,
+  quantity: number,
+): Promise<Cart> {
   return api
     .patch<Cart>(
       `/api/v1/orders/cart/items/${item_id}/`,
@@ -335,7 +344,9 @@ export function fetchAutoCoupon(): Promise<CouponValidation | null> {
     );
 }
 
-export function submitCheckout(payload: CheckoutPayload): Promise<CheckoutOrder> {
+export function submitCheckout(
+  payload: CheckoutPayload,
+): Promise<CheckoutOrder> {
   return api
     .post<CheckoutOrder>("/api/v1/orders/checkout/", payload, {
       headers: cartHeaders(),
@@ -496,7 +507,8 @@ function readSearchHistory(): string[] {
     if (!Array.isArray(parsed)) return [];
     return parsed
       .filter(
-        (term): term is string => typeof term === "string" && term.trim() !== "",
+        (term): term is string =>
+          typeof term === "string" && term.trim() !== "",
       )
       .slice(0, SEARCH_LIMIT);
   } catch {
@@ -605,9 +617,15 @@ let cachedCatalogTime = 0;
 let catalogInFlight: Promise<StorefrontCatalog> | null = null;
 const CATALOG_CACHE_TTL_MS = 60_000;
 
-export function fetchStorefrontCatalog(forceRefresh = false): Promise<StorefrontCatalog> {
+export function fetchStorefrontCatalog(
+  forceRefresh = false,
+): Promise<StorefrontCatalog> {
   const now = Date.now();
-  if (!forceRefresh && cachedCatalog && now - cachedCatalogTime < CATALOG_CACHE_TTL_MS) {
+  if (
+    !forceRefresh &&
+    cachedCatalog &&
+    now - cachedCatalogTime < CATALOG_CACHE_TTL_MS
+  ) {
     return Promise.resolve(cachedCatalog);
   }
   if (!forceRefresh && catalogInFlight) {
@@ -623,7 +641,8 @@ export function fetchStorefrontCatalog(forceRefresh = false): Promise<Storefront
       const products: StoreProduct[] = [];
       let path: string | null = "/api/v1/catalog/products/?page_size=100";
       for (let guard = 0; path !== null && guard < 10; guard += 1) {
-        const page: Paginated<StoreProduct> = await api.get<Paginated<StoreProduct>>(path);
+        const page: Paginated<StoreProduct> =
+          await api.get<Paginated<StoreProduct>>(path);
         products.push(...page.results);
         if (page.next) {
           const nextUrl = new URL(page.next);
@@ -633,7 +652,10 @@ export function fetchStorefrontCatalog(forceRefresh = false): Promise<Storefront
         }
       }
 
-      const result: StorefrontCatalog = { categories: categories.results, products };
+      const result: StorefrontCatalog = {
+        categories: categories.results,
+        products,
+      };
       cachedCatalog = result;
       cachedCatalogTime = Date.now();
       return result;

@@ -16,13 +16,17 @@ interface Paginated {
 
 /** Fetch every page of a paginated catalog endpoint, bounded so a backend
  *  quirk can't make the sitemap loop forever. */
-async function fetchAllSlugs(path: string, maxPages = 20): Promise<SlugPayload[]> {
+async function fetchAllSlugs(
+  path: string,
+  maxPages = 20,
+): Promise<SlugPayload[]> {
   const slugs: SlugPayload[] = [];
   let url: string | null = `${SERVER_API_URL}${path}`;
 
   for (let page = 0; url && page < maxPages; page += 1) {
     const res = await fetch(url, { next: { revalidate: 3600 } });
-    if (!res.ok) throw new Error(`Catalog fetch failed (${res.status}): ${url}`);
+    if (!res.ok)
+      throw new Error(`Catalog fetch failed (${res.status}): ${url}`);
     const data = (await res.json()) as Paginated;
     slugs.push(...(data.results ?? []));
     url = data.next ?? null;
@@ -58,9 +62,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     for (const category of categories) {
       entries.push({
         url: `${SITE_URL}/categories/${category.slug}`,
-        lastModified: category.updated_at
-          ? new Date(category.updated_at)
-          : now,
+        lastModified: category.updated_at ? new Date(category.updated_at) : now,
         changeFrequency: "weekly",
         priority: 0.7,
       });
@@ -74,7 +76,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       });
     }
   } catch (err) {
-    console.error("Sitemap: catalog fetch failed, emitting static routes only", err);
+    console.error(
+      "Sitemap: catalog fetch failed, emitting static routes only",
+      err,
+    );
   }
 
   return entries;

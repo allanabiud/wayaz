@@ -33,7 +33,8 @@ export function OverviewHero({
       <div
         className="pointer-events-none absolute inset-0 opacity-20"
         style={{
-          backgroundImage: "radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px)",
+          backgroundImage:
+            "radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px)",
           backgroundSize: "22px 22px",
         }}
       />
@@ -70,7 +71,12 @@ export function OverviewHero({
             >
               <Link href="/admin/analytics">View Analytics</Link>
             </Button>
-            <Button asChild variant="secondary" size="sm" className="h-8 text-xs font-semibold">
+            <Button
+              asChild
+              variant="secondary"
+              size="sm"
+              className="h-8 text-xs font-semibold"
+            >
               <Link href="/admin/products">Manage Products</Link>
             </Button>
           </div>

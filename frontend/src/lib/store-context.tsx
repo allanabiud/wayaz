@@ -133,7 +133,9 @@ export function StoreProvider({
     if (!isAuthenticated) return;
     const guestId = storedCartId();
     if (!guestId) {
-      fetchCart().then(setCart).catch(() => {});
+      fetchCart()
+        .then(setCart)
+        .catch(() => {});
       return;
     }
 
@@ -143,7 +145,9 @@ export function StoreProvider({
         setCart(merged);
       })
       .catch(() => {
-        fetchCart().then(setCart).catch(() => {});
+        fetchCart()
+          .then(setCart)
+          .catch(() => {});
       });
   }, [isAuthenticated]);
 
@@ -228,9 +232,7 @@ export function StoreProvider({
         toast.success("Quantity updated", { description: product.title });
       } catch (err) {
         toast.error(
-          err instanceof ApiError
-            ? err.message
-            : "Could not update quantity.",
+          err instanceof ApiError ? err.message : "Could not update quantity.",
         );
       } finally {
         setBumpingId(null);
@@ -295,7 +297,10 @@ export function StoreProvider({
     [cart],
   );
 
-  const wishlist = useMemo(() => new Set(activeWishlistIds), [activeWishlistIds]);
+  const wishlist = useMemo(
+    () => new Set(activeWishlistIds),
+    [activeWishlistIds],
+  );
 
   const wishlistProducts = useMemo(() => {
     if (!catalog) return [];

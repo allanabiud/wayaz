@@ -59,15 +59,55 @@ const navGroups: NavGroup[] = [
   {
     label: "Management",
     items: [
-      { title: "Orders", icon: ClipboardList, href: "/admin/orders", countKey: "orders" },
-      { title: "Products", icon: ShoppingBag, href: "/admin/products", countKey: "products" },
-      { title: "Categories", icon: Tags, href: "/admin/categories", countKey: "categories" },
-      { title: "Reviews", icon: MessageSquare, href: "/admin/reviews", countKey: "reviews" },
-      { title: "Messages", icon: Mail, href: "/admin/messages", countKey: "messages" },
-      { title: "Coupons", icon: Ticket, href: "/admin/coupons", countKey: "coupons" },
-      { title: "Payments", icon: CreditCard, href: "/admin/payments", countKey: "payments" },
+      {
+        title: "Orders",
+        icon: ClipboardList,
+        href: "/admin/orders",
+        countKey: "orders",
+      },
+      {
+        title: "Products",
+        icon: ShoppingBag,
+        href: "/admin/products",
+        countKey: "products",
+      },
+      {
+        title: "Categories",
+        icon: Tags,
+        href: "/admin/categories",
+        countKey: "categories",
+      },
+      {
+        title: "Reviews",
+        icon: MessageSquare,
+        href: "/admin/reviews",
+        countKey: "reviews",
+      },
+      {
+        title: "Messages",
+        icon: Mail,
+        href: "/admin/messages",
+        countKey: "messages",
+      },
+      {
+        title: "Coupons",
+        icon: Ticket,
+        href: "/admin/coupons",
+        countKey: "coupons",
+      },
+      {
+        title: "Payments",
+        icon: CreditCard,
+        href: "/admin/payments",
+        countKey: "payments",
+      },
       { title: "Team", icon: UserCog, href: "/admin/team", countKey: "team" },
-      { title: "Customers", icon: Users, href: "/admin/customers", countKey: "customers" },
+      {
+        title: "Customers",
+        icon: Users,
+        href: "/admin/customers",
+        countKey: "customers",
+      },
     ],
   },
   {
@@ -102,14 +142,14 @@ export function AppSidebar() {
     ) : null;
 
   return (
-    <Sidebar collapsible="none" className="border-r border-sidebar-border bg-sidebar">
+    <Sidebar
+      collapsible="none"
+      className="border-r border-sidebar-border bg-sidebar"
+    >
       {/* Height = logo's natural aspect at sidebar width, matching the
           page header. */}
       <SidebarHeader className="h-[calc(var(--sidebar-width)*362/1600)] border-b border-sidebar-border p-0">
-        <Link
-          href="/admin"
-          className="block h-full w-full outline-none"
-        >
+        <Link href="/admin" className="block h-full w-full outline-none">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={settings?.logo_url || "/wayaz_logo.jpeg"}
@@ -128,11 +168,13 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {group.items.map((item) => {
-                  const isActive = Boolean(item.href) && !item.comingSoon
-                    ? item.exact
-                      ? pathname === item.href
-                      : pathname === item.href || pathname.startsWith(`${item.href}/`)
-                    : false;
+                  const isActive =
+                    Boolean(item.href) && !item.comingSoon
+                      ? item.exact
+                        ? pathname === item.href
+                        : pathname === item.href ||
+                          pathname.startsWith(`${item.href}/`)
+                      : false;
 
                   return (
                     <SidebarMenuItem key={item.title}>
@@ -143,7 +185,9 @@ export function AppSidebar() {
                           className={itemClassName}
                         >
                           <item.icon className="size-4 shrink-0" />
-                          <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                          <span className="min-w-0 flex-1 truncate">
+                            {item.title}
+                          </span>
                           {renderCount(item)}
                         </SidebarMenuButton>
                       ) : (
@@ -155,7 +199,9 @@ export function AppSidebar() {
                         >
                           <Link href={item.href!}>
                             <item.icon className="size-4 shrink-0" />
-                            <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                            <span className="min-w-0 flex-1 truncate">
+                              {item.title}
+                            </span>
                             {renderCount(item)}
                           </Link>
                         </SidebarMenuButton>

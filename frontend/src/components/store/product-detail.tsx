@@ -203,8 +203,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
       .slice(0, 4);
   }, [catalog, categorySlug, product.id]);
 
-  const canAdd =
-    !adding && sizeChosen && (sizeInCart || product.is_in_stock);
+  const canAdd = !adding && sizeChosen && (sizeInCart || product.is_in_stock);
   const addLabel = adding
     ? "Adding…"
     : !sizeChosen
@@ -553,10 +552,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
             <Button
               size="lg"
               variant="outline"
-              className={cn(
-                "mt-5 w-full gap-2 sm:mt-6",
-                "restock-button",
-              )}
+              className={cn("mt-5 w-full gap-2 sm:mt-6", "restock-button")}
               onClick={() => setNotifyOpen(true)}
             >
               <BellRing className="size-4" />
@@ -687,7 +683,6 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 adding={addingId === item.id}
                 inCart={cartProductIds.has(item.id)}
                 onAdd={(p) => void addProduct(p)}
-
               />
             ))}
           </div>
