@@ -1,7 +1,8 @@
-import uuid
-from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
+from rest_framework import serializers
+
 from catalog.models import Product
+
 from .delivery import DELIVERY_ZONES
 from .models import Cart, CartItem, Order, OrderItem
 
@@ -67,9 +68,7 @@ class CartItemSerializer(serializers.ModelSerializer):
 class CartSerializer(serializers.ModelSerializer):
     items = CartItemSerializer(many=True, read_only=True)
     total_items = serializers.IntegerField(read_only=True)
-    subtotal = serializers.DecimalField(
-        max_digits=10, decimal_places=2, read_only=True
-    )
+    subtotal = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = Cart
@@ -94,7 +93,7 @@ class AddToCartSerializer(serializers.Serializer):
         try:
             product = Product.objects.get(id=value)
         except Product.DoesNotExist:
-            raise serializers.ValidationError("Product does not exist.")
+            raise serializers.ValidationError("Product does not exist.") from None
 
         if product.stock_quantity <= 0:
             raise serializers.ValidationError("This product is currently out of stock.")
@@ -144,7 +143,9 @@ class UpdateCartItemSerializer(serializers.Serializer):
                 product = Product.objects.get(id=attrs["product_id"])
                 attrs["product_obj"] = product
             except Product.DoesNotExist:
-                raise serializers.ValidationError({"product_id": "Product does not exist."})
+                raise serializers.ValidationError(
+                    {"product_id": "Product does not exist."}
+                ) from None
 
         return attrs
 
@@ -157,9 +158,7 @@ class CouponValidateSerializer(serializers.Serializer):
     """Dry-run request for CouponValidateView; no cart maths here. Omitting
     the code asks for the best auto-applying coupon instead."""
 
-    code = serializers.CharField(
-        max_length=40, required=False, allow_blank=True
-    )
+    code = serializers.CharField(max_length=40, required=False, allow_blank=True)
 
 
 class CheckoutSerializer(serializers.Serializer):
@@ -185,9 +184,7 @@ class CheckoutSerializer(serializers.Serializer):
     # Validated against the Coupon table in the checkout transaction, so a
     # client cannot forge a discount. Key absent = no opinion (auto-apply
     # may claim the order); blank string = shopper explicitly wants none.
-    coupon_code = serializers.CharField(
-        max_length=40, required=False, allow_blank=True
-    )
+    coupon_code = serializers.CharField(max_length=40, required=False, allow_blank=True)
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -218,9 +215,7 @@ class OrderSerializer(serializers.ModelSerializer):
     coupon_code = serializers.SerializerMethodField()
     item_count = serializers.IntegerField(read_only=True)
     # Human-readable labels so the storefront never re-learns backend choices.
-    status_display = serializers.CharField(
-        source="get_status_display", read_only=True
-    )
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
     payment_method_display = serializers.CharField(
         source="get_payment_method_display", read_only=True
     )

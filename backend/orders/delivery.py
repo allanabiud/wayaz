@@ -1,5 +1,6 @@
 """Kenyan delivery zones and fees; orders at or above
 FREE_DELIVERY_THRESHOLD ship free."""
+
 from decimal import Decimal
 
 FREE_DELIVERY_THRESHOLD = Decimal("5000.00")

@@ -1,4 +1,5 @@
 from django.db import models
+
 from orders.models import Order
 
 
@@ -16,7 +17,9 @@ class PaymentTransaction(models.Model):
     checkout_request_id = models.CharField(max_length=100, unique=True, db_index=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     phone_number = models.CharField(max_length=20)
-    mpesa_receipt_number = models.CharField(max_length=50, blank=True, null=True, db_index=True)
+    mpesa_receipt_number = models.CharField(
+        max_length=50, blank=True, null=True, db_index=True
+    )
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True
     )

@@ -3,6 +3,7 @@ import logging
 import uuid
 from datetime import datetime
 from decimal import Decimal
+
 import requests
 from django.conf import settings
 from django.core.cache import cache
@@ -23,6 +24,7 @@ def get_active_shortcode() -> str:
     """Returns DB-configured shortcode if set, otherwise falls back to env var."""
     try:
         from catalog.models import StoreSettings
+
         db_shortcode = StoreSettings.load().mpesa_shortcode
         if db_shortcode:
             return db_shortcode
@@ -91,7 +93,9 @@ def initiate_stk_push(order, phone_number: str) -> dict:
 
     if settings.MPESA_ENVIRONMENT == "mock":
         # Deterministic mock response for seamless development & QA
-        checkout_request_id = f"ws_CO_{datetime.now().strftime('%d%m%Y%H%M%S')}_{uuid.uuid4().hex[:8]}"
+        checkout_request_id = (
+            f"ws_CO_{datetime.now().strftime('%d%m%Y%H%M%S')}_{uuid.uuid4().hex[:8]}"
+        )
         merchant_request_id = f"{uuid.uuid4().hex[:12]}"
         logger.info(
             f"[MOCK DARJA] STK push initiated for Order {order.order_number}: "
@@ -136,7 +140,11 @@ def initiate_stk_push(order, phone_number: str) -> dict:
 
     if response.status_code != 200 or response_data.get("ResponseCode") != "0":
         logger.error(f"[DARAJA ERROR] STK Push Failed: {response_data}")
-        error_msg = response_data.get("errorMessage") or response_data.get("ResponseDescription") or "Daraja request failed"
+        error_msg = (
+            response_data.get("errorMessage")
+            or response_data.get("ResponseDescription")
+            or "Daraja request failed"
+        )
         raise RuntimeError(error_msg)
 
     return response_data

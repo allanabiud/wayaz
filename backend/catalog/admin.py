@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
+
 from .models import (
     Category,
     Product,
@@ -22,6 +23,7 @@ class ProductImageInline(admin.TabularInline):
                 obj.image.url,
             )
         return "-"
+
     image_preview.short_description = "Preview"
 
 
@@ -56,7 +58,10 @@ class ProductAdmin(admin.ModelAdmin):
     def total_stock_display(self, obj):
         stock = obj.stock_quantity
         color = "green" if stock > 10 else ("orange" if stock > 0 else "red")
-        return format_html('<span style="color: {}; font-weight: bold;">{}</span>', color, stock)
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>', color, stock
+        )
+
     total_stock_display.short_description = "Stock"
 
 

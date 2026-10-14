@@ -22,9 +22,7 @@ class User(AbstractUser):
 
     email = models.EmailField(unique=True)
     phone_number = models.CharField(max_length=25, blank=True, null=True)
-    role = models.CharField(
-        max_length=20, choices=Role.choices, default=Role.CUSTOMER
-    )
+    role = models.CharField(max_length=20, choices=Role.choices, default=Role.CUSTOMER)
     # Tokens issued before this moment are refused (access on the next
     # request, refresh on the next trade). NULL = never changed here.
     password_changed_at = models.DateTimeField(null=True, blank=True)
@@ -52,9 +50,7 @@ class User(AbstractUser):
 
 
 class Address(models.Model):
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="addresses"
-    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="addresses")
     full_name = models.CharField(max_length=150)
     phone_number = models.CharField(max_length=25)
     county = models.CharField(max_length=100)

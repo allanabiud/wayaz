@@ -4,6 +4,7 @@ Django settings for Wayaz e-commerce project.
 
 import os
 import sys
+from datetime import timedelta
 from pathlib import Path
 
 # PyMySQL substitutes for MySQLdb, which Django's MySQL backend expects.
@@ -217,7 +218,6 @@ SPECTACULAR_SETTINGS = {
 if any(arg.startswith("test") for arg in sys.argv):
     REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []
 
-from datetime import timedelta
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=1),

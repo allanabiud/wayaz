@@ -61,7 +61,13 @@ BIKINI_STYLES = [
     "Halter Neck Set",
     "Boyshort Swim Set",
 ]
-BIKINI_COLORS = ["Scarlet Red", "Classic Black", "Emerald Green", "Sunset Orange", "Ivory"]
+BIKINI_COLORS = [
+    "Scarlet Red",
+    "Classic Black",
+    "Emerald Green",
+    "Sunset Orange",
+    "Ivory",
+]
 
 GEN_PLANS = {
     "jeans": {
@@ -198,9 +204,7 @@ def seed_catalog(stdout, style, source=None, wipe=False):
 
     stdout.write("Starting catalog seeding for Wayaz...")
 
-    Category.objects.exclude(
-        slug__in=[c["slug"] for c in CATEGORIES_DATA]
-    ).delete()
+    Category.objects.exclude(slug__in=[c["slug"] for c in CATEGORIES_DATA]).delete()
 
     categories = {}
     for cdata in CATEGORIES_DATA:
@@ -219,12 +223,42 @@ def seed_catalog(stdout, style, source=None, wipe=False):
             "base_price": 2800.00,
             "sale_price": 2400.00,
             "variants": [
-                {"color_name": "Vintage Blue", "color_hex": "#3b82f6", "size": "30", "stock_quantity": 12},
-                {"color_name": "Vintage Blue", "color_hex": "#3b82f6", "size": "32", "stock_quantity": 18},
-                {"color_name": "Vintage Blue", "color_hex": "#3b82f6", "size": "34", "stock_quantity": 8},
-                {"color_name": "Washed Black", "color_hex": "#18181b", "size": "30", "stock_quantity": 15},
-                {"color_name": "Washed Black", "color_hex": "#18181b", "size": "32", "stock_quantity": 10},
-                {"color_name": "Washed Black", "color_hex": "#18181b", "size": "34", "stock_quantity": 3},
+                {
+                    "color_name": "Vintage Blue",
+                    "color_hex": "#3b82f6",
+                    "size": "30",
+                    "stock_quantity": 12,
+                },
+                {
+                    "color_name": "Vintage Blue",
+                    "color_hex": "#3b82f6",
+                    "size": "32",
+                    "stock_quantity": 18,
+                },
+                {
+                    "color_name": "Vintage Blue",
+                    "color_hex": "#3b82f6",
+                    "size": "34",
+                    "stock_quantity": 8,
+                },
+                {
+                    "color_name": "Washed Black",
+                    "color_hex": "#18181b",
+                    "size": "30",
+                    "stock_quantity": 15,
+                },
+                {
+                    "color_name": "Washed Black",
+                    "color_hex": "#18181b",
+                    "size": "32",
+                    "stock_quantity": 10,
+                },
+                {
+                    "color_name": "Washed Black",
+                    "color_hex": "#18181b",
+                    "size": "34",
+                    "stock_quantity": 3,
+                },
             ],
         },
         {
@@ -234,9 +268,24 @@ def seed_catalog(stdout, style, source=None, wipe=False):
             "base_price": 3200.00,
             "sale_price": None,
             "variants": [
-                {"color_name": "Olive Green", "color_hex": "#4d533c", "size": "30", "stock_quantity": 10},
-                {"color_name": "Olive Green", "color_hex": "#4d533c", "size": "32", "stock_quantity": 14},
-                {"color_name": "Sand Khaki", "color_hex": "#c2b280", "size": "32", "stock_quantity": 6},
+                {
+                    "color_name": "Olive Green",
+                    "color_hex": "#4d533c",
+                    "size": "30",
+                    "stock_quantity": 10,
+                },
+                {
+                    "color_name": "Olive Green",
+                    "color_hex": "#4d533c",
+                    "size": "32",
+                    "stock_quantity": 14,
+                },
+                {
+                    "color_name": "Sand Khaki",
+                    "color_hex": "#c2b280",
+                    "size": "32",
+                    "stock_quantity": 6,
+                },
             ],
         },
         {
@@ -246,12 +295,42 @@ def seed_catalog(stdout, style, source=None, wipe=False):
             "base_price": 4200.00,
             "sale_price": 3600.00,
             "variants": [
-                {"color_name": "Triple White", "color_hex": "#ffffff", "size": "40", "stock_quantity": 9},
-                {"color_name": "Triple White", "color_hex": "#ffffff", "size": "41", "stock_quantity": 12},
-                {"color_name": "Triple White", "color_hex": "#ffffff", "size": "42", "stock_quantity": 15},
-                {"color_name": "Triple White", "color_hex": "#ffffff", "size": "43", "stock_quantity": 7},
-                {"color_name": "White & Crimson", "color_hex": "#dc2626", "size": "41", "stock_quantity": 8},
-                {"color_name": "White & Crimson", "color_hex": "#dc2626", "size": "42", "stock_quantity": 10},
+                {
+                    "color_name": "Triple White",
+                    "color_hex": "#ffffff",
+                    "size": "40",
+                    "stock_quantity": 9,
+                },
+                {
+                    "color_name": "Triple White",
+                    "color_hex": "#ffffff",
+                    "size": "41",
+                    "stock_quantity": 12,
+                },
+                {
+                    "color_name": "Triple White",
+                    "color_hex": "#ffffff",
+                    "size": "42",
+                    "stock_quantity": 15,
+                },
+                {
+                    "color_name": "Triple White",
+                    "color_hex": "#ffffff",
+                    "size": "43",
+                    "stock_quantity": 7,
+                },
+                {
+                    "color_name": "White & Crimson",
+                    "color_hex": "#dc2626",
+                    "size": "41",
+                    "stock_quantity": 8,
+                },
+                {
+                    "color_name": "White & Crimson",
+                    "color_hex": "#dc2626",
+                    "size": "42",
+                    "stock_quantity": 10,
+                },
             ],
         },
         {
@@ -261,9 +340,24 @@ def seed_catalog(stdout, style, source=None, wipe=False):
             "base_price": 4800.00,
             "sale_price": None,
             "variants": [
-                {"color_name": "Jet Black", "color_hex": "#111111", "size": "41", "stock_quantity": 5},
-                {"color_name": "Jet Black", "color_hex": "#111111", "size": "42", "stock_quantity": 8},
-                {"color_name": "Espresso Brown", "color_hex": "#4a2e18", "size": "42", "stock_quantity": 4},
+                {
+                    "color_name": "Jet Black",
+                    "color_hex": "#111111",
+                    "size": "41",
+                    "stock_quantity": 5,
+                },
+                {
+                    "color_name": "Jet Black",
+                    "color_hex": "#111111",
+                    "size": "42",
+                    "stock_quantity": 8,
+                },
+                {
+                    "color_name": "Espresso Brown",
+                    "color_hex": "#4a2e18",
+                    "size": "42",
+                    "stock_quantity": 4,
+                },
             ],
         },
         {
@@ -273,12 +367,42 @@ def seed_catalog(stdout, style, source=None, wipe=False):
             "base_price": 1800.00,
             "sale_price": 1500.00,
             "variants": [
-                {"color_name": "Chalk White", "color_hex": "#f5f5f5", "size": "S", "stock_quantity": 15},
-                {"color_name": "Chalk White", "color_hex": "#f5f5f5", "size": "M", "stock_quantity": 25},
-                {"color_name": "Chalk White", "color_hex": "#f5f5f5", "size": "L", "stock_quantity": 20},
-                {"color_name": "Wayaz Red", "color_hex": "#dc2626", "size": "M", "stock_quantity": 18},
-                {"color_name": "Wayaz Red", "color_hex": "#dc2626", "size": "L", "stock_quantity": 14},
-                {"color_name": "Pitch Black", "color_hex": "#09090b", "size": "M", "stock_quantity": 30},
+                {
+                    "color_name": "Chalk White",
+                    "color_hex": "#f5f5f5",
+                    "size": "S",
+                    "stock_quantity": 15,
+                },
+                {
+                    "color_name": "Chalk White",
+                    "color_hex": "#f5f5f5",
+                    "size": "M",
+                    "stock_quantity": 25,
+                },
+                {
+                    "color_name": "Chalk White",
+                    "color_hex": "#f5f5f5",
+                    "size": "L",
+                    "stock_quantity": 20,
+                },
+                {
+                    "color_name": "Wayaz Red",
+                    "color_hex": "#dc2626",
+                    "size": "M",
+                    "stock_quantity": 18,
+                },
+                {
+                    "color_name": "Wayaz Red",
+                    "color_hex": "#dc2626",
+                    "size": "L",
+                    "stock_quantity": 14,
+                },
+                {
+                    "color_name": "Pitch Black",
+                    "color_hex": "#09090b",
+                    "size": "M",
+                    "stock_quantity": 30,
+                },
             ],
         },
         {
@@ -288,9 +412,24 @@ def seed_catalog(stdout, style, source=None, wipe=False):
             "base_price": 2500.00,
             "sale_price": None,
             "variants": [
-                {"color_name": "Natural Cream", "color_hex": "#fef08a", "size": "M", "stock_quantity": 10},
-                {"color_name": "Natural Cream", "color_hex": "#fef08a", "size": "L", "stock_quantity": 12},
-                {"color_name": "Sky Blue", "color_hex": "#93c5fd", "size": "M", "stock_quantity": 8},
+                {
+                    "color_name": "Natural Cream",
+                    "color_hex": "#fef08a",
+                    "size": "M",
+                    "stock_quantity": 10,
+                },
+                {
+                    "color_name": "Natural Cream",
+                    "color_hex": "#fef08a",
+                    "size": "L",
+                    "stock_quantity": 12,
+                },
+                {
+                    "color_name": "Sky Blue",
+                    "color_hex": "#93c5fd",
+                    "size": "M",
+                    "stock_quantity": 8,
+                },
             ],
         },
         {
@@ -300,11 +439,36 @@ def seed_catalog(stdout, style, source=None, wipe=False):
             "base_price": 2200.00,
             "sale_price": 1900.00,
             "variants": [
-                {"color_name": "Scarlet Red", "color_hex": "#dc2626", "size": "S", "stock_quantity": 12},
-                {"color_name": "Scarlet Red", "color_hex": "#dc2626", "size": "M", "stock_quantity": 16},
-                {"color_name": "Scarlet Red", "color_hex": "#dc2626", "size": "L", "stock_quantity": 8},
-                {"color_name": "Classic Black", "color_hex": "#111111", "size": "S", "stock_quantity": 14},
-                {"color_name": "Classic Black", "color_hex": "#111111", "size": "M", "stock_quantity": 20},
+                {
+                    "color_name": "Scarlet Red",
+                    "color_hex": "#dc2626",
+                    "size": "S",
+                    "stock_quantity": 12,
+                },
+                {
+                    "color_name": "Scarlet Red",
+                    "color_hex": "#dc2626",
+                    "size": "M",
+                    "stock_quantity": 16,
+                },
+                {
+                    "color_name": "Scarlet Red",
+                    "color_hex": "#dc2626",
+                    "size": "L",
+                    "stock_quantity": 8,
+                },
+                {
+                    "color_name": "Classic Black",
+                    "color_hex": "#111111",
+                    "size": "S",
+                    "stock_quantity": 14,
+                },
+                {
+                    "color_name": "Classic Black",
+                    "color_hex": "#111111",
+                    "size": "M",
+                    "stock_quantity": 20,
+                },
             ],
         },
         {
@@ -314,9 +478,24 @@ def seed_catalog(stdout, style, source=None, wipe=False):
             "base_price": 2600.00,
             "sale_price": None,
             "variants": [
-                {"color_name": "Emerald Green", "color_hex": "#047857", "size": "S", "stock_quantity": 7},
-                {"color_name": "Emerald Green", "color_hex": "#047857", "size": "M", "stock_quantity": 9},
-                {"color_name": "Midnight Black", "color_hex": "#09090b", "size": "M", "stock_quantity": 12},
+                {
+                    "color_name": "Emerald Green",
+                    "color_hex": "#047857",
+                    "size": "S",
+                    "stock_quantity": 7,
+                },
+                {
+                    "color_name": "Emerald Green",
+                    "color_hex": "#047857",
+                    "size": "M",
+                    "stock_quantity": 9,
+                },
+                {
+                    "color_name": "Midnight Black",
+                    "color_hex": "#09090b",
+                    "size": "M",
+                    "stock_quantity": 12,
+                },
             ],
         },
     ]
@@ -376,9 +555,7 @@ def seed_catalog(stdout, style, source=None, wipe=False):
             style_name = styles[i % len(styles)]
             title = f"{color} {style_name}"
             base_price = plan["base_start"] + (i % 6) * plan["step"]
-            sale_price = (
-                base_price - plan["sale_drop"] if i % 3 == 0 else None
-            )
+            sale_price = base_price - plan["sale_drop"] if i % 3 == 0 else None
             # Every fifth item is one-size so both card flows appear.
             sizes = [] if i % 5 == 4 else plan["sizes"]
             stock = STOCK_CYCLE[i % len(STOCK_CYCLE)]
@@ -409,7 +586,7 @@ def seed_catalog(stdout, style, source=None, wipe=False):
         dest_dir = media_root / "products" / slug
         dest_dir.mkdir(parents=True, exist_ok=True)
 
-        for product, image_path in zip(products, images):
+        for product, image_path in zip(products, images, strict=False):
             dest = dest_dir / image_path.name
             shutil.copy2(image_path, dest)
             ProductImage.objects.filter(product=product).delete()

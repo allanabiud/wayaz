@@ -89,6 +89,6 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 f"Stale-order sweep: {verb} {len(targets)} order(s)"
-                f"{'' if dry else f': {', '.join(cancelled) if cancelled else '-'}'}"
+                f"{'' if dry else f': {", ".join(cancelled) if cancelled else "-"}'}"
             )
         )

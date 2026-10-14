@@ -2,7 +2,7 @@
 the account's password_changed_at stamp stop working on the very next
 request (iat vs stamp, both whole-second precision)."""
 
-from datetime import datetime, timezone as dt_timezone
+from datetime import UTC, datetime
 
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import AuthenticationFailed
@@ -15,7 +15,7 @@ class PasswordAwareJWTAuthentication(JWTAuthentication):
         changed = getattr(user, "password_changed_at", None)
         issued_at = validated_token.get("iat")
         if changed is not None and issued_at is not None:
-            minted = datetime.fromtimestamp(issued_at, tz=dt_timezone.utc)
+            minted = datetime.fromtimestamp(issued_at, tz=UTC)
             if minted < changed:
                 raise AuthenticationFailed(
                     "Session expired after a password change. Please sign in again."

@@ -107,22 +107,43 @@ REVIEW_COMMENTS = {
 }
 
 DEMO_COUPONS = [
-    ("WELCOME10", Coupon.DiscountType.PERCENT, "10", True, Coupon.Audience.FIRST_ORDER, True),
+    (
+        "WELCOME10",
+        Coupon.DiscountType.PERCENT,
+        "10",
+        True,
+        Coupon.Audience.FIRST_ORDER,
+        True,
+    ),
     ("GUEST5", Coupon.DiscountType.PERCENT, "5", True, Coupon.Audience.GUESTS, True),
-    ("TAKE500", Coupon.DiscountType.FIXED, "500", True, Coupon.Audience.EVERYONE, False),
-    ("ENDOFSEASON", Coupon.DiscountType.PERCENT, "25", False, Coupon.Audience.EVERYONE, False),
+    (
+        "TAKE500",
+        Coupon.DiscountType.FIXED,
+        "500",
+        True,
+        Coupon.Audience.EVERYONE,
+        False,
+    ),
+    (
+        "ENDOFSEASON",
+        Coupon.DiscountType.PERCENT,
+        "25",
+        False,
+        Coupon.Audience.EVERYONE,
+        False,
+    ),
 ]
 
 
 def pick_status(days_ago: int, rng: random.Random) -> str:
     if days_ago <= 3:
-        return rng.choices(
-            ["PROCESSING", "CONFIRMED", "CANCELLED"], weights=[5, 4, 1]
-        )[0]
+        return rng.choices(["PROCESSING", "CONFIRMED", "CANCELLED"], weights=[5, 4, 1])[
+            0
+        ]
     if days_ago <= 14:
-        return rng.choices(
-            ["CONFIRMED", "DELIVERED", "CANCELLED"], weights=[3, 6, 1]
-        )[0]
+        return rng.choices(["CONFIRMED", "DELIVERED", "CANCELLED"], weights=[3, 6, 1])[
+            0
+        ]
     return rng.choices(["DELIVERED", "CANCELLED"], weights=[9, 1])[0]
 
 
@@ -188,14 +209,8 @@ def _make_order(user, products, rng, now) -> bool:
     order = Order.objects.create(
         user=user,
         guest_id=guest_id,
-        email=(
-            user.email
-            if user
-            else f"guest{rng.randint(1000, 9999)}@example.com"
-        ),
-        phone_number=(
-            user.phone_number if user and user.phone_number else _phone(rng)
-        ),
+        email=(user.email if user else f"guest{rng.randint(1000, 9999)}@example.com"),
+        phone_number=(user.phone_number if user and user.phone_number else _phone(rng)),
         shipping_name=user.display_name if user else "Guest Shopper",
         county=county,
         town=town,
@@ -239,15 +254,21 @@ def _make_cart(user, session_key, products, rng):
     return cart
 
 
-def seed_shop(stdout, style, *, customers=20, max_orders=6, seed=42,
-              password="wayaz1234", admin_password="admin1234",
-              skip_admin=False):
+def seed_shop(
+    stdout,
+    style,
+    *,
+    customers=20,
+    max_orders=6,
+    seed=42,
+    password="wayaz1234",
+    admin_password="admin1234",
+    skip_admin=False,
+):
     from django.core.management.base import CommandError
 
     if customers < 1 or customers > len(CUSTOMER_NAMES):
-        raise CommandError(
-            f"--customers must be between 1 and {len(CUSTOMER_NAMES)}."
-        )
+        raise CommandError(f"--customers must be between 1 and {len(CUSTOMER_NAMES)}.")
 
     products = list(Product.objects.prefetch_related("images"))
     if not products:
@@ -337,9 +358,7 @@ def seed_shop(stdout, style, *, customers=20, max_orders=6, seed=42,
     for user in customers_list:
         wish_count = min(rng.randint(2, 8), len(products))
         for product in rng.sample(products, k=wish_count):
-            _, created = WishlistItem.objects.get_or_create(
-                user=user, product=product
-            )
+            _, created = WishlistItem.objects.get_or_create(user=user, product=product)
             wishlist_rows += int(created)
 
         review_count = min(rng.randint(3, 9), len(products))
@@ -355,9 +374,7 @@ def seed_shop(stdout, style, *, customers=20, max_orders=6, seed=42,
             )
             review_rows += int(created)
 
-    stdout.write(
-        f"  Created {wishlist_rows} wishlist saves and {review_rows} reviews."
-    )
+    stdout.write(f"  Created {wishlist_rows} wishlist saves and {review_rows} reviews.")
 
     coupon_rows = 0
     for code, discount_type, value, active, audience, auto_apply in DEMO_COUPONS:

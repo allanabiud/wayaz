@@ -5,17 +5,22 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.shortcuts import get_object_or_404
-from rest_framework import status, permissions
-from rest_framework.views import APIView
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+    inline_serializer,
+)
+from rest_framework import permissions, serializers, status
 from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter, OpenApiTypes
-from rest_framework import serializers
+from rest_framework.views import APIView
 
-from orders.models import Order
 from orders.emails import send_payment_received_email
+from orders.models import Order
 from orders.tokens import request_owns_order
+
+from .daraja import format_phone_number, initiate_stk_push, stk_query
 from .models import PaymentTransaction
-from .daraja import initiate_stk_push, format_phone_number, stk_query
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +39,7 @@ class STKPushInitiateView(APIView):
     """POST /api/v1/payments/mpesa/stk-push/ - initiates an STK Push for an
     order. Ownership is enforced (authenticated shopper or checkout
     payment_token), else anyone knowing an order number could prompt its phone."""
+
     permission_classes = [permissions.AllowAny]
     throttle_scope = "payments"
 
@@ -85,7 +91,9 @@ class STKPushInitiateView(APIView):
         formatted_phone = format_phone_number(phone_number)
         if len(formatted_phone) < 12:
             return Response(
-                {"detail": "Invalid Kenyan phone number format. Provide a valid Safaricom number."},
+                {
+                    "detail": "Invalid Kenyan phone number format. Provide a valid Safaricom number."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -94,7 +102,7 @@ class STKPushInitiateView(APIView):
             checkout_request_id = daraja_res.get("CheckoutRequestID")
             merchant_request_id = daraja_res.get("MerchantRequestID")
 
-            transaction = PaymentTransaction.objects.create(
+            PaymentTransaction.objects.create(
                 order=order,
                 merchant_request_id=merchant_request_id,
                 checkout_request_id=checkout_request_id,
@@ -127,6 +135,7 @@ class STKPushInitiateView(APIView):
 class STKPushStatusView(APIView):
     """GET payment status polling endpoint; same ownership rule as STK push
     (authenticated owner or payment_token)."""
+
     permission_classes = [permissions.AllowAny]
     throttle_scope = "payments"
 
@@ -182,6 +191,7 @@ class STKPushStatusView(APIView):
 class STKPushMockSimulateView(APIView):
     """Simulate an instant STK callback in mock mode only; returns 404
     elsewhere so nobody can mint a "paid" order without paying."""
+
     permission_classes = [permissions.AllowAny]
 
     @extend_schema(
@@ -193,7 +203,15 @@ class STKPushMockSimulateView(APIView):
                 "action": serializers.ChoiceField(choices=["success", "fail"]),
             },
         ),
-        responses={200: inline_serializer(name="MockSimulateResponse", fields={"detail": serializers.CharField(), "status": serializers.CharField()})},
+        responses={
+            200: inline_serializer(
+                name="MockSimulateResponse",
+                fields={
+                    "detail": serializers.CharField(),
+                    "status": serializers.CharField(),
+                },
+            )
+        },
     )
     def post(self, request):
         if settings.MPESA_ENVIRONMENT != "mock":
@@ -252,6 +270,7 @@ class DarajaCallbackView(APIView):
     """Safaricom webhook (POST /api/v1/payments/mpesa/callback/<token>/).
     Anti-spoofing: constant-time shared-secret URL, success re-verified via
     stkpushquery, Amount must match; 503 on transient failures to redeliver."""
+
     permission_classes = [permissions.AllowAny]
 
     @extend_schema(
@@ -303,7 +322,15 @@ class DarajaCallbackView(APIView):
                 ),
             },
         ),
-        responses={200: inline_serializer(name="DarajaCallbackResponse", fields={"ResultCode": serializers.IntegerField(), "ResultDesc": serializers.CharField()})},
+        responses={
+            200: inline_serializer(
+                name="DarajaCallbackResponse",
+                fields={
+                    "ResultCode": serializers.IntegerField(),
+                    "ResultDesc": serializers.CharField(),
+                },
+            )
+        },
     )
     def post(self, request, token=None):
         secret = settings.MPESA_CALLBACK_SECRET
@@ -422,6 +449,6 @@ class DarajaCallbackView(APIView):
 
             return Response({"ResultCode": 0, "ResultDesc": "Success"})
 
-        except Exception as e:
+        except Exception:
             logger.exception("Error processing Daraja webhook")
             return Response({"ResultCode": 0, "ResultDesc": "Error Handled"})

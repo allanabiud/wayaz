@@ -1,5 +1,5 @@
-from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
+from rest_framework import serializers
 
 from .models import Coupon
 
@@ -27,16 +27,12 @@ class AdminCouponSerializer(serializers.ModelSerializer):
         if self.instance is not None:
             duplicates = duplicates.exclude(pk=self.instance.pk)
         if duplicates.exists():
-            raise serializers.ValidationError(
-                "A coupon with this code already exists."
-            )
+            raise serializers.ValidationError("A coupon with this code already exists.")
         return code
 
     def validate_discount_value(self, value):
         if value <= 0:
-            raise serializers.ValidationError(
-                "The discount must be greater than zero."
-            )
+            raise serializers.ValidationError("The discount must be greater than zero.")
         discount_type = self.initial_data.get("discount_type")
         if discount_type is None and self.instance is not None:
             discount_type = self.instance.discount_type

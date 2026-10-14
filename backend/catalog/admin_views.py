@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
-from django.db.models import Q, F, Sum, Count
+from django.db.models import Count, F, Q, Sum
 from django.db.models.functions import TruncWeek
 from django.utils import timezone
 from drf_spectacular.utils import (
@@ -11,15 +11,15 @@ from drf_spectacular.utils import (
     inline_serializer,
 )
 from rest_framework import serializers, status, viewsets
-from rest_framework.views import APIView
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.views import APIView
 
 from accounts.models import WishlistItem
 from accounts.permissions import IsStaffOrAdminUser
 from orders.models import Coupon, Order, OrderItem
 from payments.models import PaymentTransaction
-from .models import Category, ContactMessage, Product, ProductImage, ProductReview, StoreSettings
+
 from .admin_serializers import (
     AdminAnalyticsResponseSerializer,
     AdminCategorySerializer,
@@ -35,6 +35,14 @@ from .admin_serializers import (
     AdminReviewSerializer,
     AdminStoreSettingsSerializer,
 )
+from .models import (
+    Category,
+    ContactMessage,
+    Product,
+    ProductImage,
+    ProductReview,
+    StoreSettings,
+)
 
 User = get_user_model()
 
@@ -48,9 +56,7 @@ def _order_counts_by_day(since, dates):
         .annotate(n=Count("id"))
     )
     counts = {row["created_at__date"]: row["n"] for row in rows}
-    return [
-        {"date": day.isoformat(), "orders": counts.get(day, 0)} for day in dates
-    ]
+    return [{"date": day.isoformat(), "orders": counts.get(day, 0)} for day in dates]
 
 
 class AdminOverviewView(APIView):
@@ -90,9 +96,7 @@ class AdminOverviewView(APIView):
         )
         prev_week_start = week_start - timedelta(days=7)
 
-        month_start = now.replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        )
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         prev_month_end = month_start - timedelta(microseconds=1)
         prev_month_start = prev_month_end.replace(
             day=1, hour=0, minute=0, second=0, microsecond=0
@@ -258,9 +262,9 @@ class AdminOverviewView(APIView):
 
         sales_summary = {
             "units_sold": (
-                OrderItem.objects.exclude(order__status=Order.Status.CANCELLED).aggregate(
-                    units=Sum("quantity")
-                )["units"]
+                OrderItem.objects.exclude(
+                    order__status=Order.Status.CANCELLED
+                ).aggregate(units=Sum("quantity"))["units"]
                 or 0
             ),
             "wishlist_saves": WishlistItem.objects.count(),
@@ -278,8 +282,12 @@ class AdminOverviewView(APIView):
         revenue_series_today = [
             {
                 "date": f"{hour:02d}:00",
-                "revenue": float(today_hourly_map[hour]["revenue"]) if hour in today_hourly_map else 0,
-                "orders": today_hourly_map[hour]["orders"] if hour in today_hourly_map else 0,
+                "revenue": float(today_hourly_map[hour]["revenue"])
+                if hour in today_hourly_map
+                else 0,
+                "orders": today_hourly_map[hour]["orders"]
+                if hour in today_hourly_map
+                else 0,
             }
             for hour in range(24)
         ]
@@ -296,10 +304,14 @@ class AdminOverviewView(APIView):
         revenue_series_week = [
             {
                 "date": (week_start.date() + timedelta(days=d)).isoformat(),
-                "revenue": float(week_daily_map[week_start.date() + timedelta(days=d)]["revenue"])
+                "revenue": float(
+                    week_daily_map[week_start.date() + timedelta(days=d)]["revenue"]
+                )
                 if (week_start.date() + timedelta(days=d)) in week_daily_map
                 else 0,
-                "orders": week_daily_map[week_start.date() + timedelta(days=d)]["orders"]
+                "orders": week_daily_map[week_start.date() + timedelta(days=d)][
+                    "orders"
+                ]
                 if (week_start.date() + timedelta(days=d)) in week_daily_map
                 else 0,
             }
@@ -319,10 +331,14 @@ class AdminOverviewView(APIView):
         revenue_series_month = [
             {
                 "date": (month_start.date() + timedelta(days=d)).isoformat(),
-                "revenue": float(month_daily_map[month_start.date() + timedelta(days=d)]["revenue"])
+                "revenue": float(
+                    month_daily_map[month_start.date() + timedelta(days=d)]["revenue"]
+                )
                 if (month_start.date() + timedelta(days=d)) in month_daily_map
                 else 0,
-                "orders": month_daily_map[month_start.date() + timedelta(days=d)]["orders"]
+                "orders": month_daily_map[month_start.date() + timedelta(days=d)][
+                    "orders"
+                ]
                 if (month_start.date() + timedelta(days=d)) in month_daily_map
                 else 0,
             }
@@ -353,7 +369,9 @@ class AdminOverviewView(APIView):
 
         confirmed = Order.objects.filter(status__in=confirmed_statuses)
         revenue_summary = {
-            "total": float(confirmed.aggregate(total=Sum("total_amount"))["total"] or 0),
+            "total": float(
+                confirmed.aggregate(total=Sum("total_amount"))["total"] or 0
+            ),
             "this_month": rev_this_month,
             "orders_total": Order.objects.count(),
             "orders_this_month": orders_this_month,
@@ -376,7 +394,9 @@ class AdminOverviewView(APIView):
         orders_week_start = this_week_start - timedelta(weeks=weeks_count - 1)
         weekly_rows = (
             Order.objects.filter(created_at__date__gte=orders_week_start)
-            .annotate(week=TruncWeek("created_at", tzinfo=timezone.get_current_timezone()))
+            .annotate(
+                week=TruncWeek("created_at", tzinfo=timezone.get_current_timezone())
+            )
             .values("week")
             .annotate(n=Count("id"))
         )
@@ -411,10 +431,7 @@ class AdminOverviewView(APIView):
         )
         orders_series_month = _order_counts_by_day(
             month_start,
-            [
-                month_start.date() + timedelta(days=d)
-                for d in range(days_in_month)
-            ],
+            [month_start.date() + timedelta(days=d) for d in range(days_in_month)],
         )
 
         stock_by_category = [
@@ -449,7 +466,9 @@ class AdminOverviewView(APIView):
                 "detail": f"Product added ({p.category.name if p.category else 'Catalog'})",
                 "at": p.created_at,
             }
-            for p in Product.objects.select_related("category").order_by("-created_at")[:4]
+            for p in Product.objects.select_related("category").order_by("-created_at")[
+                :4
+            ]
         ]
         activity += [
             {
@@ -470,7 +489,9 @@ class AdminOverviewView(APIView):
                     "out_of_stock_count": out_of_stock_count,
                     "total_categories": total_categories,
                     "total_customers": total_customers,
-                    "products_added_this_month": Product.objects.filter(created_at__gte=month_start).count(),
+                    "products_added_this_month": Product.objects.filter(
+                        created_at__gte=month_start
+                    ).count(),
                     "new_customers_this_month": cust_this_month,
                 },
                 "time_metrics": time_metrics,
@@ -537,9 +558,7 @@ class AdminNavCountsView(APIView):
 
 class AdminProductViewSet(viewsets.ModelViewSet):
     queryset = (
-        Product.objects.select_related("category")
-        .prefetch_related("images")
-        .all()
+        Product.objects.select_related("category").prefetch_related("images").all()
     )
     serializer_class = AdminProductSerializer
     permission_classes = [IsStaffOrAdminUser]
@@ -698,7 +717,9 @@ class AdminProductStockView(APIView):
                 )
         elif adjustment is not None:
             try:
-                product.stock_quantity = max(0, product.stock_quantity + int(adjustment))
+                product.stock_quantity = max(
+                    0, product.stock_quantity + int(adjustment)
+                )
             except ValueError:
                 return Response(
                     {"detail": "Invalid adjustment number."},
@@ -763,9 +784,7 @@ class AdminProductImageDetailView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def _get_image(self, product_id, image_id):
-        return ProductImage.objects.filter(
-            id=image_id, product_id=product_id
-        ).first()
+        return ProductImage.objects.filter(id=image_id, product_id=product_id).first()
 
     @extend_schema(
         summary="Update a product image's metadata",
@@ -880,7 +899,6 @@ class AdminAnalyticsView(APIView):
         start_date_str = request.query_params.get("start_date")
         end_date_str = request.query_params.get("end_date")
 
-        custom_range = False
         if start_date_str and end_date_str:
             try:
                 start_date = timezone.datetime.fromisoformat(start_date_str)
@@ -890,8 +908,9 @@ class AdminAnalyticsView(APIView):
                 if timezone.is_naive(end_date):
                     end_date = timezone.make_aware(end_date)
                 # Include entire end_date
-                end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
-                custom_range = True
+                end_date = end_date.replace(
+                    hour=23, minute=59, second=59, microsecond=999999
+                )
             except ValueError:
                 start_date = now - timedelta(days=30)
                 end_date = now
@@ -902,9 +921,13 @@ class AdminAnalyticsView(APIView):
             elif period == "90d":
                 start_date = now - timedelta(days=90)
             elif period == "month":
-                start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                start_date = now.replace(
+                    day=1, hour=0, minute=0, second=0, microsecond=0
+                )
             elif period == "year":
-                start_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+                start_date = now.replace(
+                    month=1, day=1, hour=0, minute=0, second=0, microsecond=0
+                )
             elif period == "all":
                 first_order = Order.objects.order_by("created_at").first()
                 start_date = (
@@ -915,17 +938,33 @@ class AdminAnalyticsView(APIView):
             else:  # default "30d"
                 start_date = now - timedelta(days=30)
 
-        period_orders = Order.objects.filter(created_at__gte=start_date, created_at__lte=end_date)
+        period_orders = Order.objects.filter(
+            created_at__gte=start_date, created_at__lte=end_date
+        )
         confirmed_orders = period_orders.exclude(status=Order.Status.CANCELLED)
 
-        gross_sales = float(confirmed_orders.aggregate(total=Sum("total_amount"))["total"] or 0)
-        net_sales = float(confirmed_orders.aggregate(total=Sum("subtotal"))["total"] or 0)
-        total_discount = float(confirmed_orders.aggregate(total=Sum("discount_amount"))["total"] or 0)
+        gross_sales = float(
+            confirmed_orders.aggregate(total=Sum("total_amount"))["total"] or 0
+        )
+        net_sales = float(
+            confirmed_orders.aggregate(total=Sum("subtotal"))["total"] or 0
+        )
+        total_discount = float(
+            confirmed_orders.aggregate(total=Sum("discount_amount"))["total"] or 0
+        )
         total_orders_count = period_orders.count()
-        completed_orders_count = period_orders.filter(status=Order.Status.DELIVERED).count()
-        cancelled_orders_count = period_orders.filter(status=Order.Status.CANCELLED).count()
+        completed_orders_count = period_orders.filter(
+            status=Order.Status.DELIVERED
+        ).count()
+        cancelled_orders_count = period_orders.filter(
+            status=Order.Status.CANCELLED
+        ).count()
 
-        aov = round(gross_sales / confirmed_orders.count(), 2) if confirmed_orders.exists() else 0.0
+        aov = (
+            round(gross_sales / confirmed_orders.count(), 2)
+            if confirmed_orders.exists()
+            else 0.0
+        )
         fulfillment_rate = (
             round((completed_orders_count / total_orders_count) * 100, 1)
             if total_orders_count > 0
@@ -937,7 +976,9 @@ class AdminAnalyticsView(APIView):
             else 0.0
         )
 
-        customer_ids = period_orders.filter(user__isnull=False).values_list("user_id", flat=True)
+        customer_ids = period_orders.filter(user__isnull=False).values_list(
+            "user_id", flat=True
+        )
         unique_customers = len(set(customer_ids))
         repeat_customers = (
             Order.objects.filter(user_id__in=customer_ids)
@@ -947,7 +988,9 @@ class AdminAnalyticsView(APIView):
             .count()
         )
         repeat_customer_rate = (
-            round((repeat_customers / unique_customers) * 100, 1) if unique_customers > 0 else 0.0
+            round((repeat_customers / unique_customers) * 100, 1)
+            if unique_customers > 0
+            else 0.0
         )
 
         num_days = max(1, (end_date.date() - start_date.date()).days + 1)
@@ -962,15 +1005,17 @@ class AdminAnalyticsView(APIView):
         for i in range(num_days):
             day = start_date.date() + timedelta(days=i)
             entry = day_map.get(day)
-            timeline.append({
-                "date": day.isoformat(),
-                "revenue": float(entry["revenue"]) if entry and entry["revenue"] else 0,
-                "orders": entry["orders"] if entry else 0,
-            })
+            timeline.append(
+                {
+                    "date": day.isoformat(),
+                    "revenue": float(entry["revenue"])
+                    if entry and entry["revenue"]
+                    else 0,
+                    "orders": entry["orders"] if entry else 0,
+                }
+            )
 
-        status_counts = {
-            s[0]: 0 for s in Order.Status.choices
-        }
+        status_counts = {s[0]: 0 for s in Order.Status.choices}
         for row in period_orders.values("status").annotate(count=Count("id")):
             status_counts[row["status"]] = row["count"]
 
@@ -1010,7 +1055,9 @@ class AdminAnalyticsView(APIView):
             .order_by("-orders")[:8]
         )
 
-        sold_product_ids = OrderItem.objects.filter(order__in=confirmed_orders).values_list("product_id", flat=True)
+        sold_product_ids = OrderItem.objects.filter(
+            order__in=confirmed_orders
+        ).values_list("product_id", flat=True)
         dead_stock = list(
             Product.objects.filter(stock_quantity__gt=0)
             .exclude(id__in=sold_product_ids)
@@ -1018,29 +1065,31 @@ class AdminAnalyticsView(APIView):
             .order_by("-stock_quantity")[:5]
         )
 
-        return Response({
-            "period": period,
-            "start_date": start_date.date().isoformat(),
-            "end_date": end_date.date().isoformat(),
-            "kpis": {
-                "gross_sales": gross_sales,
-                "net_sales": net_sales,
-                "total_discount": total_discount,
-                "total_orders": total_orders_count,
-                "completed_orders": completed_orders_count,
-                "cancelled_orders": cancelled_orders_count,
-                "aov": aov,
-                "fulfillment_rate": fulfillment_rate,
-                "cancellation_rate": cancellation_rate,
-                "repeat_customer_rate": repeat_customer_rate,
-            },
-            "timeline": timeline,
-            "status_distribution": status_distribution,
-            "payment_methods": payment_methods,
-            "top_products": top_products,
-            "destinations": destinations,
-            "dead_stock": dead_stock,
-        })
+        return Response(
+            {
+                "period": period,
+                "start_date": start_date.date().isoformat(),
+                "end_date": end_date.date().isoformat(),
+                "kpis": {
+                    "gross_sales": gross_sales,
+                    "net_sales": net_sales,
+                    "total_discount": total_discount,
+                    "total_orders": total_orders_count,
+                    "completed_orders": completed_orders_count,
+                    "cancelled_orders": cancelled_orders_count,
+                    "aov": aov,
+                    "fulfillment_rate": fulfillment_rate,
+                    "cancellation_rate": cancellation_rate,
+                    "repeat_customer_rate": repeat_customer_rate,
+                },
+                "timeline": timeline,
+                "status_distribution": status_distribution,
+                "payment_methods": payment_methods,
+                "top_products": top_products,
+                "destinations": destinations,
+                "dead_stock": dead_stock,
+            }
+        )
 
 
 class AdminStoreSettingsView(APIView):

@@ -1,5 +1,5 @@
-from decimal import Decimal
 from datetime import timedelta
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.core import mail
@@ -8,6 +8,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
+
 from catalog.models import Category, Product
 from orders.models import Cart, CartItem, Coupon, Order, OrderItem
 from orders.tokens import verify_payment_token
@@ -46,7 +47,6 @@ class CartAPITestCase(TestCase):
         res = self.client.get("/api/v1/orders/cart/")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertIn("X-Cart-ID", res.headers)
-        cart_id = res.headers["X-Cart-ID"]
         self.assertEqual(res.data["total_items"], 0)
         self.assertEqual(Decimal(str(res.data["subtotal"])), Decimal("0.00"))
 
@@ -67,7 +67,9 @@ class CartAPITestCase(TestCase):
         self.assertEqual(Decimal(str(add_res.data["subtotal"])), Decimal("5000.00"))
         line = add_res.data["items"][0]
         self.assertEqual(line["product"]["product_title"], "Running Sneaker")
-        self.assertEqual(Decimal(str(line["product"]["unit_price"])), Decimal("2500.00"))
+        self.assertEqual(
+            Decimal(str(line["product"]["unit_price"])), Decimal("2500.00")
+        )
 
     def test_add_item_exceeding_stock_rejected(self):
         init_res = self.client.get("/api/v1/orders/cart/")
@@ -170,9 +172,7 @@ class CartAPITestCase(TestCase):
             HTTP_X_CART_ID=cart_id,
             format="json",
         )
-        line_l = next(
-            item for item in add_l.data["items"] if item["size"] == "L"
-        )
+        line_l = next(item for item in add_l.data["items"] if item["size"] == "L")
 
         res = self.client.patch(
             f"/api/v1/orders/cart/items/{line_l['id']}/",
@@ -207,9 +207,7 @@ class CartAPITestCase(TestCase):
             HTTP_X_CART_ID=cart_id,
             format="json",
         )
-        line_l = next(
-            item for item in add_l.data["items"] if item["size"] == "L"
-        )
+        line_l = next(item for item in add_l.data["items"] if item["size"] == "L")
 
         # Stock drops to 5 between the adds and the merge: 3 + 3 no longer fits.
         Product.objects.filter(id=sized.id).update(stock_quantity=5)
@@ -222,9 +220,7 @@ class CartAPITestCase(TestCase):
         )
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("detail", res.data)
-        self.assertEqual(
-            CartItem.objects.filter(cart_id=cart_id, size="L").count(), 1
-        )
+        self.assertEqual(CartItem.objects.filter(cart_id=cart_id, size="L").count(), 1)
 
     def test_cart_lines_expose_the_size_options(self):
         sized = Product.objects.create(
@@ -268,7 +264,6 @@ class CartAPITestCase(TestCase):
 
 
 class CheckoutAPITestCase(TestCase):
-
     def setUp(self):
         self.client = APIClient()
         self.category = Category.objects.create(name="Shirts", slug="shirts")
@@ -408,9 +403,7 @@ class CheckoutAPITestCase(TestCase):
             stock_quantity=6,
             sizes=["M", "L"],
         )
-        CartItem.objects.create(
-            cart=self.cart, product=sized, quantity=1, size=""
-        )
+        CartItem.objects.create(cart=self.cart, product=sized, quantity=1, size="")
 
         res = self.checkout()
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
@@ -880,9 +873,7 @@ class CouponCheckoutTestCase(TestCase):
         self.assertIsNone(res.data["coupon_code"])
 
     def test_first_order_coupon_ignores_returning_customers(self):
-        self.make_auto(
-            "FIRST10", "10", audience=Coupon.Audience.FIRST_ORDER
-        )
+        self.make_auto("FIRST10", "10", audience=Coupon.Audience.FIRST_ORDER)
         returning = User.objects.create_user(
             username="returning",
             email="returning@example.com",
@@ -972,7 +963,9 @@ class CouponValidateAPITestCase(TestCase):
 
     def test_unknown_or_inactive_code_is_rejected(self):
         self.assertEqual(self.validate("NOPE").status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(self.validate("PAUSED").status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            self.validate("PAUSED").status_code, status.HTTP_400_BAD_REQUEST
+        )
 
     def test_guest_cart_id_is_all_that_is_needed(self):
         # No signed-in user anywhere, exactly how guest checkout calls it.
@@ -1273,12 +1266,8 @@ class CancelStaleOrdersTestCase(TestCase):
         self.assertEqual(order.status, Order.Status.PROCESSING)
 
     def test_paid_and_manually_confirmed_orders_are_left_alone(self):
-        paid = self._order(
-            minutes_old=120, payment_status=Order.PaymentStatus.PAID
-        )
-        confirmed = self._order(
-            minutes_old=120, status=Order.Status.CONFIRMED
-        )
+        paid = self._order(minutes_old=120, payment_status=Order.PaymentStatus.PAID)
+        confirmed = self._order(minutes_old=120, status=Order.Status.CONFIRMED)
         call_command("cancel_stale_orders")
         paid.refresh_from_db()
         confirmed.refresh_from_db()

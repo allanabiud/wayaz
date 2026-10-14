@@ -1,4 +1,5 @@
 """Order lifecycle emails; fire-and-forget (never raise), failures logged."""
+
 import logging
 
 from django.conf import settings
@@ -43,9 +44,7 @@ def send_order_confirmation_email(order):
         f"Status: {order.get_status_display()}\n"
         f"Items: {order.item_count}\n"
         f"Delivery: {order.get_delivery_method_display()} to "
-        f"{order.town}, {order.county}\n"
-        + _summary_lines(order)
-        + "\n"
+        f"{order.town}, {order.county}\n" + _summary_lines(order) + "\n"
         f"Reply to this email or message us on WhatsApp for help:\n"
         f"{order.whatsapp_link}\n\n"
         f"- Wayaz Collection"
@@ -64,8 +63,7 @@ def send_new_order_email_merchant(order):
         return
 
     item_lines = "".join(
-        f"  - {item.quantity}x {item.product_title} "
-        f"(Ksh {item.line_total})\n"
+        f"  - {item.quantity}x {item.product_title} (Ksh {item.line_total})\n"
         for item in order.items.all()
     )
     subject = f"New Wayaz order {order.order_number}"
@@ -76,9 +74,7 @@ def send_new_order_email_merchant(order):
         f"({order.get_payment_status_display()})\n"
         f"Customer: {order.shipping_name} | {order.phone_number} | {order.email}\n"
         f"Deliver to: {order.street_address}, {order.town}, {order.county}\n\n"
-        f"Items:\n{item_lines}\n"
-        + _summary_lines(order)
-        + "\n"
+        f"Items:\n{item_lines}\n" + _summary_lines(order) + "\n"
         f"Follow up on WhatsApp:\n{order.whatsapp_link}\n"
     )
     _send(subject, body, [recipient])

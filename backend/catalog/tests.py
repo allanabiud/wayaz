@@ -3,8 +3,9 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
-from rest_framework.test import APIClient
 from rest_framework import status
+from rest_framework.test import APIClient
+
 from catalog.models import Category, Product, ProductReview
 
 
@@ -62,13 +63,17 @@ class CatalogAPITestCase(TestCase):
         self.assertEqual(data["category"]["name"], "Jeans")
 
     def test_filter_products_by_category(self):
-        response = self.client.get(f"/api/v1/catalog/products/?category={self.category.slug}")
+        response = self.client.get(
+            f"/api/v1/catalog/products/?category={self.category.slug}"
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         results = response.data.get("results", response.data)
         self.assertEqual(len(results), 1)
 
     def test_search_suggestions_api(self):
-        response = self.client.get("/api/v1/catalog/products/search-suggestions/?q=Vintage")
+        response = self.client.get(
+            "/api/v1/catalog/products/search-suggestions/?q=Vintage"
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("products", response.data)
         self.assertIn("categories", response.data)
@@ -105,7 +110,9 @@ class ProductReviewAPITestCase(TestCase):
         self.assertIsNone(res.data["user_rating"])
 
         post = self.client.post(self.review_url(), {"rating": 5}, format="json")
-        self.assertIn(post.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
+        self.assertIn(
+            post.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
+        )
         self.assertEqual(ProductReview.objects.count(), 0)
 
     def test_submitting_and_aggregating_ratings(self):
@@ -137,9 +144,7 @@ class ProductReviewAPITestCase(TestCase):
         self.assertEqual(ProductReview.objects.count(), 0)
 
     def test_detail_response_carries_rating_summary(self):
-        ProductReview.objects.create(
-            product=self.product, user=self.alice, rating=4
-        )
+        ProductReview.objects.create(product=self.product, user=self.alice, rating=4)
 
         anon = self.client.get(f"/api/v1/catalog/products/{self.product.slug}/")
         self.assertEqual(anon.status_code, status.HTTP_200_OK)
@@ -148,11 +153,8 @@ class ProductReviewAPITestCase(TestCase):
         self.assertIsNone(anon.data["user_rating"])
 
         self.client.force_authenticate(self.alice)
-        as_owner = self.client.get(
-            f"/api/v1/catalog/products/{self.product.slug}/"
-        )
+        as_owner = self.client.get(f"/api/v1/catalog/products/{self.product.slug}/")
         self.assertEqual(as_owner.data["user_rating"], 4)
-
 
     def list_url(self):
         return f"/api/v1/catalog/products/{self.product.slug}/reviews/"
@@ -207,9 +209,7 @@ class ProductReviewAPITestCase(TestCase):
         self.assertEqual(review.comment, "Great fit")
 
         # An explicitly empty comment still clears it.
-        self.client.post(
-            self.review_url(), {"rating": 4, "comment": ""}, format="json"
-        )
+        self.client.post(self.review_url(), {"rating": 4, "comment": ""}, format="json")
         review.refresh_from_db()
         self.assertEqual(review.comment, "")
 
@@ -318,9 +318,8 @@ class SeedShopGuardTestCase(TestCase):
         from django.core.management.base import CommandError
         from django.test import override_settings
 
-        with override_settings(DEBUG=False):
-            with self.assertRaises(CommandError):
-                call_command("seed", "shop")
+        with override_settings(DEBUG=False), self.assertRaises(CommandError):
+            call_command("seed", "shop")
 
 
 class StoreSettingsTestCase(TestCase):
@@ -476,9 +475,7 @@ class AdminProductImageUploadTestCase(TestCase):
 
     def test_fake_image_content_rejected(self):
         # A ".jpg" that is really plain text: Pillow must refuse it.
-        res = self.upload(
-            "fake.jpg", b"definitely not an image at all", "image/jpeg"
-        )
+        res = self.upload("fake.jpg", b"definitely not an image at all", "image/jpeg")
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_oversized_image_rejected(self):
@@ -521,7 +518,6 @@ class ContactMessageTestCase(TestCase):
         )
 
     def test_public_contact_submission(self):
-        from django.core import mail
         payload = {
             "name": "Jane Doe",
             "email": "jane@example.com",
@@ -535,11 +531,13 @@ class ContactMessageTestCase(TestCase):
         self.assertEqual(res.data["subject"], "Delivery Question")
 
         from catalog.models import ContactMessage
+
         msg = ContactMessage.objects.get(id=res.data["id"])
         self.assertFalse(msg.is_read)
 
     def test_admin_contact_messages_list_and_manage(self):
         from catalog.models import ContactMessage
+
         msg = ContactMessage.objects.create(
             name="Alice",
             email="alice@example.com",
@@ -647,4 +645,3 @@ class RestockNotificationTestCase(TestCase):
         )
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("email", res.data)
-

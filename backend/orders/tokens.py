@@ -19,7 +19,9 @@ def make_payment_token(order) -> str:
 
 def verify_payment_token(token, order) -> bool:
     try:
-        data = signing.loads(token or "", salt=TOKEN_SALT, max_age=TOKEN_MAX_AGE_SECONDS)
+        data = signing.loads(
+            token or "", salt=TOKEN_SALT, max_age=TOKEN_MAX_AGE_SECONDS
+        )
     except signing.BadSignature:
         return False
     return data.get("order") == order.id and data.get("number") == order.order_number

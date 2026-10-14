@@ -14,7 +14,9 @@ LAST_ADMIN_MESSAGE = "This is the last active admin - promote someone else first
 
 class AdminCustomerSerializer(serializers.ModelSerializer):
     addresses_count = serializers.IntegerField(source="addresses.count", read_only=True)
-    wishlist_count = serializers.IntegerField(source="wishlist_items.count", read_only=True)
+    wishlist_count = serializers.IntegerField(
+        source="wishlist_items.count", read_only=True
+    )
     display_name = serializers.CharField(read_only=True)
 
     class Meta:
@@ -82,9 +84,7 @@ class AdminTeamSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if self.instance is None and "password" not in attrs:
-            raise serializers.ValidationError(
-                {"password": "A password is required."}
-            )
+            raise serializers.ValidationError({"password": "A password is required."})
         return attrs
 
     def create(self, validated_data):
@@ -126,9 +126,9 @@ class AdminTeamViewSet(viewsets.ModelViewSet):
         return (
             user.role == User.Role.ADMIN
             and user.is_active
-            and not User.objects.filter(
-                role=User.Role.ADMIN, is_active=True
-            ).exclude(pk=user.pk).exists()
+            and not User.objects.filter(role=User.Role.ADMIN, is_active=True)
+            .exclude(pk=user.pk)
+            .exists()
         )
 
     def create(self, request, *args, **kwargs):

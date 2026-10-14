@@ -1,26 +1,30 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from .admin_views import (
-    AdminOverviewView,
-    AdminAnalyticsView,
-    AdminNavCountsView,
-    AdminProductViewSet,
-    AdminCategoryViewSet,
-    AdminReviewViewSet,
-    AdminContactMessageViewSet,
-    AdminProductStockView,
-    AdminProductImageUploadView,
-    AdminProductImageDetailView,
-    AdminStoreSettingsView,
-    AdminMpesaConfigView,
-)
+
 from accounts.admin_views import AdminCustomerViewSet, AdminTeamViewSet
+
+from .admin_views import (
+    AdminAnalyticsView,
+    AdminCategoryViewSet,
+    AdminContactMessageViewSet,
+    AdminMpesaConfigView,
+    AdminNavCountsView,
+    AdminOverviewView,
+    AdminProductImageDetailView,
+    AdminProductImageUploadView,
+    AdminProductStockView,
+    AdminProductViewSet,
+    AdminReviewViewSet,
+    AdminStoreSettingsView,
+)
 
 router = DefaultRouter()
 router.register(r"products", AdminProductViewSet, basename="admin-products")
 router.register(r"categories", AdminCategoryViewSet, basename="admin-categories")
 router.register(r"reviews", AdminReviewViewSet, basename="admin-reviews")
-router.register(r"contact-messages", AdminContactMessageViewSet, basename="admin-contact-messages")
+router.register(
+    r"contact-messages", AdminContactMessageViewSet, basename="admin-contact-messages"
+)
 router.register(r"customers", AdminCustomerViewSet, basename="admin-customers")
 router.register(r"team", AdminTeamViewSet, basename="admin-team")
 

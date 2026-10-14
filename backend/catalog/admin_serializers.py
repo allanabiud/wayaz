@@ -1,8 +1,16 @@
 import os
 
-from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
-from .models import Category, ContactMessage, Product, ProductImage, ProductReview, StoreSettings
+from rest_framework import serializers
+
+from .models import (
+    Category,
+    ContactMessage,
+    Product,
+    ProductImage,
+    ProductReview,
+    StoreSettings,
+)
 
 ALLOWED_PRODUCT_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 PRODUCT_IMAGE_MAX_UPLOAD_MB = 5
@@ -47,9 +55,7 @@ class AdminProductImageUploadSerializer(serializers.Serializer):
 
     image = serializers.ImageField()
     is_primary = serializers.BooleanField(default=False)
-    alt_text = serializers.CharField(
-        required=False, allow_blank=True, max_length=255
-    )
+    alt_text = serializers.CharField(required=False, allow_blank=True, max_length=255)
     display_order = serializers.IntegerField(min_value=0, max_value=1000, default=0)
 
     def validate_image(self, image):
@@ -153,8 +159,12 @@ class AdminStoreSettingsSerializer(serializers.ModelSerializer):
     favicon = serializers.ImageField(required=False, allow_null=True)
     logo_url = serializers.SerializerMethodField()
     favicon_url = serializers.SerializerMethodField()
-    clear_logo = serializers.BooleanField(required=False, write_only=True, default=False)
-    clear_favicon = serializers.BooleanField(required=False, write_only=True, default=False)
+    clear_logo = serializers.BooleanField(
+        required=False, write_only=True, default=False
+    )
+    clear_favicon = serializers.BooleanField(
+        required=False, write_only=True, default=False
+    )
 
     class Meta:
         model = StoreSettings
@@ -188,30 +198,43 @@ class AdminStoreSettingsSerializer(serializers.ModelSerializer):
     def validate_support_phones(self, value):
         import json
         import re
+
         if isinstance(value, str):
             try:
                 value = json.loads(value)
-            except Exception:
-                raise serializers.ValidationError("Invalid JSON for support phones.")
+            except Exception as exc:
+                raise serializers.ValidationError(
+                    "Invalid JSON for support phones."
+                ) from exc
         if not isinstance(value, list):
             raise serializers.ValidationError("Support phones must be a list.")
         if len(value) > 6:
-            raise serializers.ValidationError("A maximum of 6 support phones are allowed.")
+            raise serializers.ValidationError(
+                "A maximum of 6 support phones are allowed."
+            )
         phone_regex = re.compile(r"^\+?[0-9\s\-()]{7,25}$")
         cleaned = []
         for item in value:
             if not isinstance(item, dict):
-                raise serializers.ValidationError("Each support phone entry must be an object.")
+                raise serializers.ValidationError(
+                    "Each support phone entry must be an object."
+                )
             label = str(item.get("label", "")).strip()
             number = str(item.get("number", "")).strip()
             if not label:
-                raise serializers.ValidationError("Department / Label is required for each phone.")
+                raise serializers.ValidationError(
+                    "Department / Label is required for each phone."
+                )
             if len(label) > 40:
-                raise serializers.ValidationError("Label must be 40 characters or fewer.")
+                raise serializers.ValidationError(
+                    "Label must be 40 characters or fewer."
+                )
             if not number:
                 raise serializers.ValidationError("Phone number is required.")
             if not phone_regex.match(number):
-                raise serializers.ValidationError(f"Invalid phone number format: '{number}'.")
+                raise serializers.ValidationError(
+                    f"Invalid phone number format: '{number}'."
+                )
             cleaned.append({"label": label, "number": number})
         return cleaned
 
@@ -227,7 +250,9 @@ class AdminStoreSettingsSerializer(serializers.ModelSerializer):
         if not obj.favicon:
             return None
         request = self.context.get("request")
-        return request.build_absolute_uri(obj.favicon.url) if request else obj.favicon.url
+        return (
+            request.build_absolute_uri(obj.favicon.url) if request else obj.favicon.url
+        )
 
     def update(self, instance, validated_data):
         clear_logo = validated_data.pop("clear_logo", False)
@@ -259,7 +284,15 @@ class AdminContactMessageSerializer(serializers.ModelSerializer):
             "is_read",
             "created_at",
         )
-        read_only_fields = ("id", "name", "email", "phone", "subject", "message", "created_at")
+        read_only_fields = (
+            "id",
+            "name",
+            "email",
+            "phone",
+            "subject",
+            "message",
+            "created_at",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -460,7 +493,7 @@ class AdminDeadStockSerializer(serializers.Serializer):
 class AdminAnalyticsResponseSerializer(serializers.Serializer):
     """Reporting payload for a selected period or custom date range."""
 
-    period = serializers.CharField(help_text="Echo of ?period (or \"custom\").")
+    period = serializers.CharField(help_text='Echo of ?period (or "custom").')
     start_date = serializers.CharField(help_text="ISO date.")
     end_date = serializers.CharField(help_text="ISO date.")
     kpis = AdminAnalyticsKpisSerializer()
@@ -505,4 +538,3 @@ class AdminProductImageUploadResponseSerializer(serializers.Serializer):
     url = serializers.CharField()
     is_primary = serializers.BooleanField()
     display_order = serializers.IntegerField()
-

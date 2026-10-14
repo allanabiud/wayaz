@@ -52,8 +52,12 @@ class Product(models.Model):
     class Meta:
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["category", "-created_at"], name="cat_prod_cat_created_idx"),
-            models.Index(fields=["is_featured", "-created_at"], name="cat_prod_feat_created_idx"),
+            models.Index(
+                fields=["category", "-created_at"], name="cat_prod_cat_created_idx"
+            ),
+            models.Index(
+                fields=["is_featured", "-created_at"], name="cat_prod_feat_created_idx"
+            ),
         ]
 
     def save(self, *args, **kwargs):
@@ -115,9 +119,9 @@ class ProductImage(models.Model):
     def save(self, *args, **kwargs):
         if self.is_primary:
             # Clear primary flag from other images for this product
-            ProductImage.objects.filter(product=self.product).exclude(pk=self.pk).update(
-                is_primary=False
-            )
+            ProductImage.objects.filter(product=self.product).exclude(
+                pk=self.pk
+            ).update(is_primary=False)
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -187,9 +191,7 @@ class StoreSettings(models.Model):
         blank=True,
         help_text='List of {"label": "Sales", "number": "2547..."} objects.',
     )
-    contact_email = models.EmailField(
-        blank=True, default="orders@wayaz.co.ke"
-    )
+    contact_email = models.EmailField(blank=True, default="orders@wayaz.co.ke")
     address = models.CharField(max_length=255, blank=True, default="Nairobi, Kenya")
     instagram_url = models.URLField(
         max_length=255, blank=True, default="https://www.instagram.com/wayaz"
@@ -307,4 +309,3 @@ class ContactMessage(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.subject} ({self.created_at.strftime('%Y-%m-%d')})"
-

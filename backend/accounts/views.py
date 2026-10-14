@@ -132,12 +132,16 @@ class ChangePasswordView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data, context={"request": request})
+        serializer = self.get_serializer(
+            data=request.data, context={"request": request}
+        )
         serializer.is_valid(raise_exception=True)
         # Stamps password_changed_at: every token this user holds outside
         # this request - including any stolen one - dies with the change.
         request.user.change_password(serializer.validated_data["new_password"])
-        return Response({"detail": "Password updated successfully."}, status=status.HTTP_200_OK)
+        return Response(
+            {"detail": "Password updated successfully."}, status=status.HTTP_200_OK
+        )
 
 
 @extend_schema(
@@ -173,8 +177,7 @@ class ForgotPasswordView(generics.GenericAPIView):
             uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
             reset_url = (
-                f"{settings.FRONTEND_URL}/reset-password"
-                f"?uidb64={uidb64}&token={token}"
+                f"{settings.FRONTEND_URL}/reset-password?uidb64={uidb64}&token={token}"
             )
             days = settings.PASSWORD_RESET_TIMEOUT // 86400
             body = (
@@ -305,7 +308,11 @@ class WishlistViewSet(viewsets.ModelViewSet):
             ),
         },
     )
-    @action(detail=False, methods=["delete"], url_path="remove-product/(?P<product_id>[^/.]+)")
+    @action(
+        detail=False,
+        methods=["delete"],
+        url_path="remove-product/(?P<product_id>[^/.]+)",
+    )
     def remove_by_product_id(self, request, product_id=None):
         deleted, _ = WishlistItem.objects.filter(
             user=request.user, product_id=product_id

@@ -4,27 +4,28 @@ from decimal import Decimal
 from django.db import transaction
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404
-from rest_framework import generics, status, permissions
-from rest_framework.views import APIView
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
+from rest_framework.views import APIView
 
 from accounts.models import Address
 from catalog.models import Product
+
 from .delivery import delivery_fee
-from .emails import send_order_confirmation_email, send_new_order_email_merchant
+from .emails import send_new_order_email_merchant, send_order_confirmation_email
 from .models import Cart, CartItem, Coupon, Order, OrderItem, auto_coupon_for
-from .tokens import make_payment_token
 from .serializers import (
-    CartSerializer,
     AddToCartSerializer,
+    CartSerializer,
     CheckoutSerializer,
     CouponValidateSerializer,
+    MergeCartSerializer,
     OrderSerializer,
     UpdateCartItemSerializer,
-    MergeCartSerializer,
 )
+from .tokens import make_payment_token
 
 
 def get_or_create_cart(request):
@@ -33,7 +34,9 @@ def get_or_create_cart(request):
         cart, _ = Cart.objects.get_or_create(user=request.user)
         return cart
 
-    cart_id_str = request.headers.get("X-Cart-ID") or request.query_params.get("cart_id")
+    cart_id_str = request.headers.get("X-Cart-ID") or request.query_params.get(
+        "cart_id"
+    )
 
     if cart_id_str:
         try:
@@ -163,9 +166,7 @@ class CartItemDetailView(APIView):
             if new_size and new_size not in new_product.sizes:
                 new_size = ""
             existing_duplicate = (
-                CartItem.objects.filter(
-                    cart=cart, product=new_product, size=new_size
-                )
+                CartItem.objects.filter(cart=cart, product=new_product, size=new_size)
                 .exclude(id=cart_item.id)
                 .first()
             )
@@ -194,9 +195,7 @@ class CartItemDetailView(APIView):
 
             if requested != cart_item.size:
                 duplicate = (
-                    CartItem.objects.filter(
-                        cart=cart, product=product, size=requested
-                    )
+                    CartItem.objects.filter(cart=cart, product=product, size=requested)
                     .exclude(id=cart_item.id)
                     .first()
                 )
@@ -206,8 +205,7 @@ class CartItemDetailView(APIView):
                         return Response(
                             {
                                 "detail": (
-                                    f"Only {product.stock_quantity} unit(s) "
-                                    "available."
+                                    f"Only {product.stock_quantity} unit(s) available."
                                 ),
                                 "available_stock": product.stock_quantity,
                             },
@@ -361,11 +359,7 @@ class CheckoutView(APIView):
 
                 # Cart lines may sit size-less until the shopper picks one.
                 unsized = next(
-                    (
-                        item
-                        for item in items
-                        if item.product.sizes and not item.size
-                    ),
+                    (item for item in items if item.product.sizes and not item.size),
                     None,
                 )
                 if unsized is not None:

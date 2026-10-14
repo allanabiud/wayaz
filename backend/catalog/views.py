@@ -1,11 +1,11 @@
 from django.db import models
-from django.db.models import Q, F, Avg, Count, Case, DecimalField, When
-from rest_framework import viewsets, permissions, generics, status
+from django.db.models import Avg, Case, Count, DecimalField, F, Q, When
+from drf_spectacular.utils import extend_schema
+from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework.throttling import ScopedRateThrottle
-from drf_spectacular.utils import extend_schema
+from rest_framework.views import APIView
 
 from .models import (
     Category,
@@ -18,8 +18,8 @@ from .models import (
 from .serializers import (
     CategorySerializer,
     ContactMessageCreateSerializer,
-    ProductListSerializer,
     ProductDetailSerializer,
+    ProductListSerializer,
     ProductReviewListSerializer,
     ProductReviewSerializer,
     RestockNotificationCreateSerializer,
@@ -29,7 +29,9 @@ from .serializers import (
 # What the shopper actually pays: sale price while live, else base price.
 # Filtering/sorting on this keeps sale items correct in price filters.
 EFFECTIVE_PRICE = Case(
-    When(sale_price__isnull=False, sale_price__lt=F("base_price"), then=F("sale_price")),
+    When(
+        sale_price__isnull=False, sale_price__lt=F("base_price"), then=F("sale_price")
+    ),
     default=F("base_price"),
     output_field=DecimalField(max_digits=10, decimal_places=2),
 )
@@ -44,9 +46,7 @@ def rating_payload(product, user):
     user_rating = None
     if user is not None and user.is_authenticated:
         user_rating = (
-            product.reviews.filter(user=user)
-            .values_list("rating", flat=True)
-            .first()
+            product.reviews.filter(user=user).values_list("rating", flat=True).first()
         )
     return {
         "average_rating": round(agg["avg"], 1) if agg["count"] else None,
@@ -70,34 +70,40 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
         # 5-minute browser/edge caching with stale-while-revalidate.
-        response["Cache-Control"] = "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
+        response["Cache-Control"] = (
+            "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
+        )
         return response
 
     def retrieve(self, request, *args, **kwargs):
         response = super().retrieve(request, *args, **kwargs)
-        response["Cache-Control"] = "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
+        response["Cache-Control"] = (
+            "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
+        )
         return response
 
 
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = (
-        Product.objects.select_related("category")
-        .prefetch_related("images")
-        .all()
+        Product.objects.select_related("category").prefetch_related("images").all()
     )
     permission_classes = [permissions.AllowAny]
     lookup_field = "slug"
 
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
-        response["Cache-Control"] = "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
+        response["Cache-Control"] = (
+            "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
+        )
         return response
 
     def retrieve(self, request, *args, **kwargs):
         response = super().retrieve(request, *args, **kwargs)
         # Anonymous details can be cached; authenticated requests vary.
         if not request.user.is_authenticated:
-            response["Cache-Control"] = "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
+            response["Cache-Control"] = (
+                "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
+            )
         else:
             response["Cache-Control"] = "private, no-cache"
         return response
@@ -163,7 +169,9 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             qs = qs.filter(category__slug=category_slug)
 
         if params.get("sale") in ("true", "1"):
-            qs = qs.filter(sale_price__isnull=False, sale_price__lt=models.F("base_price"))
+            qs = qs.filter(
+                sale_price__isnull=False, sale_price__lt=models.F("base_price")
+            )
 
         min_price = params.get("min_price")
         if min_price:
@@ -209,12 +217,14 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             return Response(
                 {
                     "products": [
-                    {
+                        {
                             "id": p.id,
                             "title": p.title,
                             "slug": p.slug,
                             "price": str(p.current_price),
-                            "thumbnail": request.build_absolute_uri(p.primary_image.image.url)
+                            "thumbnail": request.build_absolute_uri(
+                                p.primary_image.image.url
+                            )
                             if p.primary_image and p.primary_image.image
                             else None,
                         }
@@ -226,17 +236,11 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                 }
             )
 
-        matching_products = (
-            Product.objects.filter(
-                Q(title__icontains=query)
-                | Q(category__name__icontains=query)
-            )
-            .prefetch_related("images")[:8]
-        )
+        matching_products = Product.objects.filter(
+            Q(title__icontains=query) | Q(category__name__icontains=query)
+        ).prefetch_related("images")[:8]
 
-        matching_categories = Category.objects.filter(
-            name__icontains=query
-        )[:4]
+        matching_categories = Category.objects.filter(name__icontains=query)[:4]
 
         return Response(
             {
@@ -246,7 +250,9 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                         "title": p.title,
                         "slug": p.slug,
                         "price": str(p.current_price),
-                        "thumbnail": request.build_absolute_uri(p.primary_image.image.url)
+                        "thumbnail": request.build_absolute_uri(
+                            p.primary_image.image.url
+                        )
                         if p.primary_image and p.primary_image.image
                         else None,
                     }
@@ -321,8 +327,9 @@ class ContactMessageCreateView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         msg = serializer.save()
-        from orders.emails import _send
         from django.conf import settings
+
+        from orders.emails import _send
 
         merchant_email = getattr(settings, "MANAGER_EMAIL", "")
         if merchant_email:
@@ -336,4 +343,3 @@ class ContactMessageCreateView(generics.CreateAPIView):
                 f"Received at: {msg.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
             )
             _send(subject, body, [merchant_email])
-

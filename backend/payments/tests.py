@@ -4,8 +4,8 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
-from rest_framework.test import APIClient
 from rest_framework import status
+from rest_framework.test import APIClient
 
 from orders.models import Order
 from orders.tokens import make_payment_token
@@ -81,7 +81,9 @@ class MpesaPaymentTests(TestCase):
         self.assertIn("checkout_request_id", response.data)
         self.assertTrue(response.data["is_mock"])
 
-        tx = PaymentTransaction.objects.get(checkout_request_id=response.data["checkout_request_id"])
+        tx = PaymentTransaction.objects.get(
+            checkout_request_id=response.data["checkout_request_id"]
+        )
         self.assertEqual(tx.order, self.order)
         self.assertEqual(tx.status, PaymentTransaction.Status.PENDING)
 
@@ -134,14 +136,18 @@ class MpesaPaymentTests(TestCase):
 
     def test_payment_status_polling(self):
         tx = self._make_tx("ws_CO_123456")
-        url = reverse("payment-status", kwargs={"checkout_request_id": tx.checkout_request_id})
+        url = reverse(
+            "payment-status", kwargs={"checkout_request_id": tx.checkout_request_id}
+        )
         response = self.client.get(url, {"payment_token": self.token})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], "PENDING")
 
     def test_payment_status_polling_requires_ownership(self):
         tx = self._make_tx("ws_CO_noperm")
-        url = reverse("payment-status", kwargs={"checkout_request_id": tx.checkout_request_id})
+        url = reverse(
+            "payment-status", kwargs={"checkout_request_id": tx.checkout_request_id}
+        )
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         response = self.client.get(url, {"payment_token": "bogus"})
@@ -235,7 +241,10 @@ class MpesaPaymentTests(TestCase):
         tx = self._make_tx("ws_CO_SPOOF")
         with patch(
             "payments.views.stk_query",
-            return_value={"ResultCode": 1032, "ResultDesc": "Request cancelled by user"},
+            return_value={
+                "ResultCode": 1032,
+                "ResultDesc": "Request cancelled by user",
+            },
         ):
             response = self.client.post(
                 callback_url(), success_payload(tx.checkout_request_id), format="json"

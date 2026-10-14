@@ -1,9 +1,10 @@
 from django.urls import path
+
 from .views import (
-    STKPushInitiateView,
-    STKPushStatusView,
-    STKPushMockSimulateView,
     DarajaCallbackView,
+    STKPushInitiateView,
+    STKPushMockSimulateView,
+    STKPushStatusView,
 )
 
 urlpatterns = [
@@ -15,7 +16,11 @@ urlpatterns = [
         DarajaCallbackView.as_view(),
         name="mpesa-callback",
     ),
-    path("status/<str:checkout_request_id>/", STKPushStatusView.as_view(), name="payment-status"),
+    path(
+        "status/<str:checkout_request_id>/",
+        STKPushStatusView.as_view(),
+        name="payment-status",
+    ),
     # Mock simulator: the view 404s unless MPESA_ENVIRONMENT is "mock", so
     # the route stays resolvable but is dead code outside local tooling.
     path(

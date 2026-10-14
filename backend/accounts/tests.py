@@ -5,11 +5,11 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
 from django.test import TestCase
-from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import status
 from rest_framework.test import APIClient
+
 from catalog.models import Category, Product
 
 User = get_user_model()
@@ -305,9 +305,7 @@ class PasswordResetAPITestCase(TestCase):
         self.reset_url = "/api/v1/auth/reset-password/"
 
     def request_link(self, email):
-        return self.client.post(
-            self.forgot_url, {"email": email}, format="json"
-        )
+        return self.client.post(self.forgot_url, {"email": email}, format="json")
 
     def mint_link(self):
         uidb64 = urlsafe_base64_encode(force_bytes(self.user.pk))
@@ -329,9 +327,7 @@ class PasswordResetAPITestCase(TestCase):
         match = re.search(r"uidb64=([^&]+)&token=([^&\s]+)", mail.outbox[0].body)
         self.assertIsNotNone(match, mail.outbox[0].body)
         uidb64, token = match.groups()
-        self.assertEqual(
-            force_str(urlsafe_base64_decode(uidb64)), str(self.user.pk)
-        )
+        self.assertEqual(force_str(urlsafe_base64_decode(uidb64)), str(self.user.pk))
         self.assertTrue(default_token_generator.check_token(self.user, token))
 
     def test_unknown_and_known_addresses_answer_identically(self):
@@ -363,9 +359,7 @@ class PasswordResetAPITestCase(TestCase):
 
     def test_a_used_link_cannot_be_reused(self):
         uidb64, token = self.mint_link()
-        self.assertEqual(
-            self.reset(uidb64, token).status_code, status.HTTP_200_OK
-        )
+        self.assertEqual(self.reset(uidb64, token).status_code, status.HTTP_200_OK)
         # The token embeds the password hash, so the same link dies the
         # moment the password changes.
         res = self.reset(uidb64, token, new_password="AnotherOne789!")
@@ -455,7 +449,9 @@ class PasswordChangeInvalidationTestCase(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(self.authed(res.data["access"]).status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            self.authed(res.data["access"]).status_code, status.HTTP_200_OK
+        )
         res = self.client.post(
             "/api/v1/auth/token/refresh/",
             {"refresh": res.data["refresh"]},
@@ -482,7 +478,9 @@ class PasswordChangeInvalidationTestCase(TestCase):
 
     def test_accounts_that_never_changed_are_unaffected(self):
         untouched = User.objects.create_user(
-            username="never_changed", email="untouched@example.com", password="Password123!"
+            username="never_changed",
+            email="untouched@example.com",
+            password="Password123!",
         )
         res = self.client.post(
             "/api/v1/auth/token/",
@@ -490,8 +488,6 @@ class PasswordChangeInvalidationTestCase(TestCase):
             format="json",
         )
         access = res.data["access"]
-        res = self.client.get(
-            "/api/v1/auth/me/", HTTP_AUTHORIZATION=f"Bearer {access}"
-        )
+        res = self.client.get("/api/v1/auth/me/", HTTP_AUTHORIZATION=f"Bearer {access}")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data["username"], untouched.username)

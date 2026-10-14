@@ -1,4 +1,4 @@
-from datetime import datetime, timezone as dt_timezone
+from datetime import UTC, datetime
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
@@ -69,7 +69,7 @@ class ResetPasswordSerializer(serializers.Serializer):
         except (ValueError, TypeError, OverflowError, User.DoesNotExist):
             raise serializers.ValidationError(
                 {"detail": "That reset link is not valid."}
-            )
+            ) from None
 
         if not default_token_generator.check_token(user, attrs["token"]):
             # Covers wrong, expired, and already-used links alike: the
@@ -98,7 +98,7 @@ class CustomTokenRefreshSerializer(TokenRefreshSerializer):
             user = User.objects.filter(pk=user_id).only("password_changed_at").first()
             changed = user.password_changed_at if user else None
             if changed is not None:
-                minted = datetime.fromtimestamp(issued_at, tz=dt_timezone.utc)
+                minted = datetime.fromtimestamp(issued_at, tz=UTC)
                 if minted < changed:
                     raise serializers.ValidationError(
                         {"detail": SESSION_EXPIRED_MESSAGE}

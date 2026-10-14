@@ -4,12 +4,12 @@ from decimal import Decimal
 from urllib.parse import quote
 
 from django.conf import settings
-from django.db import models
-from django.db import transaction
+from django.db import models, transaction
 from django.db.models import F
 from django.utils import timezone
 
 from catalog.models import Product
+
 from .delivery import DELIVERY_ZONE_CHOICES
 
 
@@ -66,7 +66,9 @@ class CartItem(models.Model):
 
     def __str__(self):
         suffix = f" [{self.size}]" if self.size else ""
-        return f"{self.quantity}x {self.product}{suffix} in Cart {str(self.cart_id)[:8]}"
+        return (
+            f"{self.quantity}x {self.product}{suffix} in Cart {str(self.cart_id)[:8]}"
+        )
 
 
 class OrderItem(models.Model):
@@ -273,6 +275,7 @@ class Order(models.Model):
     def whatsapp_link(self):
         """Formatted WhatsApp dispatch/support link for the order success page."""
         from django.conf import settings as django_settings
+
         from catalog.models import StoreSettings
 
         try:
@@ -280,9 +283,11 @@ class Order(models.Model):
         except Exception:
             configured = ""
 
-        number = str(
-            configured or getattr(django_settings, "WHATSAPP_SUPPORT_NUMBER", "")
-        ).replace("+", "").replace(" ", "")
+        number = (
+            str(configured or getattr(django_settings, "WHATSAPP_SUPPORT_NUMBER", ""))
+            .replace("+", "")
+            .replace(" ", "")
+        )
         text = (
             f"Hello Wayaz, I'm following up on order {self.order_number} "
             f"(status: {self.get_status_display()}). "

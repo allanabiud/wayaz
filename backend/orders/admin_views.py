@@ -1,4 +1,4 @@
-from django.db.models import Q, Count
+from django.db.models import Count, Q
 from drf_spectacular.utils import (
     OpenApiParameter,
     OpenApiTypes,
@@ -6,20 +6,20 @@ from drf_spectacular.utils import (
     inline_serializer,
 )
 from rest_framework import serializers, status, viewsets
-from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.views import APIView
 
 from accounts.permissions import IsStaffOrAdminUser
 from catalog.admin_serializers import AdminErrorDetailSerializer
-from .emails import send_order_confirmed_email
-from .models import Coupon, Order
+
 from .admin_serializers import (
     AdminCouponSerializer,
     AdminOrderDetailResponseSerializer,
     AdminOrderListResponseSerializer,
     AdminPaymentsResponseSerializer,
 )
+from .emails import send_order_confirmed_email
+from .models import Coupon, Order
 
 
 class AdminOrdersView(APIView):
@@ -50,13 +50,15 @@ class AdminOrdersView(APIView):
     )
     def get(self, request):
         all_orders = Order.objects.all()
-        qs = all_orders.select_related("user").prefetch_related("items").order_by("-created_at")
+        qs = (
+            all_orders.select_related("user")
+            .prefetch_related("items")
+            .order_by("-created_at")
+        )
 
         status_param = (request.query_params.get("status") or "").strip()
         if status_param == "pending":
-            qs = qs.exclude(
-                status__in=[Order.Status.DELIVERED, Order.Status.CANCELLED]
-            )
+            qs = qs.exclude(status__in=[Order.Status.DELIVERED, Order.Status.CANCELLED])
         elif status_param in Order.Status.values:
             qs = qs.filter(status=status_param)
 
@@ -279,21 +281,25 @@ class AdminPaymentsView(APIView):
         payments = []
 
         if not method or method == "mpesa":
-            mpesa_qs = PaymentTransaction.objects.select_related("order").order_by("-created_at")
+            mpesa_qs = PaymentTransaction.objects.select_related("order").order_by(
+                "-created_at"
+            )
             if status_filter:
                 mpesa_qs = mpesa_qs.filter(status=status_filter)
             for tx in mpesa_qs:
-                payments.append({
-                    "type": "mpesa",
-                    "id": f"mpesa-{tx.id}",
-                    "order_number": tx.order.order_number,
-                    "amount": str(tx.amount),
-                    "phone": tx.phone_number,
-                    "status": tx.status,
-                    "reference": tx.mpesa_receipt_number or "",
-                    "note": tx.result_desc or "",
-                    "date": tx.created_at.isoformat(),
-                })
+                payments.append(
+                    {
+                        "type": "mpesa",
+                        "id": f"mpesa-{tx.id}",
+                        "order_number": tx.order.order_number,
+                        "amount": str(tx.amount),
+                        "phone": tx.phone_number,
+                        "status": tx.status,
+                        "reference": tx.mpesa_receipt_number or "",
+                        "note": tx.result_desc or "",
+                        "date": tx.created_at.isoformat(),
+                    }
+                )
 
         # COD status reflects payment collection, not fulfillment.
         if not method or method == "cod":
@@ -303,26 +309,32 @@ class AdminPaymentsView(APIView):
             if status_filter in ("PAID", "PENDING"):
                 cod_qs = cod_qs.filter(payment_status=status_filter)
             for order in cod_qs:
-                payments.append({
-                    "type": "cod",
-                    "id": f"cod-{order.id}",
-                    "order_number": order.order_number,
-                    "amount": str(order.total_amount),
-                    "phone": order.phone_number,
-                    "status": "COMPLETED" if order.payment_status == Order.PaymentStatus.PAID else "PENDING",
-                    "reference": "",
-                    "note": order.get_status_display(),
-                    "date": order.created_at.isoformat(),
-                })
+                payments.append(
+                    {
+                        "type": "cod",
+                        "id": f"cod-{order.id}",
+                        "order_number": order.order_number,
+                        "amount": str(order.total_amount),
+                        "phone": order.phone_number,
+                        "status": "COMPLETED"
+                        if order.payment_status == Order.PaymentStatus.PAID
+                        else "PENDING",
+                        "reference": "",
+                        "note": order.get_status_display(),
+                        "date": order.created_at.isoformat(),
+                    }
+                )
 
         payments.sort(key=lambda p: p["date"], reverse=True)
         total = len(payments)
-        page_items = payments[offset: offset + page_size]
+        page_items = payments[offset : offset + page_size]
 
-        return Response({
-            "count": total,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": max(1, (total + page_size - 1) // page_size),
-            "results": page_items,
-        })
+        return Response(
+            {
+                "count": total,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": max(1, (total + page_size - 1) // page_size),
+                "results": page_items,
+            }
+        )

@@ -1,5 +1,6 @@
-from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
+from rest_framework import serializers
+
 from .models import (
     Category,
     ContactMessage,
@@ -195,7 +196,9 @@ class StoreSettingsSerializer(serializers.ModelSerializer):
         if not obj.favicon:
             return None
         request = self.context.get("request")
-        return request.build_absolute_uri(obj.favicon.url) if request else obj.favicon.url
+        return (
+            request.build_absolute_uri(obj.favicon.url) if request else obj.favicon.url
+        )
 
 
 class ContactMessageCreateSerializer(serializers.ModelSerializer):
@@ -237,4 +240,3 @@ class RestockNotificationCreateSerializer(serializers.ModelSerializer):
         if not val:
             raise serializers.ValidationError("Email cannot be blank.")
         return val
-

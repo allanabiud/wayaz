@@ -17,3 +17,34 @@ dependencies = [
     "gunicorn>=23.0.0",
     "drf-spectacular>=0.30.0",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.9.0",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+extend-exclude = ["*/migrations/*"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # bugbear
+    "UP",  # pyupgrade
+    "C4",  # comprehensions
+    "SIM", # simplify
+]
+ignore = [
+    "B006",   # mutable-argument-default (DRF/Django idioms)
+    "E501",   # line length is enforced by ruff format (long data strings stay)
+    "SIM105", # contextlib.suppress is not clearer than try/except pass
+]
+
+[tool.ruff.lint.per-file-ignores]
+"*/management/commands/*.py" = ["B008"] # command kwargs in defaults
+"manage.py" = ["E402"]

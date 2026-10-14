@@ -5,8 +5,9 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
-from catalog.models import Category, Product, ProductReview
+
 from accounts.models import WishlistItem
+from catalog.models import Category, Product, ProductReview
 from orders.models import Order, OrderItem
 
 User = get_user_model()
@@ -79,9 +80,7 @@ class AdminAPITestCase(TestCase):
         ):
             self.assertIn(key, res.data)
             self.assertEqual(len(res.data[key]), length)
-            self.assertTrue(
-                all(point["orders"] == 0 for point in res.data[key])
-            )
+            self.assertTrue(all(point["orders"] == 0 for point in res.data[key]))
 
     def test_admin_nav_counts(self):
         Order.objects.create(
@@ -174,9 +173,7 @@ class AdminAPITestCase(TestCase):
             f"/api/v1/admin/orders/?search={amina_pending.order_number}"
         )
         self.assertEqual(res.data["count"], 1)
-        self.assertEqual(
-            res.data["results"][0]["customer"], "Amina Ali"
-        )
+        self.assertEqual(res.data["results"][0]["customer"], "Amina Ali")
         self.assertEqual(res.data["results"][0]["total_amount"], "2100.00")
         self.assertEqual(res.data["results"][0]["item_count"], 0)
 
@@ -216,11 +213,14 @@ class AdminAPITestCase(TestCase):
         self.assertEqual(series[-1]["revenue"], 3500.0)
         self.assertEqual(series[-1]["orders"], 2)
         # Older points are empty.
-        self.assertEqual(series[0], {
-            "date": series[0]["date"],
-            "revenue": 0,
-            "orders": 0,
-        })
+        self.assertEqual(
+            series[0],
+            {
+                "date": series[0]["date"],
+                "revenue": 0,
+                "orders": 0,
+            },
+        )
 
         orders_series = res.data["orders_series"]
         self.assertEqual(len(orders_series), 8)

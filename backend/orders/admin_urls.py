@@ -2,9 +2,9 @@ from django.urls import path
 from rest_framework.routers import SimpleRouter
 
 from .admin_views import (
-    AdminOrdersView,
-    AdminOrderDetailView,
     AdminCouponViewSet,
+    AdminOrderDetailView,
+    AdminOrdersView,
     AdminPaymentsView,
 )
 
