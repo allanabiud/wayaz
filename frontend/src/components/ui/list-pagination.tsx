@@ -1,24 +1,16 @@
 import { Button } from "@/components/ui/button";
 
 interface ListPaginationProps {
-  /** 1-based page currently shown. */
   page: number;
-  /** Total rows across every page. */
   count: number;
-  /** Rows per page. */
   pageSize: number;
-  /** Rows actually on the current page (the "x-y" range end). */
   itemCount: number;
   onPageChange: (page: number) => void;
   className?: string;
 }
 
-/**
- * Footer for every paginated list: "Showing 1-10 of 34" on the left and
- * Previous / 1/4 / Next on the right. Shared so the admin tables and the
- * storefront review list page through the exact same controls; renders
- * nothing when there is nothing to page through.
- */
+/** Footer for every paginated list: "Showing 1-10 of 34" left, Prev/1-4/Next
+ *  right. Renders nothing when there is nothing to page through. */
 export function ListPagination({
   page,
   count,

@@ -77,7 +77,6 @@ export default function CustomersPage() {
         description={data ? `${data.count.toLocaleString()} registered shoppers and staff accounts` : undefined}
       />
 
-      {/* Search Bar */}
       <FilterToolbar
         search={
           <FilterSearch
@@ -116,7 +115,6 @@ export default function CustomersPage() {
 
       {data && rows.length > 0 && (
         <>
-          {/* Mobile Cards */}
           <div className="md:hidden space-y-3">
             {rows.map((c) => (
               <Card key={c.id} className="p-4">
@@ -173,7 +171,6 @@ export default function CustomersPage() {
             ))}
           </div>
 
-          {/* Desktop Table */}
           <div className="hidden rounded-2xl bg-card shadow-(--shadow-card) overflow-hidden md:block">
             <Table className="table-fixed">
               <TableHeader>

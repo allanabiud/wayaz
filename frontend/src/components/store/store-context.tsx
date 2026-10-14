@@ -37,45 +37,34 @@ interface WishlistResponseItem {
 interface StoreContextValue {
   cart: Cart | null;
   cartCount: number;
-  /** Product ids currently in the cart - drives the "In Cart" cards. */
   cartProductIds: ReadonlySet<number>;
   cartOpen: boolean;
   openCart: () => void;
-  /** Product id currently being added (drives per-card "Adding…"). */
   addingId: number | null;
   addProduct: (
     product: { id: number; title: string },
     options?: { quantity?: number; size?: string },
   ) => Promise<boolean>;
-  /** Product id whose quantity is being bumped from a card. */
   bumpingId: number | null;
-  /**
-   * "In Cart" tap: +1 on the product's only line, or opens the cart sheet
-   * when the product sits on several size lines (so the shopper picks one).
-   */
+  /** +1 on the product's only line, or opens the cart sheet when it has
+   *  several size lines so the shopper picks one. */
   bumpProduct: (product: { id: number; title: string }) => Promise<void>;
-  /** Wishlisted product ids - account-tied wishlist entries. */
   wishlist: ReadonlySet<number>;
   wishlistCount: number;
-  /** Wishlist entries resolved against the shared catalog, in saved order. */
   wishlistProducts: StoreProduct[];
   toggleWishlist: (product: { id: number; title: string }) => Promise<void>;
   wishlistOpen: boolean;
   openWishlist: () => void;
-  /** Shared storefront catalog (fetched once per page load). */
   catalog: StorefrontCatalog | null;
   catalogLoading: boolean;
   catalogError: string | null;
   refetchCatalog: () => void;
-  /** Live store settings (branding, socials, WhatsApp number, announcement). */
   settings: StoreSettings | null;
   settingsLoading: boolean;
   refetchSettings: () => void;
-  /** In-place authentication dialog controls. */
   loginOpen: boolean;
   openLogin: () => void;
   closeLogin: () => void;
-  /** Direct cart resets upon checkout or manual update. */
   clearCart: () => void;
   updateCart: (next: Cart | null) => void;
 }
@@ -91,7 +80,6 @@ export function useStore(): StoreContextValue {
 /** Module-level empty list keeps the logged-out context value referentially stable. */
 const EMPTY_WISHLIST_IDS: number[] = [];
 
-/** Store state: guest cart sessions, the account-tied wishlist, and shared catalog. */
 export function StoreProvider({
   children,
   initialCatalog,
@@ -124,7 +112,7 @@ export function StoreProvider({
     refetch: refetchSettings,
   } = useQuery<StoreSettings>(fetchStoreSettings, []);
 
-  // 1. Initial cart load (guest session from stored cart id).
+  // Initial cart load (guest session from the stored cart id).
   useEffect(() => {
     if (!storedCartId()) return;
     let cancelled = false;
@@ -133,14 +121,14 @@ export function StoreProvider({
         if (!cancelled) setCart(next);
       })
       .catch(() => {
-        // Stale cart id will be replaced on subsequent cart action.
+        // Stale cart id; the next cart action replaces it.
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  // 2. Cart merge when transitioning from guest session to authenticated user.
+  // Cart merge when transitioning from guest session to authenticated user.
   useEffect(() => {
     if (!isAuthenticated) return;
     const guestId = storedCartId();
@@ -159,7 +147,7 @@ export function StoreProvider({
       });
   }, [isAuthenticated]);
 
-  // 3. Wishlist sync: strictly tied to authenticated user.
+  // Wishlist sync, tied to the authenticated user.
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -174,7 +162,7 @@ export function StoreProvider({
         }
       })
       .catch(() => {
-        // Keep whatever the optimistic updates last wrote.
+        // Keep whatever the optimistic update last wrote.
       });
 
     return () => {
@@ -186,11 +174,8 @@ export function StoreProvider({
   // re-login shows the previous ids until the fetch above overwrites them.
   const activeWishlistIds = isAuthenticated ? wishlistIds : EMPTY_WISHLIST_IDS;
 
-  /**
-   * Adds a line to the cart, toasting the outcome. Resolves `true` only
-   * when the item landed in the cart - "Buy now" uses that to decide
-   * whether to jump to checkout or stay put on failure.
-   */
+  /** Resolves true only when the item landed in the cart; "Buy now" uses
+   *  that to decide whether to jump to checkout. */
   const addProduct = useCallback(
     async (
       product: { id: number; title: string },
@@ -228,8 +213,8 @@ export function StoreProvider({
         (line) => line.product.id === product.id,
       );
       if (lines.length === 0) return;
-      // Several size lines: which one to bump is the shopper's call, so
-      // hand them the cart instead of guessing.
+      // Several size lines: hand the shopper the cart instead of guessing
+      // which one to bump.
       if (lines.length > 1) {
         setCartOpen(true);
         return;
@@ -269,7 +254,6 @@ export function StoreProvider({
         ? activeWishlistIds.filter((id) => id !== product.id)
         : [...activeWishlistIds, product.id];
 
-      // Optimistic update
       setWishlistIds(next);
       toast(isWishlisted ? "Removed from wishlist" : "Saved to wishlist", {
         description: product.title,
@@ -284,7 +268,6 @@ export function StoreProvider({
           await api.post("/api/v1/auth/wishlist/", { product_id: product.id });
         }
       } catch (err) {
-        // Revert optimistic update on failure
         setWishlistIds(activeWishlistIds);
         toast.error(
           err instanceof ApiError

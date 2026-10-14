@@ -49,7 +49,7 @@ interface ProductDetailProps {
   product: StoreProductDetail;
 }
 
-/** One star: outline base with an amber fill clipped to `fill` (0 - 1). */
+/** Outline star with an amber fill clipped to `fill` (0-1). */
 function StarGlyph({ fill }: { fill: number }) {
   return (
     <span className="relative inline-flex" aria-hidden="true">
@@ -81,13 +81,12 @@ export function ProductDetail({ product }: ProductDetailProps) {
   const [activeImage, setActiveImage] = useState(0);
   const [size, setSize] = useState("");
   const [quantity, setQuantity] = useState(1);
-  // Magnifier focal point, in % of the frame. Doubles as "zoomed" (non-null).
+  // Focal point in % of the frame; non-null doubles as "zoomed".
   const [zoom, setZoom] = useState<{ x: number; y: number } | null>(null);
   const wishlisted = wishlist.has(product.id);
 
-  // SSR only has aggregates; the viewer's own rating refreshes once auth is
-  // known (the review form below feeds new submissions back in). The header
-  // only ever shows the average - shoppers rate from the review form.
+  // SSR only has aggregates; refresh the viewer's own rating once auth is
+  // known. The header only ever shows the average.
   const [rating, setRating] = useState<ProductRatingSummary>({
     average_rating: product.average_rating,
     rating_count: product.rating_count,
@@ -109,9 +108,8 @@ export function ProductDetail({ product }: ProductDetailProps) {
     };
   }, [isAuthenticated, product.slug]);
 
-  // Sticky bar: appears once the buy row scrolls past, stays through the page
-  // bottom; a 48px dead zone stops layout shifts from flickering it. The footer
-  // reserves the bar's height as padding while mounted so it's never covered.
+  // Sticky bar shows once the buy row scrolls past; a 48px dead zone stops
+  // flicker, and the footer reserves the bar's height so it's never covered.
   const actionsRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const [showStickyBar, setShowStickyBar] = useState(false);
@@ -138,12 +136,10 @@ export function ProductDetail({ product }: ProductDetailProps) {
       const card = actions.getBoundingClientRect();
       setShowStickyBar((visible) => {
         if (visible) {
-          // Visible while the buy row is above/behind us; hidden once it
-          // re-enters the viewport.
+          // Hidden again once the buy row re-enters the viewport.
           return card.bottom <= 0;
         }
-        // Show once the buy row is well above; the 48px gap to the hide
-        // check is the dead zone.
+        // The 48px gap between the show and hide checks is the dead zone.
         return card.bottom < -48;
       });
     };
@@ -164,7 +160,6 @@ export function ProductDetail({ product }: ProductDetailProps) {
     };
   }, []);
 
-  // Image scales around this focal point so the focused pixel stays put.
   const setZoomFromEvent = (
     e: MouseEvent<HTMLDivElement> | PointerEvent<HTMLDivElement>,
   ) => {
@@ -175,7 +170,6 @@ export function ProductDetail({ product }: ProductDetailProps) {
     });
   };
 
-  // Primary photo first, then display order.
   const images = useMemo(
     () =>
       [...product.images].sort(
@@ -190,13 +184,12 @@ export function ProductDetail({ product }: ProductDetailProps) {
   const adding = addingId === product.id;
   const categorySlug = product.category?.slug ?? null;
 
-  // Sized products need an explicit size before adding; one-size skips
-  // straight in.
+  // Sized products need an explicit size; one-size products skip straight in.
   const hasSizes = product.sizes.length > 0;
   const sizeChosen = !hasSizes || size !== "";
   const maxQuantity = Math.max(1, product.stock_quantity);
-  // Cart state is per product + size, so switching size re-offers
-  // "Add to Cart" while the selected one shows "In Cart".
+  // Cart state is per product + size: switching size re-offers "Add to
+  // Cart" while the selected size shows "In Cart".
   const sizeInCart = (cart?.items ?? []).some(
     (line) => line.product.id === product.id && (line.size || "") === size,
   );
@@ -210,7 +203,6 @@ export function ProductDetail({ product }: ProductDetailProps) {
       .slice(0, 4);
   }, [catalog, categorySlug, product.id]);
 
-  // Shared by the in-flow CTA and the sticky bottom bar.
   const canAdd =
     !adding && sizeChosen && (sizeInCart || product.is_in_stock);
   const addLabel = adding
@@ -227,8 +219,6 @@ export function ProductDetail({ product }: ProductDetailProps) {
     else void addProduct(product, { quantity, size });
   };
 
-  // Quick checkout: make sure the chosen size/quantity is in the cart, then
-  // land on /checkout. Already in the cart? Skip straight there.
   const [buying, setBuying] = useState(false);
   const [notifyOpen, setNotifyOpen] = useState(false);
   const handleBuyNow = async () => {
@@ -243,7 +233,6 @@ export function ProductDetail({ product }: ProductDetailProps) {
     }
   };
 
-  // Share: native share sheet where supported, otherwise copy + toast.
   const handleShare = async () => {
     const url = window.location.href;
     if (typeof navigator.share === "function") {
@@ -251,7 +240,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
         await navigator.share({ title: product.title, url });
         return;
       } catch (err) {
-        // The user dismissed the sheet - don't fall back to the clipboard.
+        // User dismissed the sheet; don't fall back to the clipboard.
         if (err instanceof DOMException && err.name === "AbortError") return;
       }
     }
@@ -268,8 +257,8 @@ export function ProductDetail({ product }: ProductDetailProps) {
     month: "short",
     year: "numeric",
   });
-  // Tiered on purpose: exact counts only at <=5 (scarcity nudge), a plain
-  // "In stock" otherwise - full inventory stays unpublished.
+  // Exact counts only at <=5 (scarcity nudge); "In stock" otherwise so
+  // full inventory stays unpublished.
   const availabilityLabel = !product.is_in_stock
     ? "Out of stock"
     : product.stock_quantity <= 5
@@ -289,7 +278,6 @@ export function ProductDetail({ product }: ProductDetailProps) {
       {/* Image column is capped (360px/480px) so it stays generous without
           dominating the page; details take the rest of the row from md up. */}
       <div className="mt-6 grid gap-8 md:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:grid-cols-[minmax(0,480px)_minmax(0,1fr)]">
-        {/* Gallery - full-bleed on mobile, inset from sm up */}
         <div className="-mx-4 space-y-3 sm:mx-0">
           <div
             className={`relative aspect-[3/4] w-full overflow-hidden border-y bg-muted sm:rounded-2xl sm:border ${
@@ -301,8 +289,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
             }`}
             onClick={(e) => {
               if (!current?.image) return;
-              // Click/tap toggles the magnifier at that point; zooming never
-              // happens on hover.
+              // Click/tap toggles the magnifier; zooming never happens on hover.
               if (zoom) setZoom(null);
               else setZoomFromEvent(e);
             }}
@@ -396,18 +383,14 @@ export function ProductDetail({ product }: ProductDetailProps) {
           )}
         </div>
 
-        {/* Info */}
         <div>
-          {/* Header: title + rating on the left, share/wishlist icons right */}
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
                 {product.title}
               </h1>
 
-              {/* Read-only average - shoppers leave their own rating in the
-                  review form further down the page, so the header stars are
-                  display only (never buttons). */}
+              {/* Display-only stars; shoppers rate from the review form below. */}
               <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span
                   role="img"
@@ -472,7 +455,6 @@ export function ProductDetail({ product }: ProductDetailProps) {
             )}
           </div>
 
-          {/* Meta: category link + when the product was listed */}
           <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
             {product.category ? (
               <Link
@@ -565,9 +547,8 @@ export function ProductDetail({ product }: ProductDetailProps) {
             </p>
           )}
 
-          {/* Actions - once this row scrolls out of view the sticky bar
-              takes over as the way to buy. Sold-out pieces swap the whole
-              row for the notify offer instead of greyed-out buttons. */}
+          {/* Sold-out pieces swap this row for the notify offer instead of
+              greyed-out buttons. */}
           {!product.is_in_stock ? (
             <Button
               size="lg"
@@ -638,7 +619,6 @@ export function ProductDetail({ product }: ProductDetailProps) {
             </div>
           )}
 
-          {/* Product information - always open, no accordion */}
           <h2 className="mt-5 text-xs font-semibold tracking-wider text-muted-foreground uppercase sm:mt-6">
             Product information
           </h2>
@@ -686,8 +666,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
         </div>
       </div>
 
-      {/* Written reviews: the list (10 per page) plus the shopper's own
-          form. New posts feed the aggregate back into the header average. */}
+      {/* New posts feed the aggregate back into the header average. */}
       <ProductReviews
         key={product.slug}
         slug={product.slug}
@@ -695,7 +674,6 @@ export function ProductDetail({ product }: ProductDetailProps) {
         onRatingChange={setRating}
       />
 
-      {/* Cross-sell from the shared catalog */}
       {related.length > 0 && product.category && (
         <section className="mt-12 border-t pt-8">
           <h2 className="text-lg font-semibold tracking-tight uppercase">
@@ -715,9 +693,6 @@ export function ProductDetail({ product }: ProductDetailProps) {
           </div>
         </section>
       )}
-      {/* Bottom bar: hidden while the in-flow buy row is on screen, slides
-          up once you scroll past it and then stays through the page bottom -
-          the footer reserves its height so it is never covered. */}
       <div
         ref={barRef}
         aria-hidden={!showStickyBar}
@@ -729,7 +704,6 @@ export function ProductDetail({ product }: ProductDetailProps) {
         }`}
       >
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-4 pb-[calc(1rem_+_env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:gap-5 sm:px-6">
-          {/* Product context: thumbnail + title + price */}
           <div className="flex min-w-0 items-center gap-3">
             {current?.image ? (
               <Image
@@ -770,8 +744,6 @@ export function ProductDetail({ product }: ProductDetailProps) {
             </div>
           </div>
 
-          {/* CTAs - WhatsApp spans the row on small screens so the two
-              buy actions keep their labels */}
           <div className="grid grid-cols-2 gap-2 sm:ml-auto sm:flex sm:gap-3">
             <Button
               size="lg"

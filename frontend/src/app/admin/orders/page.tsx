@@ -131,7 +131,6 @@ export default function AdminOrdersPage() {
         }
       />
 
-      {/* Filter and Search Bar */}
       <FilterToolbar
         search={
           <FilterSearch
@@ -206,7 +205,6 @@ export default function AdminOrdersPage() {
 
       {data && data.results.length > 0 && (
         <>
-          {/* Orders Desktop Table */}
           <div className="hidden rounded-2xl bg-card shadow-(--shadow-card) overflow-hidden md:block">
             <Table className="table-fixed">
               <TableHeader>
@@ -277,7 +275,6 @@ export default function AdminOrdersPage() {
             </Table>
           </div>
 
-          {/* Orders Mobile Cards */}
           <div className="md:hidden space-y-3">
             {data.results.map((order) => (
               <Card
@@ -312,7 +309,6 @@ export default function AdminOrdersPage() {
             ))}
           </div>
 
-          {/* Pagination */}
           <ListPagination
             page={page}
             count={data?.count ?? 0}
@@ -323,7 +319,6 @@ export default function AdminOrdersPage() {
         </>
       )}
 
-      {/* Order Detail Modal / Sidebar */}
       {selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="relative max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl border bg-card p-6 shadow-xl">
@@ -347,13 +342,11 @@ export default function AdminOrdersPage() {
               </div>
             </div>
 
-            {/* Status change actions */}
             <div className="mt-5 rounded-2xl bg-muted/40 p-4">
               <Label className="text-xs font-semibold text-muted-foreground uppercase">
                 Update Order Status
               </Label>
 
-              {/* One-click confirm for orders still in the queue */}
               {selectedOrder.status === "PROCESSING" && (
                 <div className="mt-3 flex flex-col gap-3 rounded-xl border border-emerald-600/30 bg-emerald-600/5 p-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-xs text-muted-foreground">
@@ -395,7 +388,6 @@ export default function AdminOrdersPage() {
               </div>
             </div>
 
-            {/* Customer & Shipping Details */}
             <div className="mt-4 grid gap-3 sm:grid-cols-2 text-xs">
               <div className="rounded-xl border p-3">
                 <span className="font-semibold text-muted-foreground uppercase text-[10px]">
@@ -424,7 +416,6 @@ export default function AdminOrdersPage() {
               </div>
             </div>
 
-            {/* Line items */}
             <div className="mt-4">
               <span className="text-xs font-semibold text-muted-foreground uppercase">
                 Order Items ({selectedOrder.item_count})
@@ -451,7 +442,6 @@ export default function AdminOrdersPage() {
               </ul>
             </div>
 
-            {/* Financial summary */}
             <div className="mt-4 border-t pt-3 space-y-1.5 text-xs">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal:</span>

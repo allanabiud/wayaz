@@ -79,7 +79,6 @@ function ProductsContent() {
 
   return (
     <div className="space-y-5">
-      {/* Page header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="mb-1 text-xs font-semibold uppercase tracking-[0.25em] text-gold">
@@ -95,7 +94,6 @@ function ProductsContent() {
         </Button>
       </div>
 
-      {/* Filter toolbar */}
       <FilterToolbar
         search={
           <FilterSearch
@@ -159,7 +157,7 @@ function ProductsContent() {
 
       {products.length > 0 && (
         <>
-          {/* Mobile: card list (table is unusable on small screens) */}
+          {/* Mobile: card list; the table is unusable on small screens. */}
           <div className="space-y-3 md:hidden">
             {products.map((product) => {
               const isZero = !product.is_in_stock || product.stock_quantity <= 0;
@@ -221,7 +219,6 @@ function ProductsContent() {
             })}
           </div>
 
-          {/* Desktop: table */}
           <div className="hidden rounded-2xl bg-card shadow-(--shadow-card) overflow-hidden md:block">
             <Table className="table-fixed">
               <TableHeader>
@@ -302,7 +299,6 @@ function ProductsContent() {
             </Table>
           </div>
 
-          {/* Pagination: Showing x-y of z (left) - Previous 1/3 Next (right) */}
           <ListPagination
             page={page}
             count={data?.count ?? 0}

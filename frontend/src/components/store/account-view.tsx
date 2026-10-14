@@ -55,7 +55,6 @@ import {
 } from "@/lib/store";
 import type { Address, Paginated } from "@/lib/types";
 
-// ---- Profile tab --------------------------------------------------------
 
 function ProfileTab() {
   const { data: profile, error, loading, refetch } =
@@ -74,7 +73,6 @@ function ProfileTab() {
   if (error) return <ErrorState message={error} onRetry={refetch} />;
   if (!profile) return null;
 
-  // Fields initialize from the loaded profile via useState initializers.
   return (
     <ProfileForm key={profile.id} profile={profile} onSaved={refetch} />
   );
@@ -183,7 +181,6 @@ function ProfileForm({
   );
 }
 
-// ---- Password tab -------------------------------------------------------
 
 function PasswordTab() {
   const [oldPassword, setOldPassword] = useState("");
@@ -261,7 +258,6 @@ function PasswordTab() {
   );
 }
 
-// ---- Addresses tab ------------------------------------------------------
 
 const EMPTY_ADDRESS = {
   full_name: "",
@@ -280,7 +276,6 @@ function AddressDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Existing address to edit, or null when adding a new one. */
   address: Address | null;
   onSaved: () => void;
 }) {
@@ -612,7 +607,6 @@ function AddressesTab() {
         onSaved={refetch}
       />
 
-      {/* Delete confirmation */}
       <Dialog
         open={deleting !== null}
         onOpenChange={(open) => {
@@ -646,12 +640,7 @@ function AddressesTab() {
   );
 }
 
-// ---- Page shell ---------------------------------------------------------
 
-/**
- * Storefront account portal behind Account -> My Account: personal details,
- * password rotation, and the saved-address book used at checkout.
- */
 export function AccountView() {
   const { ready, isAuthenticated } = useAuth();
   const { openLogin } = useStore();

@@ -16,7 +16,6 @@ class AdminAPITestCase(TestCase):
     def setUp(self):
         self.client = APIClient()
 
-        # Admin user
         self.admin_user = User.objects.create_user(
             username="admin_user",
             email="admin@wayaz.com",
@@ -25,7 +24,6 @@ class AdminAPITestCase(TestCase):
             is_staff=True,
         )
 
-        # Normal customer
         self.customer = User.objects.create_user(
             username="customer_user",
             email="customer@wayaz.com",
@@ -43,11 +41,9 @@ class AdminAPITestCase(TestCase):
         )
 
     def test_admin_overview_forbidden_for_customers(self):
-        # Anonymous
         res = self.client.get("/api/v1/admin/overview/")
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        # Authenticated as customer
         self.client.force_authenticate(user=self.customer)
         res = self.client.get("/api/v1/admin/overview/")
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
@@ -61,7 +57,6 @@ class AdminAPITestCase(TestCase):
         self.assertIn("top_products", res.data)
         self.assertEqual(res.data["kpis"]["total_products"], 1)
         self.assertEqual(res.data["kpis"]["products_added_this_month"], 1)
-        # setUp customer joined today
         self.assertEqual(res.data["kpis"]["new_customers_this_month"], 1)
         # No orders yet, so no sales-based top products
         self.assertEqual(res.data["top_products"], [])
@@ -157,7 +152,6 @@ class AdminAPITestCase(TestCase):
 
         self.client.force_authenticate(user=self.admin_user)
 
-        # No filters: everything, newest first, pending count on top.
         res = self.client.get("/api/v1/admin/orders/")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data["count"], 4)
@@ -170,12 +164,10 @@ class AdminAPITestCase(TestCase):
         self.assertEqual(res.data["count"], 2)
         self.assertEqual(res.data["pending_count"], 2)
 
-        # A single pipeline status.
         res = self.client.get("/api/v1/admin/orders/?status=DELIVERED")
         self.assertEqual(res.data["count"], 1)
         self.assertEqual(res.data["results"][0]["status_display"], "Delivered")
 
-        # Search matches shipping name and order number.
         res = self.client.get("/api/v1/admin/orders/?search=Amina")
         self.assertEqual(res.data["count"], 2)
         res = self.client.get(
@@ -219,7 +211,6 @@ class AdminAPITestCase(TestCase):
         self.assertEqual(summary["pending_orders"], 1)
         self.assertEqual(summary["total"], 3500.0)
 
-        # Today's confirmed revenue appears on the final series point.
         series = res.data["revenue_series"]
         self.assertEqual(len(series), 30)
         self.assertEqual(series[-1]["revenue"], 3500.0)
@@ -231,14 +222,13 @@ class AdminAPITestCase(TestCase):
             "orders": 0,
         })
 
-        # All four orders were placed this week.
         orders_series = res.data["orders_series"]
         self.assertEqual(len(orders_series), 8)
         self.assertEqual(orders_series[-1]["orders"], 4)
         self.assertEqual(sum(point["orders"] for point in orders_series), 4)
 
-        # The period series drive the dashboard's time filter, so each one
-        # must sum to the matching time_metrics KPI shown beside it.
+        # Each period series must sum to the matching time_metrics KPI
+        # shown beside it.
         metrics = res.data["time_metrics"]["orders"]
         for key, period in (
             ("orders_series_today", "today"),
@@ -308,8 +298,7 @@ class AdminAPITestCase(TestCase):
         self.assertEqual(res.data["sales_summary"]["units_sold"], 7)
 
     def test_admin_overview_top_lists_capped_at_five(self):
-        # Six products, each outselling the last, so the cap drops the
-        # lowest-ranked one rather than an arbitrary row.
+        # Six products each outselling the last, so the cap drops the lowest.
         for i in range(6):
             product = Product.objects.create(
                 title=f"Runner {i}",
@@ -364,13 +353,11 @@ class AdminAPITestCase(TestCase):
         self.client.force_authenticate(user=self.admin_user)
         url = f"/api/v1/admin/products/{self.product.id}/adjust-stock/"
 
-        # Set absolute stock
         res = self.client.post(url, {"stock_quantity": 50}, format="json")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock_quantity, 50)
 
-        # Relative adjustment
         res = self.client.post(url, {"adjustment": -10}, format="json")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.product.refresh_from_db()
@@ -534,10 +521,8 @@ class AdminReviewAPITestCase(TestCase):
         self.assertEqual(res.data["count"], 1)
         self.assertEqual(res.data["results"][0]["id"], self.approved.id)
 
-        # Comment text...
         res = self.client.get(f"{self.list_url}?search=fit")
         self.assertEqual(res.data["count"], 1)
-        # ...and product title both match.
         res = self.client.get(f"{self.list_url}?search=Wide-Leg")
         self.assertEqual(res.data["count"], 2)
 

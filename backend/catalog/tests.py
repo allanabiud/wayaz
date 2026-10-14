@@ -122,7 +122,6 @@ class ProductReviewAPITestCase(TestCase):
         self.assertEqual(res.data["rating_count"], 2)
         self.assertEqual(res.data["average_rating"], 4.0)
 
-        # Re-rating overwrites instead of duplicating
         self.client.force_authenticate(self.alice)
         res = self.client.post(self.review_url(), {"rating": 4}, format="json")
         self.assertEqual(res.data["user_rating"], 4)
@@ -193,8 +192,7 @@ class ProductReviewAPITestCase(TestCase):
         self.assertFalse(res.data["results"][0]["mine"])
 
     def test_rating_only_post_preserves_the_written_comment(self):
-        # The PDP's quick star row sends just {rating}; tapping a star must
-        # never wipe written feedback left through the review form.
+        # Quick-star sends just {rating}; it must never wipe written feedback.
         self.client.force_authenticate(self.alice)
         self.client.post(
             self.review_url(),
@@ -240,7 +238,6 @@ class ProductReviewAPITestCase(TestCase):
         self.assertEqual(res.data["rating_count"], 1)
         self.assertEqual(res.data["average_rating"], 5.0)
 
-        # ...and so does the public list.
         listing = self.client.get(self.list_url())
         self.assertEqual(listing.data["count"], 1)
         self.assertEqual(listing.data["results"][0]["comment"], "Spam")
@@ -286,7 +283,6 @@ class ProductPriceFilterTestCase(TestCase):
 
     def test_price_sort_ignores_the_sticker_price(self):
         # Current prices: Cheap Sale 2,500 / Plain 4,000 / On Sale 4,200.
-        # The sticker prices claim the opposite order (5,000 vs 4,000).
         Product.objects.create(
             title="Cheap Sale Jean",
             category=self.category,
@@ -370,7 +366,6 @@ class StoreSettingsTestCase(TestCase):
         self.assertEqual(res.data["announcement_text"], "Flash sale this weekend!")
         self.assertTrue(res.data["is_announcement_active"])
 
-        # Verify public endpoint reflects change
         self.client.logout()
         pub_res = self.client.get("/api/v1/catalog/settings/")
         self.assertEqual(pub_res.data["store_name"], "Wayaz Boutique")
@@ -391,11 +386,9 @@ class StoreSettingsTestCase(TestCase):
         self.assertEqual(len(res.data["support_phones"]), 2)
         self.assertEqual(res.data["support_phones"][0]["label"], "Sales")
 
-        # Public endpoint
         pub_res = self.client.get("/api/v1/catalog/settings/")
         self.assertEqual(len(pub_res.data["support_phones"]), 2)
 
-        # Invalid phone format
         invalid_res = self.client.patch(
             "/api/v1/admin/settings/",
             {"support_phones": [{"label": "Help", "number": "abc"}]},
@@ -406,8 +399,7 @@ class StoreSettingsTestCase(TestCase):
 
 class AdminProductImageUploadTestCase(TestCase):
     """Upload validation: real images only, allowlisted extensions, capped
-    size, typed metadata (the old endpoint raw-`int()`-parsed display_order
-    and accepted any file)."""
+    size, typed metadata."""
 
     UPLOAD_URL = "/api/v1/admin/products/{pid}/upload-image/"
 
@@ -542,7 +534,6 @@ class ContactMessageTestCase(TestCase):
         self.assertEqual(res.data["name"], "Jane Doe")
         self.assertEqual(res.data["subject"], "Delivery Question")
 
-        # Test manager copy was sent
         from catalog.models import ContactMessage
         msg = ContactMessage.objects.get(id=res.data["id"])
         self.assertFalse(msg.is_read)
@@ -560,24 +551,20 @@ class ContactMessageTestCase(TestCase):
         res = self.client.get("/api/v1/admin/contact-messages/")
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        # Customer cannot access admin
         self.client.force_authenticate(self.customer)
         res = self.client.get("/api/v1/admin/contact-messages/")
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
 
-        # Staff can list
         self.client.force_authenticate(self.staff_user)
         res = self.client.get("/api/v1/admin/contact-messages/")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertGreaterEqual(len(res.data["results"]), 1)
 
-        # Nav counts reflects unread count
         nav_res = self.client.get("/api/v1/admin/nav-counts/")
         self.assertEqual(nav_res.status_code, status.HTTP_200_OK)
         self.assertIn("messages", nav_res.data)
         self.assertEqual(nav_res.data["messages"], 1)
 
-        # Mark read
         patch_res = self.client.patch(
             f"/api/v1/admin/contact-messages/{msg.id}/",
             {"is_read": True},
@@ -588,17 +575,14 @@ class ContactMessageTestCase(TestCase):
         msg.refresh_from_db()
         self.assertTrue(msg.is_read)
 
-        # Delete message
         del_res = self.client.delete(f"/api/v1/admin/contact-messages/{msg.id}/")
         self.assertEqual(del_res.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(ContactMessage.objects.filter(id=msg.id).exists())
 
 
 class RestockNotificationTestCase(TestCase):
-    # The view throttles on its own `throttle_classes`, so the emptied global
-    # default doesn't reach it. Throttle caches are shared across every test
-    # in a suite run, so clear it here to keep this class off whatever other
-    # cases already spent.
+    # The view throttles on its own throttle_classes, so clear the shared
+    # cache here to keep this class off whatever other cases already spent.
     def setUp(self):
         from django.core.cache import cache
 

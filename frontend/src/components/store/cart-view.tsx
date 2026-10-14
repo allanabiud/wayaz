@@ -9,10 +9,6 @@ import { CartLine } from "@/components/store/cart-line";
 import { useStore } from "@/components/store/store-context";
 import { cartWhatsappLink, formatKsh } from "@/lib/store";
 
-/**
- * Full-page cart: the same line items as the sheet (size picker, quantity
- * stepper, remove) with more room, plus subtotal and both checkout routes.
- */
 export function CartView() {
   const { cart, updateCart, settings } = useStore();
   const items = cart?.items ?? [];

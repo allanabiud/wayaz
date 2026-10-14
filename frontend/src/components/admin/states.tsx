@@ -50,7 +50,6 @@ export function PageHeader({
   title: string;
   description?: string;
   action?: React.ReactNode;
-  /** Small gold overline above the title (matches the storefront eyebrows). */
   eyebrow?: string;
 }) {
   return (

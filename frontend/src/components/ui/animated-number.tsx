@@ -3,36 +3,23 @@
 import { useEffect, useRef, useState } from "react";
 
 export interface AnimatedNumberProps {
-  /** The target number to count up or down to. */
   value: number;
-  /** Duration of the count animation in milliseconds. Default 650ms. */
   duration?: number;
-  /** Fixed decimal places to display. Default 0. */
   decimals?: number;
-  /** Optional step precision, e.g. 0.1. */
   step?: number;
-  /** Optional string prefix, e.g. "Ksh " or "$". */
   prefix?: string;
-  /** Optional string suffix, e.g. "%" or " units". */
   suffix?: string;
-  /** Custom formatter function. If provided, overrides default locale formatting. */
   formatter?: (val: number) => string;
   /** Alias for formatter. */
   format?: (val: number) => string;
-  /** Additional CSS class names for the wrapper span. */
   className?: string;
-  /** Whether to animate from 0 on initial mount. Default true. */
   animateOnMount?: boolean;
 }
 
-/** Cubic ease-out curve matching standard chart animations. */
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
-/**
- * Hook that smoothly counts up or down to a target value whenever it changes.
- */
 export function useCountUp(
   targetValue: number,
   options?: {
@@ -55,9 +42,7 @@ export function useCountUp(
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     if (prefersReducedMotion || duration <= 0) {
-      // Snap straight to the target with no animation. The state update is
-      // applied from the rAF callback so nothing is set synchronously in the
-      // effect body; when the value is already current React bails out.
+      // Apply via rAF so nothing is set synchronously in the effect body.
       currentRef.current = validTarget;
       rafRef.current = requestAnimationFrame(() => {
         rafRef.current = null;
@@ -74,7 +59,6 @@ export function useCountUp(
         currentRef.current = validTarget;
         return;
       }
-      // Animate from 0 to target on initial mount
       const startVal = 0;
       const endVal = validTarget;
       const startTime = performance.now();
@@ -101,7 +85,6 @@ export function useCountUp(
       };
     }
 
-    // Target value changed after mount: count up or down from current position
     const startVal = currentRef.current;
     const endVal = validTarget;
 
@@ -141,11 +124,6 @@ export function useCountUp(
   return displayValue;
 }
 
-/**
- * AnimatedNumber component
- * Smoothly counts up or down to new values with cubic ease-out,
- * synchronizing with chart transitions when dashboard/analytics filters change.
- */
 export function AnimatedNumber({
   value,
   duration = 650,

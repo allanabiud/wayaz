@@ -15,7 +15,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useStore } from "@/components/store/store-context";
 import { waLink } from "@/lib/store";
 
-/** Category pages offered in the footer (shown only while they hold items). */
 const PRODUCT_LINKS = [
   { slug: "jeans", name: "Jeans" },
   { slug: "shoes", name: "Shoes" },
@@ -27,7 +26,6 @@ export function StoreFooter() {
   const { catalog, catalogLoading, settings } = useStore();
   const year = new Date().getFullYear();
 
-  // Dynamically resolve social links from settings with graceful fallbacks
   const socialLinks = useMemo(() => {
     const list = [];
     const instagram =
@@ -69,7 +67,6 @@ export function StoreFooter() {
     return list;
   }, [settings]);
 
-  // Only link categories that exist and hold items.
   const productLinks = PRODUCT_LINKS.filter(({ slug }) => {
     if (!catalog) return false;
     const exists = catalog.categories.some(

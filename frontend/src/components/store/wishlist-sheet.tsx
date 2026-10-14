@@ -14,11 +14,9 @@ import { formatKsh, type StoreProduct } from "@/lib/store";
 interface WishlistSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Wishlisted products resolved against the shared catalog. */
   products: StoreProduct[];
   /** Raw wishlist count - non-zero while the catalog is still loading. */
   total: number;
-  /** Adds/removes a wishlisted item (supplied by the store provider). */
   onToggle: (product: { id: number; title: string }) => void;
 }
 

@@ -16,7 +16,6 @@ class CategorySerializer(serializers.ModelSerializer):
 
     @extend_schema_field(serializers.IntegerField())
     def get_product_count(self, obj) -> int:
-        # Use annotated value if present (O(1)), else fallback
         count = getattr(obj, "product_count", None)
         if count is not None:
             return count
@@ -132,8 +131,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
 
 class ProductReviewSerializer(serializers.ModelSerializer):
     """Write serializer for the nested review endpoint (product and user are
-    set by the view). `comment` is optional: a bare star rating is still a
-    valid submission, and omitting it leaves any existing comment untouched."""
+    set by the view). `comment` is optional; omitting it leaves it untouched."""
 
     class Meta:
         model = ProductReview
@@ -230,9 +228,8 @@ class RestockNotificationCreateSerializer(serializers.ModelSerializer):
         model = RestockNotification
         fields = ("id", "product", "email", "phone", "created_at")
         read_only_fields = ("id", "created_at")
-        # The (product, email) uniqueness is handled as "already subscribed"
-        # in the view, not as a 400. The auto-generated validator would fire
-        # first and turn a harmless repeat tap into an error.
+        # Uniqueness is handled as "already subscribed" in the view, not as
+        # a 400; an auto-generated validator would break repeat taps.
         validators = []
 
     def validate_email(self, value):

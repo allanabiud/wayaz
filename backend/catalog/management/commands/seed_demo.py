@@ -9,8 +9,8 @@ from accounts.models import WishlistItem
 from catalog.models import Category, Product, ProductImage
 from orders.models import Cart, CartItem, Order, OrderItem
 
-# Deterministic name parts - style cycles fastest, color/wash slowest, so
-# every (color, style) pair stays unique up to 45 products per category.
+# Deterministic name parts; style cycles fastest so every (color, style)
+# pair stays unique up to 45 products per category.
 JEAN_STYLES = [
     "Wide-Leg Jeans",
     "Straight Leg Jeans",
@@ -45,8 +45,7 @@ SHOE_COLORS = ["Triple White", "Jet Black", "Navy Blue", "Tan", "Crimson"]
 JEAN_SIZES = ["26", "28", "30", "32", "34"]
 SHOE_SIZES = ["39", "40", "41", "42", "43"]
 
-# Cycles sold-out, low-stock (amber banner), and healthy stock levels so
-# every storefront card state gets exercised.
+# Cycles sold-out, low-stock, and healthy levels so every card state shows.
 STOCK_CYCLE = [0, 5, 12, 18, 25, 30, 3, 9, 15, 22]
 
 JEAN_EXTRAS = [
@@ -103,7 +102,7 @@ class Command(BaseCommand):
         )
         media_root = Path(settings.MEDIA_ROOT)
 
-        # 1. Wipe database rows (user accounts and addresses are kept).
+        # Wipe database rows (user accounts and addresses are kept).
         self.stdout.write("Wiping existing demo data...")
         WishlistItem.objects.all().delete()
         CartItem.objects.all().delete()
@@ -114,14 +113,14 @@ class Command(BaseCommand):
         Product.objects.all().delete()
         Category.objects.all().delete()
 
-        # 2. Wipe stored product/category media so re-runs never orphan files.
+        # Wipe stored product/category media so re-runs never orphan files.
         for subdir in ("products", "categories"):
             target = media_root / subdir
             if target.exists():
                 shutil.rmtree(target)
             target.mkdir(parents=True, exist_ok=True)
 
-        # 3. The two categories present in the example photos.
+        # The two categories present in the example photos.
         jeans = Category.objects.create(
             name="Jeans",
             slug="jeans",
@@ -202,11 +201,9 @@ class Command(BaseCommand):
                 title = f"{color} {style}"
 
                 base_price = plan["base_start"] + (i % 6) * plan["step"]
-                # Every third item goes on sale so the storefront shows
-                # sale badges and struck-through prices.
+                # Every third item goes on sale for the sale badge display.
                 sale_price = base_price - plan["sale_drop"] if i % 3 == 0 else None
-                # Every fifth item is one-size so both card flows appear
-                # ("Add to Cart" directly vs "Select size").
+                # Every fifth item is one-size so both card flows appear.
                 sizes = [] if i % 5 == 4 else plan["sizes"]
                 stock = STOCK_CYCLE[i % len(STOCK_CYCLE)]
 

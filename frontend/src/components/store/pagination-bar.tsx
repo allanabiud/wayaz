@@ -24,11 +24,9 @@ function pageItems(current: number, pages: number): (number | "gap")[] {
 interface PaginationBarProps {
   page: number;
   pages: number;
-  /** Link target for a 1-based page (page 1 usually gets a clean URL). */
   hrefFor: (page: number) => string;
 }
 
-/** Prev/next plus gap-aware page number buttons, shared by listing pages. */
 export function PaginationBar({ page, pages, hrefFor }: PaginationBarProps) {
   if (pages <= 1) return null;
 

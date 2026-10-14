@@ -23,12 +23,8 @@ from .admin_serializers import (
 
 
 class AdminOrdersView(APIView):
-    """All orders for the admin workspace and sheet, newest first.
-
-    Filters: ?status=<pipeline status or "pending">, ?search=<order number,
-    shipping name, or email>. "pending" means not delivered/cancelled.
-    Supports ?page= and ?page_size= (default 20, max 100).
-    """
+    """All admin orders, newest first. `status` takes a pipeline status or
+    "pending" (not delivered/cancelled); supports page/page_size."""
 
     permission_classes = [IsStaffOrAdminUser]
 
@@ -207,9 +203,8 @@ class AdminOrderDetailView(APIView):
             order.save()
 
         if status_changed and new_status == Order.Status.CONFIRMED:
-            # Admin/staff sign-off - this is when the customer gets the
-            # "order confirmed" email (M-Pesa orders were only PAID +
-            # PROCESSING until this point).
+            # Staff sign-off: this is when the customer gets the confirmation
+            # email (M-Pesa orders sat PAID + PROCESSING until now).
             try:
                 send_order_confirmed_email(order)
             except Exception:
@@ -226,16 +221,12 @@ class AdminOrderDetailView(APIView):
 
 
 class AdminCouponViewSet(viewsets.ModelViewSet):
-    """CRUD for checkout coupons, annotated with how many orders used each.
+    """Checkout coupons, annotated with how many orders used each. Deleting
+    is safe for history: Order.coupon is SET_NULL, so past orders keep
+    their discount_amount."""
 
-    Deleting a coupon is safe for history: Order.coupon is SET_NULL, so
-    past orders keep their discount_amount - only the label is lost.
-    """
-
-    # Explicit order_by: annotate() puts this in GROUP BY mode, where
-    # Meta.ordering stops counting as an ordering - coupons would paginate
-    # in arbitrary DB order (see AdminCategoryViewSet in
-    # catalog/admin_views.py). Mirrors Coupon.Meta.ordering.
+    # Explicit order_by: annotate() switches to GROUP BY mode where
+    # Meta.ordering no longer applies.
     queryset = (
         Coupon.objects.annotate(order_count=Count("orders"))
         .order_by("-created_at")
@@ -247,16 +238,8 @@ class AdminCouponViewSet(viewsets.ModelViewSet):
 
 
 class AdminPaymentsView(APIView):
-    """
-    GET /api/v1/admin/orders/payments/
-    Unified payments list: M-Pesa PaymentTransactions + COD orders.
-    Query params:
-      ?method=mpesa   -> only M-Pesa
-      ?method=cod     -> only Cash on Delivery
-      ?status=COMPLETED|PENDING|FAILED -> payment status (M-Pesa) or PAID/PENDING (COD)
-      ?page=<n>       -> 1-indexed
-      ?page_size=<n>  -> results per page (default 10, max 100)
-    """
+    """Merged M-Pesa transactions and COD orders, newest first; `method`,
+    `status`, `page`, `page_size` filter and paginate (see schema)."""
 
     permission_classes = [IsStaffOrAdminUser]
 
@@ -295,7 +278,6 @@ class AdminPaymentsView(APIView):
 
         payments = []
 
-        # M-Pesa transactions
         if not method or method == "mpesa":
             mpesa_qs = PaymentTransaction.objects.select_related("order").order_by("-created_at")
             if status_filter:
@@ -313,12 +295,11 @@ class AdminPaymentsView(APIView):
                     "date": tx.created_at.isoformat(),
                 })
 
-        # COD orders: all COD orders, status reflects payment collection
+        # COD status reflects payment collection, not fulfillment.
         if not method or method == "cod":
             cod_qs = Order.objects.filter(
                 payment_method=Order.PaymentMethod.COD
             ).order_by("-created_at")
-            # Map status filter: PAID → PAID, PENDING → PENDING
             if status_filter in ("PAID", "PENDING"):
                 cod_qs = cod_qs.filter(payment_status=status_filter)
             for order in cod_qs:
@@ -334,7 +315,6 @@ class AdminPaymentsView(APIView):
                     "date": order.created_at.isoformat(),
                 })
 
-        # Sort all by date descending, then paginate
         payments.sort(key=lambda p: p["date"], reverse=True)
         total = len(payments)
         page_items = payments[offset: offset + page_size]

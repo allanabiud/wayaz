@@ -25,9 +25,8 @@ function LoginForm() {
 
   useEffect(() => {
     if (!ready || !isAuthenticated) return;
-    // Mirror the sign-in rule below: the storefront is everyone's landing
-    // spot; an admin ?next= is honored only for accounts that can manage
-    // (the /admin gate uses it to round-trip staff through sign-in).
+    // Mirror the sign-in rule below: an admin ?next= is honored only for
+    // accounts that can manage.
     const wantsAdmin = Boolean(next && next.startsWith("/admin"));
     router.replace(next && (!wantsAdmin || canManage) ? next : "/");
   }, [ready, isAuthenticated, canManage, next, router]);
@@ -49,9 +48,8 @@ function LoginForm() {
         result.user.is_staff ||
         result.user.is_superuser;
 
-      // Everyone signs in to the storefront; an admin ?next= is honored
-      // only for staff/admin accounts, so customers are never bounced
-      // into the dashboard by a crafted link.
+      // An admin ?next= is honored only for staff, so customers are never
+      // bounced into the dashboard by a crafted link.
       const wantsAdmin = Boolean(next && next.startsWith("/admin"));
       toast.success(
         `Welcome back, ${result.user.display_name || result.user.username}!`,
@@ -71,10 +69,8 @@ function LoginForm() {
 
   return (
     <div className="flex min-h-screen w-full flex-col justify-between bg-background p-6 sm:p-10">
-      {/* Top Bar with Return link */}
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {/* subtle header branding */}
           <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Wayaz Collection
           </span>
@@ -93,9 +89,7 @@ function LoginForm() {
         </Button>
       </header>
 
-      {/* Main Centered Authentication Form */}
       <main className="my-auto mx-auto w-full max-w-sm space-y-6">
-        {/* Larger Brand Logo and Header */}
         <div className="flex flex-col items-center text-center space-y-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -204,7 +198,6 @@ function LoginForm() {
         </form>
       </main>
 
-      {/* Footer */}
       <footer className="flex flex-col sm:flex-row items-center justify-between text-xs text-muted-foreground gap-2 pt-6">
         <span>&copy; {new Date().getFullYear()} Wayaz Collection · Nairobi, Kenya</span>
         <span>Protected by Wayaz Session Authentication</span>

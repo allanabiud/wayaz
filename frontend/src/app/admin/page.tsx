@@ -66,7 +66,6 @@ function formatDay(iso: string): string {
   });
 }
 
-/** Compact axis label: 2500 -> "2.5k", 12000 -> "12k". */
 function formatCompact(value: number): string {
   if (value >= 1000) {
     const k = value / 1000;
@@ -149,9 +148,8 @@ function OrdersTooltip({
 const HERO_GRADIENT =
   "linear-gradient(135deg, #e00613 0%, #b6050f 50%, #8a040b 100%)";
 
-/** Data-accent palette cycled across category pie slices. */
-// On-brand ramp from the theme tokens (globals.css): red -> gold -> charcoal
-// -> maroon -> grey. Slices take these in data order (largest stock first).
+// On-brand ramp from the theme tokens (globals.css), applied in data order
+// (largest stock first).
 const CATEGORY_COLORS = [
   "var(--chart-1)",
   "var(--gold)",
@@ -203,7 +201,6 @@ export default function AdminOverviewPage() {
   const stockByCategory = data?.stock_by_category ?? [];
   const stockUnitsByCategory = stockByCategory.reduce((sum, cat) => sum + cat.units, 0);
 
-  // Dynamic revenue series tied to current period
   const activeRevenueSeries =
     revenuePeriod === "today"
       ? (data?.revenue_series_today ?? [])
@@ -211,24 +208,20 @@ export default function AdminOverviewPage() {
         ? (data?.revenue_series_week ?? [])
         : (data?.revenue_series_month ?? (data?.revenue_series ?? []));
 
-  // Dynamic revenue KPI driven by timeMetrics or fallback
   const revMetric: TimeMetric | undefined = timeMetrics?.revenue[revenuePeriod];
   const displayRevenue = revMetric ? revMetric.current : (revenueSummary?.total ?? 0);
   const displayRevenueDelta = revMetric ? revMetric.percent : null;
 
-  // Dynamic orders KPI driven by timeMetrics or fallback
   const ordMetric: TimeMetric | undefined = timeMetrics?.orders[ordersPeriod];
   const displayOrders = ordMetric ? ordMetric.current : (revenueSummary?.orders_total ?? 0);
   const displayOrdersDelta = ordMetric ? ordMetric.percent : null;
 
   return (
     <div className="space-y-6">
-      {/* Slim Haze-style hero banner */}
       <section
         className="relative overflow-hidden rounded-2xl"
         style={{ background: HERO_GRADIENT }}
       >
-        {/* dot-grid texture */}
         <div
           className="pointer-events-none absolute inset-0 opacity-20"
           style={{
@@ -241,7 +234,6 @@ export default function AdminOverviewPage() {
         <div className="pointer-events-none absolute -bottom-24 left-1/3 size-48 rounded-full bg-black/25 blur-3xl" />
 
         <div className="relative z-10 p-5 sm:p-6 space-y-4">
-          {/* Top Bar: Date & Status Chip on Left, Actions on Right */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/15 pb-3.5">
             <div className="flex flex-wrap items-center gap-2">
               <span
@@ -276,7 +268,6 @@ export default function AdminOverviewPage() {
             </div>
           </div>
 
-          {/* Main Greeting & Quick Stats Grid */}
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between pt-0.5">
             <div className="min-w-0">
               <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
@@ -345,7 +336,6 @@ export default function AdminOverviewPage() {
 
       {kpis && (
         <>
-          {/* Total Revenue chart + Stock by Category */}
           <div className="grid gap-4 lg:grid-cols-3">
             <Card className="transition-shadow lg:col-span-2">
               <CardHeader className="pb-2">
@@ -356,7 +346,6 @@ export default function AdminOverviewPage() {
                     </p>
                     <Delta pct={displayRevenueDelta} />
                   </div>
-                  {/* Period filter buttons */}
                   <div className="inline-flex items-center rounded-lg border border-border/60 bg-muted/40 p-0.5 text-xs">
                     {(["today", "week", "month"] as PeriodTab[]).map((tab) => (
                       <button
@@ -433,7 +422,6 @@ export default function AdminOverviewPage() {
               </CardContent>
             </Card>
 
-            {/* Stock by Category - units available per category */}
             <Card className="transition-shadow">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between gap-2">
@@ -502,7 +490,6 @@ export default function AdminOverviewPage() {
             </Card>
           </div>
 
-          {/* Top Products (Sales vs Wishlist) + Orders (50/50 row) */}
           <div className="grid gap-4 lg:grid-cols-2">
             <Card className="transition-shadow">
               <CardHeader className="pb-2">
@@ -510,7 +497,6 @@ export default function AdminOverviewPage() {
                   <p className="text-xs font-semibold uppercase tracking-[0.25em] text-gold">
                     Top Products
                   </p>
-                  {/* Switch between Sales and Wishlist */}
                   <div className="inline-flex items-center rounded-lg border border-border/60 bg-muted/40 p-0.5 text-xs">
                     <button
                       type="button"
@@ -640,7 +626,6 @@ export default function AdminOverviewPage() {
               </CardContent>
             </Card>
 
-            {/* Orders Summary & Trend */}
             <Card className="transition-shadow">
               <CardHeader className="pb-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -650,7 +635,6 @@ export default function AdminOverviewPage() {
                     </p>
                     <Delta pct={displayOrdersDelta} />
                   </div>
-                  {/* Period filter buttons */}
                   <div className="inline-flex items-center rounded-lg border border-border/60 bg-muted/40 p-0.5 text-xs">
                     {(["today", "week", "month"] as PeriodTab[]).map((tab) => (
                       <button
@@ -683,8 +667,8 @@ export default function AdminOverviewPage() {
                     description="Order volume appears here once checkout goes live."
                   />
                 ) : (
-                  // flex-1 so the bars fill the card even when the Top
-                  // Products list beside it stretches this row taller.
+                  // flex-1 so the bars fill the card even when the taller
+                  // Top Products list beside them stretches this row.
                   <div className="min-h-56 w-full flex-1">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
@@ -726,7 +710,6 @@ export default function AdminOverviewPage() {
             </Card>
           </div>
 
-          {/* Recent Activity - vertical connected timeline */}
           <Card className="transition-shadow">
             <CardHeader className="pb-3 border-b">
               <div className="flex items-center justify-between gap-2">
@@ -769,7 +752,6 @@ function TimelineItem({ item }: { item: RecentActivity }) {
 
   return (
     <div className="relative flex items-start gap-3">
-      {/* Timeline node icon */}
       <div
         className={`absolute -left-6 sm:-left-8 top-0.5 flex size-6 sm:size-7 items-center justify-center rounded-full border-2 border-background text-xs shadow-xs ${
           isOrder
@@ -825,7 +807,6 @@ function EmptyState({
   );
 }
 
-/** Period-over-period change badge with trend icon and percentage only. */
 function Delta({ pct }: { pct: number | null }) {
   if (pct === null || !Number.isFinite(pct)) return null;
   const up = pct >= 0;

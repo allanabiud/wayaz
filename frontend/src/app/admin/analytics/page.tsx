@@ -57,10 +57,8 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   mpesa: "Lipa na M-Pesa",
 };
 
-// Count-up formatters for AnimatedNumber's `formatter` prop. Mid-flight
-// frames round for a clean roll; the resting frame hands back the exact
-// target, so a finished animation renders precisely what the old static
-// value did (cents on money, tenths on the rates).
+// Count-up formatters for AnimatedNumber: mid-flight frames round for a
+// clean roll, the resting frame returns the exact target.
 const formatWhole = (n: number) => n.toLocaleString();
 const formatOrderWord = (n: number) =>
   `${Math.round(n)} order${Math.round(n) === 1 ? "" : "s"}`;
@@ -98,8 +96,7 @@ export default function AnalyticsPage() {
     ? `/api/v1/admin/analytics/?start_date=${customStart}&end_date=${customEnd}`
     : `/api/v1/admin/analytics/?period=${period}`;
 
-  // deps: refetch whenever the period (or range) changes; without them the
-  // selector would update state but never re-request the data.
+  // Without these deps the selector would update state but never re-request.
   const { data, error, loading, refetch } = useQuery<AnalyticsData>(
     () => api.get<AnalyticsData>(queryUrl),
     [queryUrl],
@@ -145,9 +142,7 @@ export default function AnalyticsPage() {
         description="In-depth financial performance, customer retention, fulfillment health, and catalog insights."
       />
 
-      {/* Reporting controls: their own row above the KPI cards */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        {/* Period selector pill */}
         <div className="inline-flex items-center rounded-lg border border-border/60 bg-muted/40 p-0.5 text-xs">
           {(["7d", "30d", "90d", "month", "year", "all"] as PresetPeriod[]).map((tab) => (
             <button
@@ -211,15 +206,14 @@ export default function AnalyticsPage() {
       )}
 
       {kpis && data && (
-        // Wrapping the whole report keeps the previous numbers visible while
-        // a new period loads; the dimmed state confirms the filter applied.
+        // Wrapping the report keeps the previous numbers visible (dimmed)
+        // while a new period loads.
         <div
           aria-busy={loading}
           className={`space-y-6 transition-opacity ${
             loading ? "opacity-60" : "opacity-100"
           }`}
         >
-          {/* KPI Summary Cards */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
@@ -306,7 +300,6 @@ export default function AnalyticsPage() {
             </Card>
           </div>
 
-          {/* Revenue & Volume Over Time */}
           <Card>
             <CardHeader className="pb-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -427,9 +420,7 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
 
-          {/* Lifecycle Fulfillment & Payment Method Distributions */}
           <div className="grid gap-4 lg:grid-cols-2">
-            {/* Status Distribution */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base font-bold">
@@ -473,7 +464,6 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
 
-            {/* Payment Method Distribution */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base font-bold">
@@ -524,9 +514,7 @@ export default function AnalyticsPage() {
             </Card>
           </div>
 
-          {/* Top Products & Top Delivery Regions */}
           <div className="grid gap-4 lg:grid-cols-2">
-            {/* Top Revenue Driving Products */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base font-bold">
@@ -585,7 +573,6 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
 
-            {/* Top Destinations */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base font-bold">
@@ -634,7 +621,6 @@ export default function AnalyticsPage() {
             </Card>
           </div>
 
-          {/* Inventory Health: Attention / Slow-Moving Stock */}
           {deadStock.length > 0 && (
             <Card className="border-amber-500/20 bg-amber-500/5">
               <CardHeader className="pb-2">

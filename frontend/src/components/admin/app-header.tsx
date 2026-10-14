@@ -190,7 +190,6 @@ export function AppHeader() {
   const [profileEmail, setProfileEmail] = useState(user?.email || "");
   const [savingProfile, setSavingProfile] = useState(false);
 
-  // Security / Password change state
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -260,9 +259,8 @@ export function AppHeader() {
         old_password: oldPassword,
         new_password: newPassword,
       });
-      // The change stamps password_changed_at, which retires the tokens
-      // this session holds - re-mint them with the new password so the
-      // person who just changed it isn't logged out on their next click.
+      // The password change retires the tokens this session holds; re-mint
+      // them so the person who changed the password isn't logged out.
       if (user) {
         const session = await login(user.username, newPassword);
         tokenStore.save({
@@ -293,7 +291,6 @@ export function AppHeader() {
         status: nextStatus,
       });
       toast.success(`Order #${orderNumber} updated to ${nextStatus.replace(/_/g, " ")}`);
-      // Update local state immediately
       setOrders((prev) => {
         if (!prev) return null;
         return {
@@ -317,7 +314,6 @@ export function AppHeader() {
     }
   };
 
-  // Badge + sheet: all orders, refetched when filters change (search debounced).
   useEffect(() => {
     let active = true;
     const search = orderQuery.trim();
@@ -344,7 +340,6 @@ export function AppHeader() {
     };
   }, [statusFilter, orderQuery]);
 
-  // Cmd/Ctrl+K focuses search; Esc closes the results dropdown.
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -413,7 +408,6 @@ export function AppHeader() {
 
         <div className="flex-1" />
 
-        {/* Search expands on focus to the results popup width */}
         <div
           ref={containerRef}
           className={`relative shrink-0 transition-[width] duration-200 ${searchFocused ? "w-52 sm:w-96" : "w-40 sm:w-56 lg:w-64"}`}
@@ -508,7 +502,6 @@ export function AppHeader() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* All orders: pending-count badge button + filterable side sheet */}
           <Sheet open={ordersSheetOpen} onOpenChange={setOrdersSheetOpen}>
             <SheetTrigger asChild>
               <Button
@@ -636,7 +629,6 @@ export function AppHeader() {
                             </span>
                           </div>
 
-                          {/* Inline Status Processor */}
                           <div className="mt-2.5 pt-2 border-t border-border/50 flex items-center justify-between gap-2">
                             <span className="text-[11px] font-medium text-muted-foreground">
                               Update status:
@@ -670,10 +662,8 @@ export function AppHeader() {
                             </div>
                           </div>
 
-                          {/* Expanded Full Details */}
                           {isExpanded && (
                             <div className="mt-3 pt-3 border-t border-border/60 space-y-2 text-[11px] animate-in fade-in-0 duration-200">
-                              {/* Customer Contact & Address */}
                               <div className="rounded-md bg-muted/40 p-2 space-y-1">
                                 {order.email && (
                                   <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -699,7 +689,6 @@ export function AppHeader() {
                                 )}
                               </div>
 
-                              {/* Order items if available */}
                               {order.items && order.items.length > 0 && (
                                 <div className="space-y-1">
                                   <p className="font-semibold text-foreground text-[10px] uppercase tracking-wider">
@@ -748,12 +737,10 @@ export function AppHeader() {
             </SheetContent>
           </Sheet>
 
-          {/* Contact inbox bell: unread count + newest-message preview */}
           <NotificationsMenu />
 
           <ThemeToggle />
 
-          {/* Account */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -812,8 +799,8 @@ export function AppHeader() {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => {
-                  // Seed the form from the current session (event handler,
-                  // not an effect).
+                  // Seed the form from the current session (in the event
+                  // handler, not an effect).
                   setProfileName(user?.display_name || "");
                   setProfilePhone(user?.phone_number || "");
                   setProfileEmail(user?.email || "");
@@ -836,7 +823,6 @@ export function AppHeader() {
         </div>
       </header>
 
-      {/* Account Settings Dialog (Profile + Security/Password) */}
       <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -846,7 +832,6 @@ export function AppHeader() {
             </DialogDescription>
           </DialogHeader>
 
-          {/* Tab selector */}
           <div className="flex border-b border-border/60 text-xs">
             <button
               type="button"

@@ -45,11 +45,6 @@ import {
   storedSearchHistory,
 } from "@/lib/store";
 
-/**
- * Full-bleed header: logo, search popover (pinned categories, recent + hot
- * terms, live product results), account and cart actions. Wraps to two rows
- * on small screens.
- */
 export function StoreHeader() {
   const router = useRouter();
   const {
@@ -149,8 +144,7 @@ export function StoreHeader() {
             />
           </Link>
 
-        {/* Search - takes every remaining pixel of header width; the
-            results popover drops down beneath it with thumbnails */}
+        {/* The results popover drops down beneath the search field. */}
         <div
           role="search"
           className="relative order-3 w-full min-w-0 sm:order-none sm:flex-1"
@@ -408,8 +402,8 @@ export function StoreHeader() {
         <div className="order-2 flex shrink-0 items-center gap-2 sm:order-none">
           <ThemeToggle />
 
-          {/* Account - always a dropdown: sign in at the top when signed
-              out, then wishlist + orders for everyone */}
+          {/* Always a dropdown: sign in on top when signed out, then
+              wishlist + orders for everyone. */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button

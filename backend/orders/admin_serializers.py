@@ -5,28 +5,23 @@ from .models import Coupon
 
 
 class AdminCouponSerializer(serializers.ModelSerializer):
-    """Write model for the coupons dashboard.
-
-    The money maths lives on Coupon.discount_for(); here we only police the
-    shape of a coupon: a positive value, and a percentage that cannot
-    exceed 100.
-    """
+    """Coupons dashboard write model; money maths lives on
+    Coupon.discount_for(), here we only police the shape."""
 
     order_count = serializers.SerializerMethodField()
 
     @extend_schema_field(serializers.IntegerField())
     def get_order_count(self, obj) -> int:
-        # Annotated on the viewset queryset (O(1)); freshly saved instances
-        # carry no annotation, so fall back to a count.
+        # Annotated on the viewset queryset; freshly saved instances carry
+        # no annotation, so fall back to a count.
         count = getattr(obj, "order_count", None)
         if count is not None:
             return count
         return obj.orders.count()
 
     def validate_code(self, value):
-        # save() stores codes stripped + uppercase; mirror that here, or a
-        # lowercase duplicate would sail past the field's unique validator
-        # (it checks the raw text) and blow up on the INSERT instead.
+        # save() stores codes stripped + uppercase; a lowercase duplicate
+        # would sail past the field's unique validator and blow up on INSERT.
         code = value.strip().upper()
         duplicates = Coupon.objects.filter(code=code)
         if self.instance is not None:
@@ -67,13 +62,9 @@ class AdminCouponSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "order_count", "created_at")
 
 
-# ---------------------------------------------------------------------------
-# Schema-only response serializers for the admin order/payment APIViews
-# ---------------------------------------------------------------------------
-# AdminOrdersView, AdminOrderDetailView and AdminPaymentsView build plain
-# dicts in a single annotated pass for speed; these classes mirror that
-# payload shape so drf-spectacular can type it. They are never instantiated
-# at runtime - keep them in sync with orders/admin_views.py.
+# Schema-only response serializers: they mirror the plain-dict payloads built
+# in orders/admin_views.py so drf-spectacular can type them. Never instantiated
+# at runtime - keep them in sync with admin_views.py.
 
 
 class AdminOrderItemSerializer(serializers.Serializer):

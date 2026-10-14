@@ -28,8 +28,8 @@ interface MpesaPaymentModalProps {
   open: boolean;
   orderNumber: string;
   checkoutRequestId: string;
-  /** Signed capability token from the checkout response - the payment
-   * status endpoint only answers to the order's owner (or token holder). */
+  /** Signed token from the checkout response; the payment status endpoint
+   *  only answers to the order's owner (or token holder). */
   paymentToken: string;
   phoneNumber: string;
   amount: string;
@@ -58,13 +58,11 @@ export function MpesaPaymentModal({
   );
   const [receiptNumber, setReceiptNumber] = useState<string | null>(null);
 
-  // Polling loop
   useEffect(() => {
     if (!open || !checkoutRequestId || status !== "polling") return;
 
     let isCancelled = false;
 
-    // Countdown timer
     const timer = setInterval(() => {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
@@ -79,7 +77,6 @@ export function MpesaPaymentModal({
       });
     }, 1000);
 
-    // Status polling every 2.5s
     const pollInterval = setInterval(async () => {
       try {
         const res: PaymentStatusResponse = await pollPaymentStatus(
@@ -105,7 +102,7 @@ export function MpesaPaymentModal({
           setStatusMessage(res.result_desc || "M-Pesa payment was cancelled or failed.");
         }
       } catch {
-        // Continue polling on network error
+        // Keep polling through network errors.
       }
     }, 2500);
 
@@ -180,7 +177,6 @@ export function MpesaPaymentModal({
               <Progress value={progressPercent} className="h-1.5 bg-muted" />
             </div>
 
-            {/* Quick dev/testing simulator toolbar */}
             {isMock && (
               <div className="rounded-lg border border-dashed border-gold/40 bg-gold/5 p-3 text-xs space-y-2">
                 <div className="flex items-center justify-between font-semibold text-gold">

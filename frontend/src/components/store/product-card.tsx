@@ -23,12 +23,10 @@ import { cn } from "@/lib/utils";
 interface ProductCardProps {
   product: StoreProduct;
   adding: boolean;
-  /** True while this product sits in the guest cart (shows "In Cart"). */
   inCart: boolean;
   /**
-   * Loads the image eagerly instead of lazily - set it for cards above the
-   * fold so the LCP image isn't delayed by IntersectionObserver. (Next 16
-   * deprecated `priority`; `loading="eager"` is the replacement.)
+   * Eager instead of lazy, for cards above the fold; Next 16 deprecated
+   * `priority`, so `loading="eager"` is the replacement.
    */
   eager?: boolean;
   onAdd: (product: StoreProduct) => void;
@@ -47,8 +45,6 @@ export function ProductCard({
   const wishlisted = wishlist.has(product.id);
   const image = product.primary_image ? mediaUrl(product.primary_image) : null;
 
-  // Both CTAs share the quick picker for sized pieces: "add" keeps the
-  // shopper on the grid, "buy" continues to /checkout.
   const [buying, setBuying] = useState(false);
   const [quickBuyOpen, setQuickBuyOpen] = useState(false);
   const [quickMode, setQuickMode] = useState<"add" | "buy">("buy");
@@ -60,8 +56,8 @@ export function ProductCard({
     setQuickBuyOpen(true);
   };
 
-  // "In Cart" doubles as a quantity bump; one-size pieces add straight from
-  // the card, sized pieces need the picker to choose a size first.
+  // "In Cart" doubles as a quantity bump; one-size pieces add straight
+  // from the card, sized pieces need the picker first.
   const handleAdd = () => {
     if (inCart) {
       void bumpProduct(product);
@@ -74,8 +70,8 @@ export function ProductCard({
     onAdd(product);
   };
 
-  // Sold-out pieces can't be bought, so both CTAs collapse into the notify
-  // flow rather than sitting there greyed out.
+  // Sold-out pieces collapse both CTAs into the notify flow instead of
+  // sitting there greyed out.
   const handleBuyNow = () => {
     if (!product.is_in_stock) {
       setNotifyOpen(true);
@@ -101,7 +97,6 @@ export function ProductCard({
       id={`product-${product.id}`}
       className="group relative flex flex-col overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-(--shadow-card) transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-(--shadow-card-hover)"
     >
-      {/* Portrait 3:4 preview - matches how the catalog photos are shot */}
       <Link
         href={`/products/${product.slug}`}
         className="relative block aspect-[3/4] w-full overflow-hidden bg-muted outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
@@ -135,7 +130,7 @@ export function ProductCard({
         )}
       </Link>
 
-      {/* Wishlist toggle - sits above the image link, never navigates */}
+      {/* Wishlist toggle: sits above the image link so it never navigates. */}
       <button
         type="button"
         aria-label={
@@ -152,8 +147,8 @@ export function ProductCard({
         />
       </button>
 
-      {/* WhatsApp - icon-only on the photo so every card keeps the same
-          two-row action block no matter which buttons it has */}
+      {/* Icon-only on the photo so every card keeps the same two-row
+          action block. */}
       <a
         href={productWhatsappLink(product, settings?.whatsapp_number)}
         target="_blank"
@@ -187,8 +182,7 @@ export function ProductCard({
           </p>
         </div>
 
-        {/* Sold-out pieces trade the whole action block for one full-width
-            notify button - the block is swapped, not just its buttons, so a
+        {/* The whole action block is swapped, not just its buttons, so a
             grid row keeps the same height either way. */}
         {!product.is_in_stock ? (
           <Button
@@ -203,11 +197,8 @@ export function ProductCard({
             Notify on restock
           </Button>
         ) : (
-          /* Buy now then Add to Cart in one block: stacked on phones (Add to
-             Cart at the bottom) and side by side from xl (Add to Cart on the
-             right), where cards are wide enough for two labelled buttons.
-             Every card renders both - sized or not - so a grid row stays an
-             even height. */
+          /* Stacked on phones, side by side from xl where cards are wide
+             enough. Every card renders both so grid rows stay even. */
           <div className="mt-auto flex flex-col gap-2 xl:flex-row">
             <Button
               variant="secondary"

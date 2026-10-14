@@ -155,15 +155,12 @@ class ChangePasswordView(generics.GenericAPIView):
     },
 )
 class ForgotPasswordView(generics.GenericAPIView):
-    """POST /api/v1/auth/forgot-password/ - mail a reset link.
-
-    The response is identical whether or not the address has an account,
-    so the endpoint cannot be used to fish for who shops here."""
+    """Mail a reset link. The response is identical whether or not the
+    address has an account, so it cannot fish for who shops here."""
 
     serializer_class = ForgotPasswordSerializer
     permission_classes = [permissions.AllowAny]
-    # Extra-tight: each hit mails a message, so this is both an email-bomb
-    # and an account-enumeration surface.
+    # Each hit mails a message: an email-bomb and enumeration surface.
     throttle_scope = "forgot-password"
 
     def post(self, request, *args, **kwargs):
@@ -222,13 +219,13 @@ class ForgotPasswordView(generics.GenericAPIView):
     },
 )
 class ResetPasswordView(generics.GenericAPIView):
-    """POST /api/v1/auth/reset-password/ - exchange a mailed link for a
-    new password. Retires every outstanding token via change_password()."""
+    """Exchange a mailed link for a new password. Retires every outstanding
+    token via change_password()."""
 
     serializer_class = ResetPasswordSerializer
     permission_classes = [permissions.AllowAny]
     # Reset links are single-use signed tokens; the tight scope also slows
-    # any brute-force attempt against them.
+    # brute force.
     throttle_scope = "forgot-password"
 
     def post(self, request, *args, **kwargs):

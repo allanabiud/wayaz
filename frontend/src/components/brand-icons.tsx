@@ -1,9 +1,7 @@
 import type { SVGProps } from "react";
 
-/**
- * Brand glyphs from simple-icons (CC0), inlined since lucide v1 no longer
- * ships brand icons; the fill uses currentColor so they inherit text color.
- */
+/** Brand glyphs from simple-icons (CC0), inlined since lucide v1 no longer
+ *  ships brand icons; fill uses currentColor so they inherit text color. */
 
 export function InstagramIcon(props: SVGProps<SVGSVGElement>) {
   return (

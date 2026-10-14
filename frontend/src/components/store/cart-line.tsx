@@ -16,12 +16,6 @@ import {
   type CartLine as CartLineItem,
 } from "@/lib/store";
 
-/**
- * One cart row, shared by the cart sheet and the full /cart page so both
- * offer the same controls: thumbnail, title, size picker (sized products),
- * quantity stepper and line total. It owns its own busy state, so hosts
- * only hand it the line and a way to publish the next cart.
- */
 export function CartLine({
   item,
   onCartChange,

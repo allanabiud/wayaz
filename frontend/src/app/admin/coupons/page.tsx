@@ -69,7 +69,6 @@ function reachLine(coupon: AdminCoupon): string | null {
   return `${coupon.auto_apply ? "Auto-applies" : "Manual"} · ${AUDIENCE_LABELS[coupon.audience]}`;
 }
 
-/** "10" -> "10%" (percent) or "Ksh 500" (fixed). */
 function formatDiscount(coupon: AdminCoupon): string {
   const value = Number(coupon.discount_value);
   const pretty = Number.isFinite(value) ? value.toLocaleString("en-KE") : coupon.discount_value;
@@ -236,7 +235,6 @@ export default function AdminCouponsPage() {
 
       {coupons.length > 0 && (
         <>
-          {/* Mobile: card list */}
           <div className="space-y-3 md:hidden">
             {coupons.map((coupon) => (
               <div
@@ -301,7 +299,6 @@ export default function AdminCouponsPage() {
             ))}
           </div>
 
-          {/* Desktop: table */}
           <div className="hidden overflow-hidden rounded-2xl bg-card shadow-(--shadow-card) md:block">
             <Table className="table-fixed">
               <TableHeader>
@@ -400,7 +397,6 @@ export default function AdminCouponsPage() {
         </>
       )}
 
-      {/* Create / edit */}
       <Dialog open={form !== null} onOpenChange={(open) => !open && closeForm()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -551,7 +547,6 @@ export default function AdminCouponsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirmation */}
       <Dialog
         open={pendingDelete !== null}
         onOpenChange={(open) => {

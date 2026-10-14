@@ -28,10 +28,7 @@ from .serializers import (
 
 
 def get_or_create_cart(request):
-    """
-    Resolves the cart for both authenticated users and anonymous guest shoppers.
-    Anonymous guests provide an X-Cart-ID header or cart_id query parameter.
-    """
+    """Cart for signed-in users, or guest cart via X-Cart-ID header / cart_id param."""
     if request.user.is_authenticated:
         cart, _ = Cart.objects.get_or_create(user=request.user)
         return cart
@@ -50,8 +47,6 @@ def get_or_create_cart(request):
     return Cart.objects.create()
 
 
-# Shared by every endpoint that resolves an anonymous shopper's cart from the
-# X-Cart-ID header; signed-in users are served their own cart instead.
 GUEST_CART_ID_HEADER = [
     OpenApiParameter(
         "X-Cart-ID",
@@ -73,7 +68,7 @@ class CartDetailView(APIView):
     )
     def get(self, request):
         cart = get_or_create_cart(request)
-        # Prefetch cart items, products, and images to prevent N+1 queries during serialization
+        # Prefetch to avoid N+1 during serialization.
         cart = (
             Cart.objects.filter(pk=cart.pk)
             .prefetch_related("items__product__images", "items__product__category")
@@ -162,14 +157,11 @@ class CartItemDetailView(APIView):
         serializer = UpdateCartItemSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # Update product if requested
         if "product_obj" in serializer.validated_data:
             new_product = serializer.validated_data["product_obj"]
-            # Keep the size only if the new product offers it.
             new_size = cart_item.size
             if new_size and new_size not in new_product.sizes:
                 new_size = ""
-            # Check if another line for this product+size already exists
             existing_duplicate = (
                 CartItem.objects.filter(
                     cart=cart, product=new_product, size=new_size
@@ -186,9 +178,8 @@ class CartItemDetailView(APIView):
                 cart_item.product = new_product
                 cart_item.size = new_size
 
-        # Re-point the line at another size if requested. Lines are unique
-        # per (cart, product, size), so moving onto an occupied size merges
-        # the quantities instead of creating a duplicate row.
+        # Lines are unique per (cart, product, size), so moving onto an
+        # occupied size merges quantities instead of duplicating the row.
         if "size" in serializer.validated_data:
             requested = serializer.validated_data["size"].strip()
             product = cart_item.product
@@ -229,7 +220,6 @@ class CartItemDetailView(APIView):
                 else:
                     cart_item.size = requested
 
-        # Update quantity if requested
         if "quantity" in serializer.validated_data:
             qty = serializer.validated_data["quantity"]
             # Stock is per product: total every other size line as well.
@@ -303,10 +293,7 @@ class CartMergeView(APIView):
 
 
 class OrderListView(generics.ListAPIView):
-    """GET /api/v1/orders/ - the signed-in shopper's order history.
-
-    Scoped to request.user; guest checkouts are not returned.
-    """
+    """Signed-in shopper's order history; guest checkouts are not returned."""
 
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = OrderSerializer
@@ -321,11 +308,8 @@ class OrderListView(generics.ListAPIView):
 
 
 class CheckoutView(APIView):
-    """POST /api/v1/orders/checkout/.
-
-    Validates the cart and creates the order atomically with
-    select_for_update product locks so concurrent checkouts can't oversell.
-    """
+    """Creates the order atomically with select_for_update product locks so
+    concurrent checkouts cannot oversell."""
 
     permission_classes = [permissions.AllowAny]
 
@@ -349,7 +333,6 @@ class CheckoutView(APIView):
 
         try:
             with transaction.atomic():
-                # Lock product rows so stock checks and decrements are atomic.
                 locked_products = {
                     product.id: product
                     for product in Product.objects.select_for_update().filter(
@@ -357,7 +340,6 @@ class CheckoutView(APIView):
                     )
                 }
 
-                # Validate availability before charging anything.
                 # Stock is per product, so total every size line together.
                 required: dict[int, int] = {}
                 for item in items:
@@ -377,8 +359,7 @@ class CheckoutView(APIView):
                             }
                         )
 
-                # A sized piece must have picked its size: cart lines are
-                # allowed to sit size-less until the shopper chooses one.
+                # Cart lines may sit size-less until the shopper picks one.
                 unsized = next(
                     (
                         item
@@ -404,8 +385,7 @@ class CheckoutView(APIView):
                 coupon = None
                 user = request.user if request.user.is_authenticated else None
                 if "coupon_code" in data:
-                    # The shopper named a coupon (blank = explicitly none),
-                    # which overrides anything that would auto-apply.
+                    # Named coupon (blank = explicitly none) overrides auto-apply.
                     code = (data["coupon_code"] or "").strip()
                     if code:
                         coupon = Coupon.objects.filter(
@@ -418,15 +398,13 @@ class CheckoutView(APIView):
                         # Discounts come off the goods, not the delivery fee.
                         discount = coupon.discount_for(subtotal)
                 else:
-                    # No opinion from the client: let an auto-applying
-                    # coupon claim the order if this shopper qualifies.
+                    # No client opinion: an eligible auto-coupon may claim it.
                     coupon = auto_coupon_for(user, subtotal)
                     if coupon is not None:
                         discount = coupon.discount_for(subtotal)
                 total = subtotal + shipping_fee - discount
 
-                # New order begins in PROCESSING pipeline stage - staff
-                # confirm it from the dashboard once it is ready.
+                # New orders start PROCESSING; staff confirm from the dashboard.
                 order_status = Order.Status.PROCESSING
 
                 order = Order.objects.create(
@@ -463,14 +441,12 @@ class CheckoutView(APIView):
 
                 cart.items.all().delete()
 
-                # Save phone number and address to user profile for future checkouts
                 if request.user.is_authenticated:
                     u = request.user
                     if not u.phone_number and data.get("phone_number"):
                         u.phone_number = data["phone_number"]
                         u.save(update_fields=["phone_number"])
 
-                    # Save address record if not already existing
                     existing_addr = Address.objects.filter(
                         user=u,
                         county=data["county"],
@@ -491,30 +467,21 @@ class CheckoutView(APIView):
         except ValidationError as exc:
             return Response(exc.detail, status=status.HTTP_400_BAD_REQUEST)
 
-        # Confirmation hooks: emails are fire-and-forget; the shopper gets
-        # the "order received" mail, the merchant a new-order copy (env
-        # MANAGER_EMAIL), and the WhatsApp link goes back to the client on
-        # the order success page.
+        # Fire-and-forget emails: shopper confirmation + merchant copy.
         send_order_confirmation_email(order)
         send_new_order_email_merchant(order)
 
-        # payment_token is the capability the client must present to drive
-        # M-Pesa STK for this order (see orders/tokens.py) - the only place
-        # it's handed out.
+        # Capability token for driving M-Pesa STK; the only place it is
+        # handed out (see orders/tokens.py).
         payload = OrderSerializer(order).data
         payload["payment_token"] = make_payment_token(order)
         return Response(payload, status=status.HTTP_201_CREATED)
 
 
 class CouponValidateView(APIView):
-    """POST /api/v1/orders/coupons/validate/ - dry-run a coupon against the
-    caller's current cart so checkout can show the discount before the
-    order is placed. Guests use the same X-Cart-ID resolution as the cart
-    endpoints, so coupons work without an account.
-
-    With a `code` it checks that specific coupon; with no code it answers
-    "what would auto-apply here?" - how checkout previews a self-applying
-    promotion. `auto_applied` reports which of the two happened."""
+    """Dry-run a coupon against the caller's cart so checkout can preview the
+    discount. With a `code` it checks that coupon; without one it answers
+    "what would auto-apply here?" (`auto_applied` reports which happened)."""
 
     permission_classes = [permissions.AllowAny]
     serializer_class = CouponValidateSerializer

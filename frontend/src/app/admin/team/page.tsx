@@ -262,7 +262,6 @@ export default function AdminTeamPage() {
 
       {members.length > 0 && (
         <>
-          {/* Mobile: card list */}
           <div className="space-y-3 md:hidden">
             {members.map((member) => (
               <div
@@ -324,7 +323,6 @@ export default function AdminTeamPage() {
             ))}
           </div>
 
-          {/* Desktop: table */}
           <div className="hidden overflow-hidden rounded-2xl bg-card shadow-(--shadow-card) md:block">
             <Table className="table-fixed">
               <TableHeader>
@@ -462,7 +460,6 @@ export default function AdminTeamPage() {
         </>
       )}
 
-      {/* Create / edit */}
       <Dialog open={form !== null} onOpenChange={(open) => !open && closeForm()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -576,7 +573,6 @@ export default function AdminTeamPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Remove confirmation */}
       <Dialog
         open={pendingDelete !== null}
         onOpenChange={(open) => {

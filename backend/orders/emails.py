@@ -1,12 +1,4 @@
-"""Order lifecycle emails; all fire-and-forget (never raise) - the
-WhatsApp link is the primary confirmation channel.
-
-Failures are logged (never silently swallowed): a broken SMTP config
-should show up in the logs, not as quietly missing customer emails.
-
-Flow: checkout -> "order received" email to the shopper + a new-order
-copy to the merchant; successful M-Pesa payment -> "payment received"
-email; admin confirms the order -> "order confirmed" email."""
+"""Order lifecycle emails; fire-and-forget (never raise), failures logged."""
 import logging
 
 from django.conf import settings
@@ -16,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 def _send(subject, body, recipients):
-    """Send without ever raising; log failures with context."""
+    """Send without raising; log failures with context."""
     try:
         send_mail(
             subject,
@@ -30,11 +22,8 @@ def _send(subject, body, recipients):
 
 
 def _summary_lines(order):
-    """Money lines for a receipt body: subtotal, coupon, delivery, total.
-
-    The coupon line only appears when a discount was actually taken, so
-    the numbers a shopper sees always add up to the total they paid.
-    """
+    """Receipt lines; coupon row only when a discount was taken so the
+    lines always add up to the total."""
     lines = [f"Subtotal: Ksh {order.subtotal}\n"]
     if order.discount_amount > 0:
         code = f" ({order.coupon.code})" if order.coupon else ""
@@ -65,12 +54,7 @@ def send_order_confirmation_email(order):
 
 
 def send_new_order_email_merchant(order):
-    """Notify the shop owner/manager that a new order landed.
-
-    Sent to MANAGER_EMAIL (env); skipped when unset. The shopper email is
-    fire-and-forget, so this is the merchant's only automatic signal that
-    an order needs preparing.
-    """
+    """Notify MANAGER_EMAIL of a new order; skipped when unset."""
     recipient = getattr(settings, "MANAGER_EMAIL", "")
     if not recipient:
         logger.info(
@@ -101,7 +85,7 @@ def send_new_order_email_merchant(order):
 
 
 def send_payment_received_email(order):
-    """M-Pesa payment landed; the order itself is still awaiting admin confirmation."""
+    """M-Pesa payment landed; order still awaits admin confirmation."""
     subject = f"Payment received for Wayaz order {order.order_number}"
     body = (
         f"Hi {order.shipping_name},\n\n"
@@ -118,7 +102,6 @@ def send_payment_received_email(order):
 
 
 def send_order_confirmed_email(order):
-    """Admin/staff confirmed the order from the dashboard."""
     subject = f"Wayaz order {order.order_number} confirmed"
     body = (
         f"Hi {order.shipping_name},\n\n"

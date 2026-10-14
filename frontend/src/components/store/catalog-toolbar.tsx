@@ -28,21 +28,15 @@ interface CatalogToolbarProps {
   search?: string;
 }
 
-/**
- * Sort + price filters for the storefront listings.
- *
- * Every change rewrites the URL (and drops `page`), so the server page
- * re-renders with freshly filtered results - no client-side list juggling.
- */
+/** Sort + price filters; every change rewrites the URL (dropping `page`) so
+ *  the server page re-renders with filtered results. */
 export function CatalogToolbar({ filters, basePath, search }: CatalogToolbarProps) {
   const router = useRouter();
   const [min, setMin] = useState(filters.min ?? "");
   const [max, setMax] = useState(filters.max ?? "");
 
-  // The URL is the source of truth: when it changes underneath us (reset,
-  // back button, the empty state's "clear filters" link) push the new bounds
-  // into the inputs. Adjusting state during render, not in an effect, is the
-  // pattern React recommends for syncing to a changed prop.
+  // The URL is the source of truth; adjust state during render (not in an
+  // effect) when it changes underneath us - React's recommended pattern.
   const bounds = `${filters.min ?? ""}|${filters.max ?? ""}`;
   const [seenBounds, setSeenBounds] = useState(bounds);
   if (seenBounds !== bounds) {

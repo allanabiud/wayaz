@@ -50,7 +50,6 @@ export default function AdminSettingsPage() {
 
   const [saving, setSaving] = useState(false);
 
-  // Form State
   const [storeName, setStoreName] = useState("");
   const [tagline, setTagline] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
@@ -68,7 +67,6 @@ export default function AdminSettingsPage() {
   const [announcementText, setAnnouncementText] = useState("");
   const [isAnnouncementActive, setIsAnnouncementActive] = useState(false);
 
-  // File states
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [clearLogo, setClearLogo] = useState(false);
@@ -77,10 +75,8 @@ export default function AdminSettingsPage() {
   const [faviconPreview, setFaviconPreview] = useState<string | null>(null);
   const [clearFavicon, setClearFavicon] = useState(false);
 
-  // Sync form state when data loads or updates. This runs during render
-  // (the react.dev "adjusting state when a prop changes" pattern) rather
-  // than in an effect, which keeps the hydration synchronous with the
-  // render that received the data.
+  // Sync form state during render when data loads (the react.dev
+  // "adjusting state when a prop changes" pattern) rather than in an effect.
   const [syncedData, setSyncedData] = useState<StoreSettings | null>(null);
   if (data && data !== syncedData) {
     setSyncedData(data);
@@ -190,14 +186,12 @@ export default function AdminSettingsPage() {
     }
   };
 
-  // Determine active logo display source
   const currentLogoSrc = clearLogo
     ? "/wayaz_logo.jpeg"
     : logoPreview || data?.logo_url || "/wayaz_logo.jpeg";
 
   const hasCustomLogo = !clearLogo && (Boolean(logoPreview) || Boolean(data?.logo_url));
 
-  // Determine active favicon display source
   const currentFaviconSrc = clearFavicon
     ? "/wayaz_favicon.jpeg"
     : faviconPreview || data?.favicon_url || "/wayaz_favicon.jpeg";
@@ -228,7 +222,6 @@ export default function AdminSettingsPage() {
 
       {data && (
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* 1. Branding & Identity */}
           <Card>
             <CardHeader className="pb-3 border-b">
               <div className="flex items-center gap-2">
@@ -273,7 +266,6 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
 
-              {/* Logo Upload & Live Preview */}
               <div className="grid gap-6 sm:grid-cols-2 pt-2 border-t border-border/50">
                 <div className="space-y-3">
                   <Label className="text-xs font-semibold block">Store Logo</Label>
@@ -332,7 +324,6 @@ export default function AdminSettingsPage() {
                   </div>
                 </div>
 
-                {/* Favicon Upload */}
                 <div className="space-y-3">
                   <Label className="text-xs font-semibold block">Store Favicon / Icon</Label>
                   <div className="flex items-start gap-4">
@@ -388,7 +379,6 @@ export default function AdminSettingsPage() {
             </CardContent>
           </Card>
 
-          {/* 2. WhatsApp & Customer Communication */}
           <Card>
             <CardHeader className="pb-3 border-b">
               <div className="flex items-center gap-2">
@@ -486,7 +476,6 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
 
-              {/* Department Phone Numbers */}
               <div className="pt-3 border-t border-border/50 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
@@ -561,7 +550,6 @@ export default function AdminSettingsPage() {
             </CardContent>
           </Card>
 
-          {/* 3. Social Media Links */}
           <Card>
             <CardHeader className="pb-3 border-b">
               <div className="flex items-center gap-2">
@@ -647,7 +635,6 @@ export default function AdminSettingsPage() {
             </CardContent>
           </Card>
 
-          {/* 4. Storefront Announcement Banner */}
           <Card>
             <CardHeader className="pb-3 border-b">
               <div className="flex items-center gap-2">
@@ -696,7 +683,6 @@ export default function AdminSettingsPage() {
               )}
             </CardContent>
           </Card>
-          {/* M-Pesa Payments */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -725,7 +711,6 @@ export default function AdminSettingsPage() {
           </Card>
 
 
-          {/* Submit Action Bar */}
           <div className="sticky bottom-4 z-20 flex items-center justify-between rounded-xl border border-border/80 bg-background/95 p-4 shadow-lg backdrop-blur">
             <p className="text-xs text-muted-foreground">
               Changes apply instantly across both the admin dashboard and public storefront.

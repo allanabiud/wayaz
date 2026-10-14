@@ -72,7 +72,6 @@ class AccountsAPITestCase(TestCase):
         self.assertEqual(response.data["user"]["email"], "shiquo@example.com")
 
     def test_user_profile_authenticated(self):
-        # Authenticate via credentials
         token_res = self.client.post(
             "/api/v1/auth/token/",
             {"username": "shiquo_fan", "password": "StrongPassword123!"},
@@ -101,18 +100,15 @@ class AccountsAPITestCase(TestCase):
 
     def test_wishlist_add_and_remove(self):
         self.client.force_authenticate(user=self.user)
-        # Add to wishlist
         response = self.client.post(
             "/api/v1/auth/wishlist/", {"product_id": self.product.id}
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-        # List wishlist
         list_res = self.client.get("/api/v1/auth/wishlist/")
         self.assertEqual(list_res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(list_res.data.get("results", list_res.data)), 1)
 
-        # Remove from wishlist by product_id
         del_res = self.client.delete(
             f"/api/v1/auth/wishlist/remove-product/{self.product.id}/"
         )
@@ -418,8 +414,8 @@ class PasswordChangeInvalidationTestCase(TestCase):
         self.access = res.data["access"]
         self.refresh = res.data["refresh"]
 
-        # JWT iat is whole-second precision; step past the current second
-        # so the tokens above are definitively "older" than the change.
+        # JWT iat has whole-second precision; step past the current second so
+        # the tokens above are definitively older than the change.
         time.sleep(1.1)
 
     def authed(self, token=None):
@@ -480,8 +476,8 @@ class PasswordChangeInvalidationTestCase(TestCase):
         self.assertIsNotNone(self.user.password_changed_at)
         self.assertTrue(self.user.check_password("NewPassword123!"))
 
-        # The password this very request used no longer authenticates
-        # anywhere else - that is the point of the timestamp.
+        # The password this request used no longer authenticates anywhere
+        # else - that is the point of the timestamp.
         self.assertEqual(self.authed().status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_accounts_that_never_changed_are_unaffected(self):

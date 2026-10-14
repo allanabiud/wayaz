@@ -17,19 +17,13 @@ import {
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
-// The dialog only reads the id (to POST) and the title (to echo back in the
-// toast), so it accepts any catalog shape - the card's StoreProduct and the
-// detail page's StoreProductDetail both satisfy this.
+// Only the id (to POST) and the title (to echo in the toast) are needed,
+// so both catalog product shapes satisfy this.
 interface RestockableProduct {
   id: number;
   title: string;
 }
 
-/**
- * "Tell me when it's back" for an out-of-stock piece. The card and the
- * product detail page share this so the wording and behaviour stay
- * identical wherever the shopper hits a sold-out item.
- */
 export function RestockDialog({
   product,
   open,
@@ -40,8 +34,7 @@ export function RestockDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const { user } = useAuth();
-  // Signed-in shoppers skip the prompt entirely - their account email is
-  // used as-is. Only guests (or accounts with no email on file) are asked.
+  // Signed-in shoppers skip the prompt; their account email is used as-is.
   const accountEmail = user?.email?.trim() ?? "";
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
@@ -50,8 +43,7 @@ export function RestockDialog({
   const canSubmit = targetEmail.length > 0;
 
   const handleOpenChange = (next: boolean) => {
-    // Reset the field on open so a previous address doesn't linger. Done in
-    // the open handler (not an effect) to avoid setState-in-effect.
+    // Reset in the open handler rather than an effect to avoid setState-in-effect.
     if (next) setEmail("");
     onOpenChange(next);
   };
@@ -100,7 +92,6 @@ export function RestockDialog({
           }}
         >
           {accountEmail ? (
-            // Account email in place of the input - one less thing to type.
             <div className="rounded-lg border bg-muted/50 px-3 py-2.5">
               <p className="text-xs text-muted-foreground">
                 We&apos;ll notify this address:

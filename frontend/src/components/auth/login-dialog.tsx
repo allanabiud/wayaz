@@ -35,12 +35,10 @@ export function LoginDialog({
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "register">("login");
 
-  // Login state
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  // Register state
   const [regFullName, setRegFullName] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPhone, setRegPhone] = useState("");
@@ -62,7 +60,7 @@ export function LoginDialog({
       signIn(result.user);
 
       // Plain welcome for everyone; staff find the dashboard via the
-      // Admin Dashboard item in the account menu.
+      // account menu.
       toast.success(
         `Welcome back, ${result.user.display_name || result.user.username}!`,
       );
@@ -107,7 +105,6 @@ export function LoginDialog({
         phone_number: regPhone.trim(),
       });
 
-      // Auto login right after registration
       const result = await login(chosenUsername, regPassword);
       tokenStore.save({ access: result.access, refresh: result.refresh });
       signIn(result.user);
@@ -210,7 +207,7 @@ export function LoginDialog({
                 type="button"
                 className="text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                 onClick={() => {
-                  // Close first - the reset flow is a full page, not a
+                  // Close first; the reset flow is a full page, not a
                   // step inside this dialog.
                   onOpenChange(false);
                   router.push("/forgot-password");

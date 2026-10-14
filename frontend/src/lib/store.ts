@@ -1,7 +1,6 @@
 import { api } from "@/lib/api";
 import type { Address, Category, Paginated, ProductImage } from "@/lib/types";
 
-/** Product as returned by the public catalog list serializer. */
 export interface StoreProduct {
   id: number;
   title: string;
@@ -24,7 +23,6 @@ export interface StorefrontCatalog {
   products: StoreProduct[];
 }
 
-/** Full product as returned by the public detail endpoint. */
 export interface StoreProductDetail {
   id: number;
   title: string;
@@ -39,8 +37,7 @@ export interface StoreProductDetail {
   stock_quantity: number;
   sizes: string[];
   images: ProductImage[];
-  // Rating summary; user_rating is null for anonymous/SSR requests until
-  // refreshed client-side when signed in.
+  // user_rating is null for anonymous/SSR callers until refreshed client-side.
   average_rating: number | null;
   rating_count: number;
   user_rating: number | null;
@@ -48,7 +45,6 @@ export interface StoreProductDetail {
   updated_at: string;
 }
 
-/** Product summary embedded in each cart line. */
 interface CartProduct {
   id: number;
   product_title: string;
@@ -56,7 +52,6 @@ interface CartProduct {
   unit_price: string;
   stock_quantity: number;
   is_in_stock: boolean;
-  /** Size options the product offers - drives the cart's size picker. */
   sizes: string[];
   thumbnail: string | null;
 }
@@ -64,7 +59,7 @@ interface CartProduct {
 export interface CartLine {
   id: number;
   product: CartProduct;
-  /** Selected size ("" when the product is one-size). */
+  // "" when the product is one-size.
   size: string;
   quantity: number;
   unit_price: string;
@@ -79,8 +74,6 @@ export interface Cart {
   items: CartLine[];
 }
 
-// ---- Account order history ---------------------------------------------
-
 export type OrderStatus =
   | "PROCESSING"
   | "CONFIRMED"
@@ -89,7 +82,7 @@ export type OrderStatus =
 
 interface StoreOrderItem {
   id: number;
-  /** Live catalog slug for buy-again links; null once the product is removed. */
+  // Null once the product is removed from the catalog.
   product_slug: string | null;
   product_title: string;
   unit_price: string;
@@ -97,7 +90,6 @@ interface StoreOrderItem {
   line_total: string;
 }
 
-/** One entry of GET /api/v1/orders/ (OrderSerializer + display labels). */
 export interface StoreOrder {
   id: number;
   order_number: string;
@@ -116,21 +108,16 @@ export interface StoreOrder {
   discount_amount: string;
   shipping_fee: string;
   total_amount: string;
-  /** Code of the coupon that produced discount_amount, if any. */
   coupon_code: string | null;
   item_count: number;
   items: StoreOrderItem[];
   whatsapp_link: string;
   created_at: string;
-  /**
-   * Signed capability token proving the caller placed this order - required
-   * to drive M-Pesa STK push/status for it. Present only in the checkout
-   * response (POST /api/v1/orders/checkout/), never in order history.
-   */
+  // Capability token authorising M-Pesa calls for this order. Only in the
+  // checkout response, never in order history.
   payment_token?: string;
 }
 
-/** Signed-in shopper's order history, newest first (server-paginated). */
 export function fetchOrders(
   page = 1,
   pageSize = 10,
@@ -138,33 +125,25 @@ export function fetchOrders(
   return api.get(`/api/v1/orders/?page=${page}&page_size=${pageSize}`);
 }
 
-// ---- Product ratings ---------------------------------------------------
-
-/** Aggregate rating for a product plus the caller's own rating (null if none). */
 export interface ProductRatingSummary {
   average_rating: number | null;
   rating_count: number;
   user_rating: number | null;
 }
 
-/** Read the rating summary; `user_rating` requires an authenticated caller. */
 export function fetchProductRating(slug: string): Promise<ProductRatingSummary> {
   return api.get(`/api/v1/catalog/products/${encodeURIComponent(slug)}/review/`);
 }
 
-/** A single written review shown on the product page. */
 export interface ProductReview {
   id: number;
   rating: number;
   comment: string;
-  /** Display name of whoever left it. */
   reviewer: string;
-  /** True when it belongs to the signed-in viewer (lets the PDP re-open it). */
   mine: boolean;
   created_at: string;
 }
 
-/** Approved reviews for a product, newest first, 10 per page. */
 export function fetchProductReviews(
   slug: string,
   page = 1,
@@ -175,11 +154,7 @@ export function fetchProductReviews(
   );
 }
 
-/**
- * Submit (or replace) the caller's review of a product. Omitting `comment`
- * leaves any written feedback intact - that is what the quick star row on
- * the product page sends; the review form always passes it explicitly.
- */
+/** Omitting `comment` leaves the caller's existing written feedback intact. */
 export function submitProductRating(
   slug: string,
   rating: number,
@@ -190,13 +165,10 @@ export function submitProductRating(
   return api.post(`/api/v1/catalog/products/${encodeURIComponent(slug)}/review/`, body);
 }
 
-/** Ksh formatting shared by the storefront (whole shillings). */
 export function formatKsh(value: string | number): string {
   const n = Number(value);
   return Number.isFinite(n) ? n.toLocaleString("en-KE") : String(value);
 }
-
-// ---- WhatsApp helpers -------------------------------------------------
 
 export const WHATSAPP_NUMBER =
   process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "254700000000";
@@ -238,7 +210,7 @@ export async function fetchStoreSettings(): Promise<import("./types").StoreSetti
   return api.get<import("./types").StoreSettings>("/api/v1/catalog/settings/");
 }
 
-// ---- Guest cart (server-side, identified by an X-Cart-ID header) ------
+// Guest cart, identified server-side by an X-Cart-ID header.
 
 const CART_KEY = "wayaz.cart";
 
@@ -289,11 +261,7 @@ export function updateCartItem(item_id: number, quantity: number): Promise<Cart>
     .then(rememberCart);
 }
 
-/**
- * Move a cart line to another size. The server merges quantities when the
- * target size already has a line, so the response is the whole cart either
- * way.
- */
+/** The server merges quantities when the target size already has a line. */
 export function setCartItemSize(item_id: number, size: string): Promise<Cart> {
   return api
     .patch<Cart>(
@@ -331,18 +299,14 @@ interface CheckoutPayload {
   coupon_code?: string;
 }
 
-/** What POST .../coupons/validate/ says a code is worth on the current cart. */
 export interface CouponValidation {
   code: string;
   discount_type: "percent" | "fixed";
-  /** Discount for the cart as it stands right now. */
   discount_amount: string;
   cart_subtotal: string;
-  /** False when the shopper typed the code; true for an auto preview. */
   auto_applied: boolean;
 }
 
-/** Dry-run a coupon against the caller's cart (guests included). */
 export function validateCoupon(code: string): Promise<CouponValidation> {
   return api.post<CouponValidation>(
     "/api/v1/orders/coupons/validate/",
@@ -351,10 +315,6 @@ export function validateCoupon(code: string): Promise<CouponValidation> {
   );
 }
 
-/**
- * The coupon that would apply itself to the caller's cart right now, or
- * null when nothing qualifies (empty cart, no matching promotion, ...).
- */
 export function fetchAutoCoupon(): Promise<CouponValidation | null> {
   return api
     .post<CouponValidation & { code: string | null }>(
@@ -380,12 +340,7 @@ export function submitCheckout(payload: CheckoutPayload): Promise<CheckoutOrder>
     });
 }
 
-// ---- M-Pesa Payment Helpers -------------------------------------------
-
-/**
- * POST /api/v1/orders/checkout/ response: a full StoreOrder plus the
- * payment_token that authorises M-Pesa calls for this specific order.
- */
+/** StoreOrder plus the payment_token that authorises M-Pesa calls for it. */
 export type CheckoutOrder = StoreOrder & { payment_token: string };
 
 interface MpesaInitiateResponse {
@@ -437,8 +392,6 @@ export function simulateMockPayment(
   });
 }
 
-// ---- Customer Saved Addresses ----------------------------------------
-
 export function fetchUserAddresses(): Promise<Paginated<Address>> {
   return api.get<Paginated<Address>>("/api/v1/auth/addresses/");
 }
@@ -472,7 +425,6 @@ export function deleteAddress(id: number): Promise<void> {
   return api.delete<void>(`/api/v1/auth/addresses/${id}/`);
 }
 
-/** PATCH /api/v1/auth/me/ response (UserSerializer). */
 export interface AccountProfile {
   id: number;
   username: string;
@@ -484,7 +436,6 @@ export interface AccountProfile {
   display_name: string;
 }
 
-/** GET /api/v1/auth/me/ - the signed-in shopper's full profile. */
 export function fetchUserProfile(): Promise<AccountProfile> {
   return api.get<AccountProfile>("/api/v1/auth/me/");
 }
@@ -498,7 +449,6 @@ export function updateUserProfile(profile: {
   return api.patch<AccountProfile>("/api/v1/auth/me/", profile);
 }
 
-/** POST /api/v1/auth/change-password/ - swaps the caller's password. */
 export function changePassword(
   old_password: string,
   new_password: string,
@@ -509,16 +459,14 @@ export function changePassword(
   });
 }
 
-/** POST /api/v1/auth/forgot-password/ - asks for a mailed reset link.
- * Answers identically whether or not the address exists. */
+/** Answers identically whether or not the address exists. */
 export function forgotPassword(email: string): Promise<{ detail: string }> {
   return api.post<{ detail: string }>("/api/v1/auth/forgot-password/", {
     email,
   });
 }
 
-/** POST /api/v1/auth/reset-password/ - exchanges a mailed link for a new
- * password. Succeeding retires every session issued before the change. */
+/** Succeeding retires every session issued before the change. */
 export function resetPassword(
   uidb64: string,
   token: string,
@@ -530,8 +478,6 @@ export function resetPassword(
     new_password,
   });
 }
-
-// ---- Search history ---------------------------------------------------
 
 const SEARCH_KEY = "wayaz.searchHistory";
 const SEARCH_LIMIT = 8;
@@ -557,18 +503,17 @@ function writeSearchHistory(terms: string[]): string[] {
     try {
       window.localStorage.setItem(SEARCH_KEY, JSON.stringify(terms));
     } catch {
-      // Storage unavailable (private mode) - history simply won't persist.
+      // Storage unavailable (e.g. private mode); history just won't persist.
     }
   }
   return terms;
 }
 
-/** Recent search terms on this device; async so SSR markup never mismatches. */
+/** Async so SSR markup never mismatches. */
 export function storedSearchHistory(): Promise<string[]> {
   return Promise.resolve().then(readSearchHistory);
 }
 
-/** Puts a term first (deduped, capped) and returns the saved list. */
 export function rememberSearch(term: string): string[] {
   const clean = term.trim();
   if (!clean) return readSearchHistory();
@@ -578,19 +523,17 @@ export function rememberSearch(term: string): string[] {
   return writeSearchHistory([clean, ...rest].slice(0, SEARCH_LIMIT));
 }
 
-/** Drops one term from the history and returns the saved list. */
 export function forgetSearch(term: string): string[] {
   return writeSearchHistory(
     readSearchHistory().filter((saved) => saved !== term),
   );
 }
 
-/** Wipes the whole search history. */
 export function clearSearchHistory(): string[] {
   return writeSearchHistory([]);
 }
 
-// Words too generic to be useful as suggested searches.
+// Too generic to be useful as suggested searches.
 const HOT_STOPWORDS = new Set([
   "been",
   "have",
@@ -608,10 +551,6 @@ const HOT_STOPWORDS = new Set([
   "your",
 ]);
 
-/**
- * Hot searches: categories with items first, then the most frequent words
- * across product titles.
- */
 export function hotSearches(catalog: StorefrontCatalog): string[] {
   const terms: string[] = [];
   const seen = new Set<string>();
@@ -655,14 +594,11 @@ export function hotSearches(catalog: StorefrontCatalog): string[] {
   return terms;
 }
 
-// ---- Catalog ----------------------------------------------------------
-
 let cachedCatalog: StorefrontCatalog | null = null;
 let cachedCatalogTime = 0;
 let catalogInFlight: Promise<StorefrontCatalog> | null = null;
-const CATALOG_CACHE_TTL_MS = 60_000; // 1 minute fresh window
+const CATALOG_CACHE_TTL_MS = 60_000;
 
-/** Loads every category plus all product pages (up to 1,000 products), cached in memory. */
 export function fetchStorefrontCatalog(forceRefresh = false): Promise<StorefrontCatalog> {
   const now = Date.now();
   if (!forceRefresh && cachedCatalog && now - cachedCatalogTime < CATALOG_CACHE_TTL_MS) {

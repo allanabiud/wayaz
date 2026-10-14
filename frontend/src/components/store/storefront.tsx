@@ -16,10 +16,9 @@ interface Section {
   products: StoreProduct[];
 }
 
-/** Default section size: 3 rows × 4 columns on the desktop grid. */
 const SECTION_VISIBLE = 12;
 
-/** Groups products under their category (in display order), leftovers last.
+/** Groups products under their category (display order); leftovers last.
     Categories without products never produce a section. */
 function buildSections(catalog: StorefrontCatalog): Section[] {
   const bySlug = new Map<string, StoreProduct[]>();
@@ -76,7 +75,6 @@ function CatalogSkeleton() {
   );
 }
 
-/** One of the top shelves (Featured / New Arrivals) - capped at 8 cards. */
 function TopShelf({
   eyebrow,
   title,
@@ -120,7 +118,6 @@ interface StorefrontProps {
   initialCatalog?: StorefrontCatalog | null;
 }
 
-/** Home page content: brand banner + one section per category. */
 export function Storefront({ initialCatalog }: StorefrontProps) {
   const {
     catalog: contextCatalog,
@@ -133,7 +130,7 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
   } = useStore();
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
 
-  // Prefer context catalog once loaded/refetched, otherwise fall back to SSR initialCatalog
+  // Prefer the context catalog once loaded; fall back to the SSR catalog.
   const catalog = contextCatalog ?? initialCatalog ?? null;
 
   const sections = useMemo(
@@ -141,7 +138,6 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
     [catalog],
   );
 
-  // Top shelves: admin-curated Featured + automatic New Arrivals, max 8 each.
   const featured = useMemo(
     () =>
       catalog
@@ -171,7 +167,6 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
 
   return (
     <>
-      {/* Slim brand banner with direct links to every category page */}
       <section className="border-b bg-muted/30">
         <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
           <p className="text-xs font-semibold tracking-[0.25em] text-gold uppercase">
@@ -205,14 +200,12 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
         </div>
       </section>
 
-      {/* One section per category, cards for every product */}
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
         {catalogLoading && !catalog && <CatalogSkeleton />}
         {catalogError && (
           <ErrorState message={catalogError} onRetry={refetchCatalog} />
         )}
 
-        {/* Admin-curated + automatic shelves at the top of the home page */}
         <TopShelf eyebrow="Handpicked" title="Featured" products={featured} />
         <TopShelf eyebrow="Just in" title="New Arrivals" products={newArrivals} />
 
@@ -272,7 +265,6 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
                 </span>
               </div>
 
-              {/* 2 columns on mobile, 4 from tablet up */}
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
                 {visible.map((product) => (
                   <ProductCard

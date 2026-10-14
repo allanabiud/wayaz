@@ -20,15 +20,11 @@ import {
   type StoreProductDetail,
 } from "@/lib/store";
 
-/** Quantity ceiling while the real stock count is still loading. */
+/** Ceiling while the real stock count is still loading. */
 const FALLBACK_MAX_QTY = 10;
 
-/**
- * Quick size picker for a product card: choose a size (and quantity), one
- * tap either drops the line into the cart ("add") or adds it and lands on
- * /checkout ("buy"). Sized products need this because the card itself can't
- * hold a size selector.
- */
+/** Quick size picker for a product card; sized products need it because
+ *  the card itself can't hold a size selector. */
 export function QuickBuyDialog({
   product,
   open,
@@ -48,10 +44,8 @@ export function QuickBuyDialog({
   const [busy, setBusy] = useState(false);
   const [stock, setStock] = useState<number | null>(null);
 
-  // The grid payload has no stock count - only the detail endpoint does -
-  // so fetch it while the dialog is open and clamp the stepper to it. The
-  // server re-validates stock on add regardless. Selection state is reset
-  // in the open handler below rather than in here.
+  // The grid payload has no stock count, only the detail endpoint does;
+  // clamp the stepper to it (the server re-validates anyway).
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -66,7 +60,7 @@ export function QuickBuyDialog({
         setQuantity((prev) => Math.min(prev, available));
       })
       .catch(() => {
-        // Keep the fallback cap - the add call still validates server-side.
+        // Keep the fallback cap; the add call still validates server-side.
       });
     return () => {
       cancelled = true;
@@ -93,8 +87,6 @@ export function QuickBuyDialog({
       const added = await addProduct(product, { quantity, size });
       if (added) {
         onOpenChange(false);
-        // "add" stays on the page so browsing can continue; only the
-        // "buy" flow continues to checkout.
         if (mode === "buy") router.push("/checkout");
       }
     } finally {

@@ -70,7 +70,6 @@ export function ContactForm() {
 
   return (
     <div className="grid gap-10 lg:grid-cols-3">
-      {/* Contact Channels Info */}
       <div className="space-y-6 lg:col-span-1">
         <Card className="border shadow-xs">
           <CardContent className="p-6 space-y-6">
@@ -82,7 +81,6 @@ export function ContactForm() {
             </div>
 
             <div className="space-y-4 text-sm">
-              {/* WhatsApp Quick Link */}
               <div className="flex items-start gap-3">
                 <div className="rounded-full bg-emerald-500/10 p-2 text-emerald-600 dark:text-emerald-400 shrink-0">
                   <WhatsAppIcon className="size-4" />
@@ -100,7 +98,6 @@ export function ContactForm() {
                 </div>
               </div>
 
-              {/* Department Phone Numbers */}
               {settings?.support_phones && settings.support_phones.length > 0 ? (
                 settings.support_phones.map((p, i) => (
                   <div key={i} className="flex items-start gap-3">
@@ -135,7 +132,6 @@ export function ContactForm() {
                 </div>
               ) : null}
 
-              {/* Email */}
               {settings?.contact_email && (
                 <div className="flex items-start gap-3">
                   <div className="rounded-full bg-primary/10 p-2 text-primary shrink-0">
@@ -153,7 +149,6 @@ export function ContactForm() {
                 </div>
               )}
 
-              {/* Location */}
               {settings?.address && (
                 <div className="flex items-start gap-3">
                   <div className="rounded-full bg-primary/10 p-2 text-primary shrink-0">
@@ -167,7 +162,6 @@ export function ContactForm() {
               )}
             </div>
 
-            {/* Socials */}
             <div className="pt-4 border-t space-y-3">
               <p className="text-xs font-semibold text-muted-foreground uppercase">Follow Us</p>
               <div className="flex items-center gap-3">
@@ -232,7 +226,6 @@ export function ContactForm() {
         </Card>
       </div>
 
-      {/* Contact Form */}
       <div className="lg:col-span-2">
         <Card className="border shadow-xs">
           <CardContent className="p-6 sm:p-8">

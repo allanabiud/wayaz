@@ -1,15 +1,6 @@
-"""drf-spectacular preprocessing hooks.
-
-The uptime-monitor health probes are operational plumbing, not API surface:
-all three routes (``/api/health/``, ``/health/``, ``/health``) mount the same
-bare ``HealthView``, so the two alias paths collide on the operationId
-``health_retrieve`` (and the view has no serializer to document anyway).
-Dropping them keeps the generated OpenAPI document clean without touching
-the routes themselves.
-
-Hooks receive the endpoint enumerator's raw tuples:
-``(path, path_regex, method, callback)``.
-"""
+"""drf-spectacular preprocessing hooks. The health probes and their /health
+aliases share one view, colliding on operationId; dropping them keeps the
+document clean without touching the routes."""
 
 import re
 

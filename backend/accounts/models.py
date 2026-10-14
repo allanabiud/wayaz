@@ -5,12 +5,9 @@ from django.utils import timezone
 
 
 class UserManager(DjangoUserManager):
-    """`manage.py createsuperuser` must not leave the account a customer.
-
-    Django's default manager lets `role` fall back to its model default, so
-    a superuser made that way landed in the customers list and inflated the
-    dashboard's customer count. Superusers are admins unless told
-    otherwise."""
+    """`manage.py createsuperuser` must not leave the account a customer:
+    Django's default manager lets `role` fall back to its model default.
+    Superusers are admins unless told otherwise."""
 
     def create_superuser(self, username, email=None, password=None, **extra_fields):
         extra_fields.setdefault("role", self.model.Role.ADMIN)
@@ -43,11 +40,9 @@ class User(AbstractUser):
         return full if full else self.username
 
     def change_password(self, raw_password):
-        """Set a new password and retire every token issued before now.
-
-        The stamp is truncated to whole seconds to match the `iat` claim
-        on JWTs - otherwise a sign-in in the same second as the change
-        would look older than the change itself."""
+        """Set a new password and retire every token issued before now. The
+        stamp is truncated to whole seconds to match JWT `iat`, so a
+        sign-in in the same second cannot look older than the change."""
         self.set_password(raw_password)
         self.password_changed_at = timezone.now().replace(microsecond=0)
         self.save(update_fields=["password", "password_changed_at"])

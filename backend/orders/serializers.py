@@ -10,8 +10,8 @@ class CartItemProductSerializer(serializers.ModelSerializer):
     product_title = serializers.CharField(source="title", read_only=True)
     product_slug = serializers.CharField(source="slug", read_only=True)
     thumbnail = serializers.SerializerMethodField()
-    # Product.is_in_stock is a @property; declare it so the schema types it
-    # as a boolean instead of defaulting to string.
+    # Product.is_in_stock is a @property; declare it so the schema types
+    # it as boolean instead of string.
     is_in_stock = serializers.BooleanField(read_only=True)
     unit_price = serializers.DecimalField(
         source="current_price", max_digits=10, decimal_places=2, read_only=True
@@ -125,9 +125,8 @@ class AddToCartSerializer(serializers.Serializer):
 class UpdateCartItemSerializer(serializers.Serializer):
     quantity = serializers.IntegerField(required=False, min_value=1)
     product_id = serializers.IntegerField(required=False)
-    # Cart lines are unique per (cart, product, size), so the cart views can
-    # re-point a line at another size without a second request. Membership in
-    # the product's size list is checked in the view, which has the line.
+    # Cart lines are unique per (cart, product, size); size-list membership
+    # is checked in the view, which has the line.
     size = serializers.CharField(max_length=50, required=False, allow_blank=True)
 
     def validate(self, attrs):
@@ -155,12 +154,8 @@ class MergeCartSerializer(serializers.Serializer):
 
 
 class CouponValidateSerializer(serializers.Serializer):
-    """Dry-run request for CouponValidateView (no cart maths here).
-
-    Omitting (or blanking) the code asks for the best auto-applying
-    coupon instead - that is how checkout previews one without the
-    shopper typing anything.
-    """
+    """Dry-run request for CouponValidateView; no cart maths here. Omitting
+    the code asks for the best auto-applying coupon instead."""
 
     code = serializers.CharField(
         max_length=40, required=False, allow_blank=True
@@ -168,7 +163,7 @@ class CouponValidateSerializer(serializers.Serializer):
 
 
 class CheckoutSerializer(serializers.Serializer):
-    """Customer details, delivery selection, and payment method (Step 6.4)."""
+    """Customer details, delivery selection, and payment method."""
 
     email = serializers.EmailField()
     phone_number = serializers.CharField(max_length=25)
@@ -187,10 +182,9 @@ class CheckoutSerializer(serializers.Serializer):
     guest_id = serializers.CharField(
         max_length=64, required=False, allow_blank=True, default=""
     )
-    # Optional; validated against the Coupon table inside the checkout
-    # transaction so the discount can never be forged by the client.
-    # Key absent = no opinion, let an auto-applying coupon claim the
-    # order; blank string = the shopper explicitly wants no coupon.
+    # Validated against the Coupon table in the checkout transaction, so a
+    # client cannot forge a discount. Key absent = no opinion (auto-apply
+    # may claim the order); blank string = shopper explicitly wants none.
     coupon_code = serializers.CharField(
         max_length=40, required=False, allow_blank=True
     )
@@ -200,8 +194,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
     line_total = serializers.DecimalField(
         max_digits=10, decimal_places=2, read_only=True
     )
-    # Live catalog slug for "buy again" links; null once the product is
-    # removed from the catalog (SET_NULL snapshot).
+    # Live catalog slug for "buy again"; null once the product is removed
+    # (SET_NULL snapshot).
     product_slug = serializers.SlugRelatedField(
         source="product", read_only=True, slug_field="slug"
     )

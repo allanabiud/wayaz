@@ -28,7 +28,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         username_or_email = attrs.get(self.username_field)
         if username_or_email:
-            # If input contains an '@' or doesn't match an existing username, check if it matches an email
+            # Fall back to an email match when the input is not a username.
             user_by_email = User.objects.filter(email__iexact=username_or_email).first()
             if user_by_email:
                 attrs[self.username_field] = user_by_email.get_username()
@@ -54,11 +54,9 @@ class ForgotPasswordSerializer(serializers.Serializer):
 
 
 class ResetPasswordSerializer(serializers.Serializer):
-    """The mailed link's uidb64 + token, plus the password to set.
-
-    The user is resolved here so the view never touches request data
-    directly; an unknown or tampered link fails validation like any other
-    bad input."""
+    """The mailed link's uidb64 + token, plus the password to set. The user
+    is resolved here so the view never touches request data; unknown or
+    tampered links fail validation like any other bad input."""
 
     uidb64 = serializers.CharField()
     token = serializers.CharField()
@@ -85,11 +83,8 @@ class ResetPasswordSerializer(serializers.Serializer):
 
 
 class CustomTokenRefreshSerializer(TokenRefreshSerializer):
-    """A refresh token minted before the password changed cannot be
-    traded for a new access token.
-
-    The check runs against the incoming (old) refresh token's issue time;
-    new tokens obtained after signing in again are untouched."""
+    """A refresh token minted before the password changed cannot be traded
+    for a new access token; tokens from after a fresh sign-in are untouched."""
 
     def validate(self, attrs):
         data = super().validate(attrs)

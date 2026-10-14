@@ -20,7 +20,6 @@ import type { ContactMessage, Paginated } from "@/lib/types";
 
 /** How often the unread list refreshes while the dashboard is open. */
 const POLL_MS = 60_000;
-/** Newest unread messages shown in the dropdown. */
 const PREVIEW_COUNT = 5;
 
 function timeAgo(iso: string): string {
@@ -40,12 +39,8 @@ function timeAgo(iso: string): string {
   });
 }
 
-/**
- * Header bell for the contact inbox: badge shows the unread count (from
- * `?status=unread`, so it matches the sidebar Messages badge), the dropdown
- * previews the newest unread messages, and each one deep-links into the
- * inbox, which marks it read on open.
- */
+/** Header bell for the contact inbox: unread count (matching the sidebar
+ *  Messages badge) and deep links into the inbox, which marks read on open. */
 export function NotificationsMenu() {
   const pathname = usePathname();
   const { data, refetch } = useQuery<Paginated<ContactMessage>>(

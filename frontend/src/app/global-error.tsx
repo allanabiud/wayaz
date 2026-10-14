@@ -4,11 +4,8 @@ import { useEffect } from "react";
 
 import "./globals.css";
 
-/**
- * Last-resort error boundary: renders when the root layout itself fails,
- * so it defines its own <html>/<body> and pulls in the global stylesheet.
- * (metadata exports aren't supported in global-error - use <title>.)
- */
+/** Last-resort boundary: renders when the root layout itself fails, so it
+ *  defines its own <html>/<body>. (No metadata exports here - use <title>.) */
 export default function GlobalError({
   error,
   retry,

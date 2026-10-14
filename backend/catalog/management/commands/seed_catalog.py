@@ -1,17 +1,6 @@
-"""Seed the Wayaz catalog: the 4 fixed categories, curated products, and
-product photos from the repo's ``examples/`` directory.
-
-Re-runnable:
-- categories and products are updated in place (``update_or_create`` by
-  slug/title), so existing accounts, orders, and reviews keep working;
-- photos from ``examples/<category>/`` are copied into
-  ``media/products/<category>/`` and attached as each product's primary
-  image (curated products get photos first, then generated products are
-  added until every photo in the folder is used, one photo per product);
-- categories without an ``examples/<slug>/`` folder are skipped with a
-  warning, so ``shirts/`` or ``bikinis/`` photos can be dropped in later
-  without any code change.
-"""
+"""Seed the catalog: 4 fixed categories, curated products, and photos from
+examples/. Re-runnable: rows update in place by slug/title, photos are
+copied into media/ (curated products first), missing folders are skipped."""
 
 import shutil
 from decimal import Decimal
@@ -24,13 +13,11 @@ from catalog.models import Category, Product, ProductImage
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 
-# Cycles sold-out, low-stock (amber banner), and healthy stock levels so
-# every storefront card state gets exercised.
+# Cycles sold-out, low-stock, and healthy levels so every card state shows.
 STOCK_CYCLE = [0, 5, 12, 18, 25, 30, 3, 9, 15, 22]
 
-# Name parts for the products generated to consume the remaining photos.
-# Style cycles fastest, color slowest, so every (color, style) pair stays
-# unique within a category.
+# Name parts for generated products; style cycles fastest so every
+# (color, style) pair stays unique within a category.
 JEAN_STYLES = [
     "Wide-Leg Jeans",
     "Straight Leg Jeans",
@@ -184,10 +171,8 @@ class Command(BaseCommand):
 
         self.stdout.write("Starting catalog seeding for Wayaz...")
 
-        # 1. Clean up old non-apparel categories if any
         Category.objects.exclude(slug__in=["jeans", "shoes", "shirts", "bikinis"]).delete()
 
-        # 2. The 4 Fixed Categories
         categories_data = [
             {
                 "name": "Jeans",
@@ -224,8 +209,7 @@ class Command(BaseCommand):
             categories[cdata["slug"]] = cat
             self.stdout.write(f"  Category: {cat.name} ({'created' if created else 'updated'})")
 
-        # 3. Apparel Products (stock totals are summed from the per-size
-        #    breakdowns below; there are no more variants)
+        # Stock totals are summed from the per-size breakdowns below.
         products_data = [
             {
                 "title": "Vintage Washed Wide-Leg Denim Jeans",
@@ -336,15 +320,13 @@ class Command(BaseCommand):
             },
         ]
 
-        # Curated titles per category, in declaration order; these products
-        # receive photos before any generated ones.
+        # Curated titles per category; these get photos before generated ones.
         curated_titles = {slug: [] for slug in categories}
 
         for pdata in products_data:
             variants_info = pdata.pop("variants")
-            # Variants are gone: collapse the per-size/color stock into a
-            # single product-level stock figure, and keep the ordered
-            # per-size breakdown as the product's selectable sizes.
+            # Collapse per-size/color stock into one product-level figure,
+            # keeping the ordered size breakdown as selectable sizes.
             pdata["stock_quantity"] = sum(
                 v["stock_quantity"] for v in variants_info
             )
@@ -361,9 +343,7 @@ class Command(BaseCommand):
                 f"Stock: {product.stock_quantity}"
             )
 
-        # 4. Attach photos from examples/<slug>/, one photo per product.
-        #    Curated products come first; generated products are added until
-        #    every photo in the folder has a home.
+        # Attach photos from examples/<slug>/, one per product; curated first.
         attached = 0
         for slug, category in categories.items():
             folder = source / slug
@@ -407,8 +387,7 @@ class Command(BaseCommand):
                 sale_price = (
                     base_price - plan["sale_drop"] if i % 3 == 0 else None
                 )
-                # Every fifth generated item is one-size so both card flows
-                # appear ("Add to Cart" directly vs "Select size").
+                # Every fifth item is one-size so both card flows appear.
                 sizes = [] if i % 5 == 4 else plan["sizes"]
                 stock = STOCK_CYCLE[i % len(STOCK_CYCLE)]
                 Product.objects.update_or_create(
@@ -427,8 +406,7 @@ class Command(BaseCommand):
                     },
                 )
 
-            # Ordered product list: curated first (declaration order), then
-            # everything else oldest-first, so re-runs keep assignments stable.
+            # Curated first, then oldest-first, so re-runs stay stable.
             curated_qs = [
                 Product.objects.get(title=t) for t in curated
             ]

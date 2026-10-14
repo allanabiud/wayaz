@@ -127,8 +127,7 @@ export default function AdminCategoriesPage() {
     try {
       await api.delete(`/api/v1/admin/categories/${pendingDelete.id}/`);
       setPendingDelete(null);
-      // If the last row on this page just went, step back a page rather
-      // than leaving an empty one behind.
+      // Step back a page rather than leaving an empty one behind.
       if (categories.length === 1 && page > 1) setPage(page - 1);
       refetch();
     } catch (err) {
@@ -182,7 +181,6 @@ export default function AdminCategoriesPage() {
 
       {categories.length > 0 && (
         <>
-          {/* Mobile: card list */}
           <div className="space-y-3 md:hidden">
             {categories.map((category) => (
               <div
@@ -226,7 +224,6 @@ export default function AdminCategoriesPage() {
             ))}
           </div>
 
-          {/* Desktop: table */}
           <div className="hidden overflow-hidden rounded-2xl bg-card shadow-(--shadow-card) md:block">
             <Table className="table-fixed">
               <TableHeader>
@@ -307,7 +304,6 @@ export default function AdminCategoriesPage() {
         </>
       )}
 
-      {/* Create / edit */}
       <Dialog open={form !== null} onOpenChange={(open) => !open && closeForm()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -382,7 +378,6 @@ export default function AdminCategoriesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirmation */}
       <Dialog
         open={pendingDelete !== null}
         onOpenChange={(open) => {

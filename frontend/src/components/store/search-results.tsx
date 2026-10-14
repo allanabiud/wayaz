@@ -20,15 +20,12 @@ import { rememberSearch, type StoreProduct } from "@/lib/store";
 interface SearchResultsProps {
   query: string;
   products: StoreProduct[];
-  /** Total hits across every page. */
   count: number;
   page: number;
   pages: number;
-  /** Sort/price state mirrored in the URL. */
   filters: CatalogFilters;
 }
 
-/** Dedicated results page: breadcrumb, gold header, filters, grid, pagination. */
 export function SearchResults({
   query,
   products,

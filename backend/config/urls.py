@@ -11,9 +11,8 @@ from drf_spectacular.views import (
 from config.views import HealthView
 
 urlpatterns = [
-    # Uptime monitor target (kept outside /api/v1/ so version bumps never
-    # move it). /health and /health/ are aliases: many monitors default to
-    # that path instead of the /api/health/ the plan specifies.
+    # Uptime monitor target, kept outside /api/v1/ so version bumps never
+    # move it; /health and /health/ are aliases many monitors default to.
     path("api/health/", HealthView.as_view(), name="health"),
     path("health/", HealthView.as_view(), name="health-alias"),
     path("health", HealthView.as_view(), name="health-alias-bare"),
@@ -25,9 +24,8 @@ urlpatterns = [
     path("api/v1/payments/", include("payments.urls")),
 ]
 
-# OpenAPI 3 schema & interactive docs: in-house tooling, gated off in
-# production (SERVE_DOCS follows DEBUG) so the public API surface stays
-# undiscoverable. Generation for CI is independent of these routes.
+# OpenAPI 3 schema & interactive docs, gated off in production
+# (SERVE_DOCS follows DEBUG) so the public API surface stays undiscoverable.
 if settings.SERVE_DOCS:
     urlpatterns += [
         path("api/v1/schema/", SpectacularAPIView.as_view(), name="schema"),

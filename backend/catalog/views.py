@@ -26,10 +26,8 @@ from .serializers import (
     StoreSettingsSerializer,
 )
 
-# What the shopper actually pays: the sale price while a sale is live,
-# otherwise the base price. Filtering and sorting on this rather than
-# base_price keeps sale items correct - a Ksh 3,000 sale piece has to show
-# up under "up to Ksh 4,000" and sort before a Ksh 4,000 full-price one.
+# What the shopper actually pays: sale price while live, else base price.
+# Filtering/sorting on this keeps sale items correct in price filters.
 EFFECTIVE_PRICE = Case(
     When(sale_price__isnull=False, sale_price__lt=F("base_price"), then=F("sale_price")),
     default=F("base_price"),
@@ -38,10 +36,8 @@ EFFECTIVE_PRICE = Case(
 
 
 def rating_payload(product, user):
-    """Rating summary for a product plus the viewer's own rating (if any).
-
-    Hidden (unapproved) reviews are excluded from the aggregate but a viewer
-    still sees the rating they personally left."""
+    """Rating summary plus the viewer's own rating (if any). Hidden reviews
+    are excluded from the aggregate but a viewer still sees theirs."""
     agg = product.reviews.filter(is_approved=True).aggregate(
         avg=Avg("rating"), count=Count("id")
     )
@@ -60,10 +56,8 @@ def rating_payload(product, user):
 
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
-    # Explicit order_by: the annotate() below puts this in GROUP BY mode,
-    # where Django's Meta.ordering no longer counts as an ordering (rows
-    # would paginate in arbitrary DB order and trigger DRF's
-    # UnorderedObjectListWarning). Mirrors Category.Meta.ordering.
+    # Explicit order_by: annotate() switches to GROUP BY mode where
+    # Meta.ordering no longer applies (rows would paginate arbitrarily).
     queryset = (
         Category.objects.annotate(product_count=Count("products"))
         .order_by("display_order", "name")
@@ -75,7 +69,7 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
 
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
-        # 5 minutes browser/edge caching with stale-while-revalidate for snappy storefront loads
+        # 5-minute browser/edge caching with stale-while-revalidate.
         response["Cache-Control"] = "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
         return response
 
@@ -96,13 +90,12 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
 
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
-        # Products list caching (1 min fresh, 5 min edge)
         response["Cache-Control"] = "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
         return response
 
     def retrieve(self, request, *args, **kwargs):
         response = super().retrieve(request, *args, **kwargs)
-        # Anonymous product details can be cached, authenticated requests vary
+        # Anonymous details can be cached; authenticated requests vary.
         if not request.user.is_authenticated:
             response["Cache-Control"] = "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
         else:
@@ -131,11 +124,9 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=["get", "post"], url_path="review")
     def review(self, request, slug=None):
-        """GET the rating summary (incl. the caller's own rating) or POST a
-        1-5 star rating plus an optional written comment; repeating the POST
-        overwrites the caller's review. A payload without `comment` leaves
-        any existing comment alone - the PDP's quick star row sends only the
-        rating, so tapping a star can never wipe written feedback."""
+        """GET the rating summary or POST a 1-5 star rating plus an optional
+        comment; repeating the POST overwrites. Omitting `comment` leaves the
+        existing comment alone (the quick star row sends only the rating)."""
         product = self.get_object()
         if request.method == "POST":
             serializer = ProductReviewSerializer(data=request.data)
@@ -197,8 +188,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
         ordering = params.get("ordering")
-        # `-created_at` rides along as a tiebreaker so pages stay stable when
-        # several products share a price.
+        # `-created_at` ties break so pages stay stable on shared prices.
         if ordering == "price_asc":
             qs = qs.order_by("effective_price", "-created_at")
         elif ordering == "price_desc":
@@ -214,7 +204,6 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     def search_suggestions(self, request):
         query = request.query_params.get("q", "").strip()
         if not query or len(query) < 2:
-            # Suggest newest products and top-level categories
             trending_products = Product.objects.all().prefetch_related("images")[:6]
             popular_categories = Category.objects.all()[:6]
             return Response(
@@ -287,17 +276,14 @@ class StoreSettingsView(APIView):
 
 
 class RestockNotificationCreateView(generics.CreateAPIView):
-    """Public opt-in: "tell me when this piece is back."
-
-    Subscribing twice is a no-op (200) instead of an error, so a shopper can
-    tap the button again after a page refresh without seeing a failure."""
+    """Public restock opt-in. Subscribing twice is a no-op (200), not an
+    error, so a refresh-and-retry never fails."""
 
     queryset = RestockNotification.objects.all()
     serializer_class = RestockNotificationCreateSerializer
     permission_classes = [permissions.AllowAny]
     throttle_classes = [ScopedRateThrottle]
-    # Own scope: the contact-form tests share the "contact" counter and a
-    # full-suite run would drain it, 429-ing an unrelated test.
+    # Own scope: the contact-form tests share the "contact" counter.
     throttle_scope = "restock-notifications"
 
     def create(self, request, *args, **kwargs):

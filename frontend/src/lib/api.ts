@@ -1,24 +1,13 @@
 import type { SessionUser, TokenResponse } from "./types";
 
-/**
- * Public API base (NEXT_PUBLIC_* is inlined at build time, identically for
- * the server and client bundles, so DOM strings hydrate consistently).
- *
- * Production: leave unset/empty - the browser stays same-origin and Next's
- * rewrites proxy `/api/v1/*` and `/media/*` to the backend (CORS becomes a
- * fallback only). Development sets
- * `NEXT_PUBLIC_API_URL=http://127.0.0.1:8000` in `.env.local` to talk to
- * Django directly.
- */
+// NEXT_PUBLIC_* is inlined identically in server and client bundles, so DOM
+// strings hydrate consistently. Empty in production: same-origin, with Next
+// rewrites proxying /api/v1/* and /media/* to the backend.
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-/**
- * Absolute backend base for fetch(). Node's fetch cannot resolve relative
- * URLs, and in production API_URL is "" - the server instead uses
- * API_PROXY_URL (the backend address on the same box, e.g.
- * http://127.0.0.1:8000; never inlined into the client bundle). On the
- * client this always equals API_URL.
- */
+// Absolute base for fetch(): Node cannot resolve relative URLs, and in
+// production the server uses API_PROXY_URL (never inlined into the client
+// bundle). On the client this always equals API_URL.
 const SERVER_BASE =
   (typeof window === "undefined" ? process.env.API_PROXY_URL : undefined) ||
   API_URL ||

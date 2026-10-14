@@ -1,9 +1,5 @@
-"""Uptime-monitoring endpoint: GET /api/health/
-
-Checks the database with a real query so a broken connection pool or
-lost DB container shows up as 503 (which uptime monitors alert on),
-rather than a lying 200.
-"""
+"""Uptime-monitoring endpoint: GET /api/health/. Checks the database with a
+real query so a broken pool or lost container shows up as 503, not a lying 200."""
 
 from django.db import connection
 from django.utils import timezone

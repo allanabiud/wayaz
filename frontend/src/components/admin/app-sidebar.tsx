@@ -40,7 +40,6 @@ interface NavItem {
   exact?: boolean;
   /** Placeholder entries that do not navigate anywhere yet. */
   comingSoon?: boolean;
-  /** Sidebar badge count (see NavCounts). */
   countKey?: keyof NavCounts;
 }
 
@@ -79,17 +78,16 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-// Full-bleed box: -mx-2 + an explicit calc() width so items reach both
-// sidebar edges (buttons shrink-wrap otherwise). Only background-color
-// transitions on hover/active, so the geometry never shifts.
+// -mx-2 plus an explicit calc() width so items reach both sidebar edges
+// (buttons shrink-wrap otherwise); hover only changes background-color.
 const itemClassName = "-mx-2 h-9 w-[calc(100%_+_1rem)] gap-3 rounded-none px-5";
 
 export function AppSidebar() {
   const pathname = usePathname();
   const { data: navCounts } = useQuery<NavCounts>(
     () => api.get<NavCounts>("/api/v1/admin/nav-counts/"),
-    // Re-check on navigation so the Messages badge matches the header bell
-    // after messages get read or deleted elsewhere.
+    // Re-check on navigation so the badge matches the header bell after
+    // messages get read or deleted elsewhere.
     [pathname],
   );
   const { data: settings } = useQuery<StoreSettings>(() =>
@@ -105,7 +103,8 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="none" className="border-r border-sidebar-border bg-sidebar">
-      {/* Brand Header - height = logo's natural aspect at sidebar width (1600/362), matching the page header exactly */}
+      {/* Height = logo's natural aspect at sidebar width, matching the
+          page header. */}
       <SidebarHeader className="h-[calc(var(--sidebar-width)*362/1600)] border-b border-sidebar-border p-0">
         <Link
           href="/admin"
@@ -120,7 +119,6 @@ export function AppSidebar() {
         </Link>
       </SidebarHeader>
 
-      {/* Navigation with sections */}
       <SidebarContent className="py-2">
         {navGroups.map((group) => (
           <SidebarGroup key={group.label}>
@@ -171,7 +169,6 @@ export function AppSidebar() {
         ))}
       </SidebarContent>
 
-      {/* Footer: quick link to the storefront */}
       <SidebarFooter className="border-t border-sidebar-border p-2">
         <SidebarMenu>
           <SidebarMenuItem>

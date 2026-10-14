@@ -95,11 +95,8 @@ class OrderItem(models.Model):
 
 
 def generate_order_number():
-    """Readable order number, e.g. WAYAZ-2609-4821 (YYMM-XXXX).
-
-    The suffix uses `secrets` rather than `random` so order numbers can't
-    be predicted and probed via the order/payment endpoints.
-    """
+    """Readable order number, e.g. WAYAZ-2609-4821 (YYMM-XXXX). Uses
+    `secrets` so numbers can't be predicted and probed."""
     stamp = timezone.now().strftime("%y%m")
     for _ in range(50):
         candidate = f"WAYAZ-{stamp}-{secrets.randbelow(9000) + 1000}"
@@ -109,13 +106,9 @@ def generate_order_number():
 
 
 class Coupon(models.Model):
-    """A checkout code that takes money off an order.
-
-    Deliberately minimal - a percent or fixed amount, on or off, plus who
-    may use it and whether it applies itself at checkout. No expiry dates,
-    usage caps or spend thresholds; those can wait until there is real
-    usage data to justify them.
-    """
+    """A checkout code that takes money off an order. Deliberately minimal:
+    percent or fixed, on or off, audience, auto-apply. No expiry dates or
+    usage caps until real usage data justifies them."""
 
     class DiscountType(models.TextChoices):
         PERCENT = "percent", "Percentage"
@@ -176,13 +169,9 @@ class Coupon(models.Model):
 
 
 def auto_coupon_for(user, subtotal):
-    """The best auto-applying coupon for this shopper, or None.
-
-    "Best" means the largest discount on `subtotal` among active,
-    auto-applying codes the shopper is eligible for; ties go to the most
-    recently created. An empty cart (subtotal 0) never matches - every
-    discount is worth zero there anyway.
-    """
+    """The best auto-applying coupon for this shopper, or None. "Best" is the
+    largest discount on `subtotal` among eligible active codes, ties to the
+    newest; an empty cart never matches."""
     best = None
     best_discount = Decimal("0.00")
     for coupon in Coupon.objects.filter(is_active=True, auto_apply=True):

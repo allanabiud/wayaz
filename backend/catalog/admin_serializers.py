@@ -41,13 +41,9 @@ class AdminProductImageSerializer(serializers.ModelSerializer):
 
 
 class AdminProductImageUploadSerializer(serializers.Serializer):
-    """Validated multipart upload for a product image.
-
-    ImageField opens the file with Pillow, so a ".jpg" that isn't really an
-    image is rejected; this adds an extension allowlist and a size cap, and
-    types the metadata fields so garbage input 400s instead of crashing the
-    old raw `int()` parsing.
-    """
+    """Validated multipart upload for a product image. ImageField + Pillow
+    reject fake images; this adds an extension allowlist, a size cap, and
+    types the metadata so garbage input 400s instead of crashing."""
 
     image = serializers.ImageField()
     is_primary = serializers.BooleanField(default=False)

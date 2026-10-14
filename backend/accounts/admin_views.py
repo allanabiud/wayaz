@@ -47,10 +47,8 @@ class AdminCustomerViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class AdminTeamSerializer(serializers.ModelSerializer):
-    """Credentials plus the role that decides dashboard reach.
-
-    Password is write-only: required when creating a teammate, optional on
-    an update (an admin rescuing a locked-out account)."""
+    """Credentials plus the role that decides dashboard reach. Password is
+    write-only: required when creating, optional on update."""
 
     password = serializers.CharField(write_only=True, min_length=8, required=False)
     display_name = serializers.CharField(read_only=True)
@@ -107,13 +105,9 @@ class AdminTeamSerializer(serializers.ModelSerializer):
 
 
 class AdminTeamViewSet(viewsets.ModelViewSet):
-    """Who can log into the dashboard: list them, add teammates, retarget
-    roles, deactivate or remove.
-
-    Any staff member may look; every write is admin-only, so a staff
-    account cannot mint more accounts. Two locks protect access: nobody
-    can deactivate themselves, and the last active admin can be neither
-    demoted, deactivated nor removed."""
+    """Who can log into the dashboard. Any staff member may look; every
+    write is admin-only. Nobody can deactivate themselves, and the last
+    active admin can be neither demoted, deactivated nor removed."""
 
     queryset = User.objects.filter(role__in=TEAM_ROLES).order_by("-date_joined")
     serializer_class = AdminTeamSerializer

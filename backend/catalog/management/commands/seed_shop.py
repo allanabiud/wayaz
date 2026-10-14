@@ -1,18 +1,6 @@
-"""Seed the shop: demo customers, addresses, order history, carts,
-wishlist entries, and product reviews.
-
-Runs on top of an existing catalog (``seed_catalog`` / ``seed_demo``) and
-never touches products or categories, so it is safe to re-run. Previously
-seeded demo data (identified by the ``@wayaz.demo`` email domain and the
-``guest-demo-`` id/session prefix) is wiped first, keeping any real accounts
-and their data intact.
-
-Order timestamps are backdated across the last ~90 days so the admin
-dashboard KPIs and the analytics charts (Today / This Week / This Month /
-30d / All Time) all have realistic data to plot. Product stock levels are
-left exactly as the catalog seeds set them, so the storefront keeps its
-curated sold-out / low-stock states.
-"""
+"""Seed demo customers, orders, carts, wishlist, and reviews on top of the
+catalog. Re-runnable: prior demo data is wiped first (real accounts kept)
+and order timestamps are backdated ~90 days so dashboard KPIs look real."""
 
 import random
 import uuid
@@ -97,8 +85,7 @@ PHONE_PREFIXES = ["0712", "0722", "0733", "0701", "0710", "0748", "0110"]
 # Weighted toward 4-5 stars (a happy fashion storefront), with a few 3s.
 RATING_WEIGHTS = [1, 2, 5, 8, 6]  # indexes 0..4 => 1..5 stars
 
-# Written feedback paired with the star it was left under, so seeded review
-# lists read like real ones instead of bare star rows.
+# Written feedback paired with the star it was left under.
 REVIEW_COMMENTS = {
     5: [
         "Exactly as pictured and the fit is spot on. Delivered the next day.",
@@ -126,10 +113,8 @@ REVIEW_COMMENTS = {
     ],
 }
 
-# Codes shoppers can try at checkout: a self-applying welcome offer for
-# first-timers, one for guest carts, a plain type-it code, and an
-# inactive one so the dashboard toggle has something to show. Existing
-# codes (including any staff created) are left alone.
+# Checkout codes to try: a self-applying welcome offer, a guest code, a
+# plain code, and an inactive one; existing codes are left alone.
 DEMO_COUPONS = [
     ("WELCOME10", Coupon.DiscountType.PERCENT, "10", True, Coupon.Audience.FIRST_ORDER, True),
     ("GUEST5", Coupon.DiscountType.PERCENT, "5", True, Coupon.Audience.GUESTS, True),
@@ -230,7 +215,7 @@ class Command(BaseCommand):
         rng = random.Random(options["seed"])
         now = timezone.now()
 
-        # 1. Wipe previously seeded shop data; real accounts stay untouched.
+        # Wipe previously seeded shop data; real accounts stay untouched.
         self.stdout.write("Wiping previously seeded shop data...")
         demo_users = User.objects.filter(email__endswith=DEMO_EMAIL_DOMAIN)
         Order.objects.filter(user__in=demo_users).delete()
@@ -241,7 +226,7 @@ class Command(BaseCommand):
         deleted = demo_users.delete()[0]
         self.stdout.write(f"  Removed {deleted} rows (users + related shop data).")
 
-        # 2. A demo admin so the dashboard is reachable, if there isn't one.
+        # Demo admin so the dashboard is reachable, if there isn't one.
         if not options["skip_admin"] and not User.objects.filter(
             is_superuser=True
         ).exists():
@@ -258,7 +243,7 @@ class Command(BaseCommand):
                 f"{options['admin_password']}"
             )
 
-        # 3. Customers, each with a default shipping address.
+        # Customers, each with a default shipping address.
         customers = []
         for first, last in CUSTOMER_NAMES[:customers_count]:
             username = f"{first.lower()}.{last.lower()}"
@@ -289,7 +274,6 @@ class Command(BaseCommand):
                     is_default=idx == 0,
                 )
 
-        # 4. Order history spread across the last ~90 days.
         order_total = 0
         for user in customers:
             # A few customers are repeat shoppers so "returning rate" shows.
@@ -308,7 +292,7 @@ class Command(BaseCommand):
 
         self.stdout.write(f"  Created {order_total} orders (backdated ~90 days).")
 
-        # 5. Active carts - a few signed-in shoppers plus one guest.
+        # Active carts: a few signed-in shoppers plus one guest.
         for user in rng.sample(customers, k=min(4, len(customers))):
             self._make_cart(user=user, session_key="", products=products, rng=rng)
         self._make_cart(
@@ -319,7 +303,6 @@ class Command(BaseCommand):
         )
         self.stdout.write("  Created 5 active carts (4 account, 1 guest).")
 
-        # 6. Wishlist saves and product reviews.
         wishlist_rows = review_rows = 0
         for user in customers:
             wish_count = min(rng.randint(2, 8), len(products))
@@ -368,15 +351,13 @@ class Command(BaseCommand):
             )
         )
 
-    # ---- helpers ---------------------------------------------------------
-
     @staticmethod
     def _phone(rng: random.Random) -> str:
         return f"{rng.choice(PHONE_PREFIXES)}{rng.randint(0, 999999):06d}"
 
     def _make_order(self, user, products, rng, now) -> bool:
-        """Create one backdated order with snapshot line items. Returns True
-        when an order was written."""
+        """Create one backdated order with snapshot line items; True when
+        an order was written."""
         lines = rng.sample(products, k=min(rng.randint(1, 4), len(products)))
         items = []
         subtotal = Decimal("0.00")
@@ -386,8 +367,7 @@ class Command(BaseCommand):
             items.append((product, quantity, unit_price))
             subtotal += unit_price * quantity
 
-        # Age the order, but always keep a few landing today so the hourly
-        # "Today" chart has points. Weights: recent, mid, and older history.
+        # Weighted so some orders still land today for the hourly chart.
         days_ago = rng.choices(
             [rng.randint(0, 6), rng.randint(7, 30), rng.randint(31, 90)],
             weights=[2, 3, 5],

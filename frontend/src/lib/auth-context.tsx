@@ -65,7 +65,6 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   canManage: boolean;
   signIn: (user: SessionUser) => void;
-  /** Merges partial profile edits (e.g. after PATCH /auth/me/) into the session. */
   updateSessionUser: (patch: Partial<SessionUser>) => void;
   signOut: () => void;
 }

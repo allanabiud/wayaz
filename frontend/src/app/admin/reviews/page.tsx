@@ -132,7 +132,6 @@ export default function AdminReviewsPage() {
         }
       />
 
-      {/* Filter toolbar */}
       <FilterToolbar
         search={
           <FilterSearch
@@ -313,7 +312,6 @@ export default function AdminReviewsPage() {
             ))}
           </ul>
 
-          {/* Pagination: Showing x-y of z (left) - Previous 1/3 Next (right) */}
           <ListPagination
             page={page}
             count={data?.count ?? 0}
@@ -324,7 +322,6 @@ export default function AdminReviewsPage() {
         </>
       )}
 
-      {/* Delete confirmation */}
       <Dialog
         open={pendingDelete !== null}
         onOpenChange={(open) => {

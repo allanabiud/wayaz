@@ -43,7 +43,6 @@ class CartAPITestCase(TestCase):
         )
 
     def test_anonymous_cart_creation(self):
-        # Initial request should return a new cart and X-Cart-ID header
         res = self.client.get("/api/v1/orders/cart/")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertIn("X-Cart-ID", res.headers)
@@ -52,11 +51,9 @@ class CartAPITestCase(TestCase):
         self.assertEqual(Decimal(str(res.data["subtotal"])), Decimal("0.00"))
 
     def test_add_item_to_guest_cart(self):
-        # 1. Start guest cart
         init_res = self.client.get("/api/v1/orders/cart/")
         cart_id = init_res.headers["X-Cart-ID"]
 
-        # 2. Add 2 units of product 1
         payload = {"product_id": self.product_1.id, "quantity": 2}
         add_res = self.client.post(
             "/api/v1/orders/cart/items/",
@@ -68,7 +65,6 @@ class CartAPITestCase(TestCase):
         self.assertEqual(add_res.data["total_items"], 2)
         # 2 * 2500.00 = 5000.00
         self.assertEqual(Decimal(str(add_res.data["subtotal"])), Decimal("5000.00"))
-        # Cart line now embeds product info instead of variant info
         line = add_res.data["items"][0]
         self.assertEqual(line["product"]["product_title"], "Running Sneaker")
         self.assertEqual(Decimal(str(line["product"]["unit_price"])), Decimal("2500.00"))
@@ -77,7 +73,6 @@ class CartAPITestCase(TestCase):
         init_res = self.client.get("/api/v1/orders/cart/")
         cart_id = init_res.headers["X-Cart-ID"]
 
-        # product_1 only has stock of 5
         payload = {"product_id": self.product_1.id, "quantity": 10}
         res = self.client.post(
             "/api/v1/orders/cart/items/",
@@ -100,7 +95,6 @@ class CartAPITestCase(TestCase):
         )
         item_id = add_res.data["items"][0]["id"]
 
-        # Update quantity to 4
         patch_res = self.client.patch(
             f"/api/v1/orders/cart/items/{item_id}/",
             {"quantity": 4},
@@ -110,7 +104,6 @@ class CartAPITestCase(TestCase):
         self.assertEqual(patch_res.status_code, status.HTTP_200_OK)
         self.assertEqual(patch_res.data["total_items"], 4)
 
-        # Delete item
         del_res = self.client.delete(
             f"/api/v1/orders/cart/items/{item_id}/",
             HTTP_X_CART_ID=cart_id,
@@ -135,7 +128,6 @@ class CartAPITestCase(TestCase):
         )
         item_id = add_res.data["items"][0]["id"]
 
-        # Move the line to another size - no duplicate row is created.
         patch_res = self.client.patch(
             f"/api/v1/orders/cart/items/{item_id}/",
             {"size": "L"},
@@ -147,7 +139,6 @@ class CartAPITestCase(TestCase):
         self.assertEqual(patch_res.data["items"][0]["size"], "L")
         self.assertEqual(patch_res.data["items"][0]["quantity"], 2)
 
-        # Sizes outside the product's list are rejected.
         bad_res = self.client.patch(
             f"/api/v1/orders/cart/items/{item_id}/",
             {"size": "XL"},
@@ -183,7 +174,6 @@ class CartAPITestCase(TestCase):
             item for item in add_l.data["items"] if item["size"] == "L"
         )
 
-        # Moving L onto the occupied M size merges the quantities.
         res = self.client.patch(
             f"/api/v1/orders/cart/items/{line_l['id']}/",
             {"size": "M"},
@@ -221,8 +211,7 @@ class CartAPITestCase(TestCase):
             item for item in add_l.data["items"] if item["size"] == "L"
         )
 
-        # Stock drops (a sale elsewhere) between the two adds and the merge:
-        # 3 + 3 no longer fits in the 5 units that remain.
+        # Stock drops to 5 between the adds and the merge: 3 + 3 no longer fits.
         Product.objects.filter(id=sized.id).update(stock_quantity=5)
 
         res = self.client.patch(
@@ -256,7 +245,6 @@ class CartAPITestCase(TestCase):
         self.assertEqual(res.data["items"][0]["product"]["sizes"], ["M", "L"])
 
     def test_cart_merge_on_login(self):
-        # 1. Guest adds item to guest cart
         init_res = self.client.get("/api/v1/orders/cart/")
         guest_cart_id = init_res.headers["X-Cart-ID"]
 
@@ -267,10 +255,8 @@ class CartAPITestCase(TestCase):
             format="json",
         )
 
-        # 2. Authenticate as user
         self.client.force_authenticate(user=self.user)
 
-        # 3. Merge guest cart into user's account
         merge_res = self.client.post(
             "/api/v1/orders/cart/merge/",
             {"guest_cart_id": guest_cart_id},
@@ -278,12 +264,10 @@ class CartAPITestCase(TestCase):
         )
         self.assertEqual(merge_res.status_code, status.HTTP_200_OK)
         self.assertEqual(merge_res.data["total_items"], 3)
-        # Guest cart should have been deleted/merged
         self.assertFalse(Cart.objects.filter(id=guest_cart_id).exists())
 
 
 class CheckoutAPITestCase(TestCase):
-    """Phase 6: checkout validation, atomic stock deduction, order creation."""
 
     def setUp(self):
         self.client = APIClient()
@@ -322,7 +306,6 @@ class CheckoutAPITestCase(TestCase):
         res = self.checkout()
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
 
-        # Order fields
         self.assertTrue(res.data["order_number"].startswith("WAYAZ-"))
         self.assertEqual(res.data["status"], Order.Status.PROCESSING)
         self.assertEqual(res.data["payment_method"], Order.PaymentMethod.COD)
@@ -333,24 +316,20 @@ class CheckoutAPITestCase(TestCase):
         self.assertEqual(Decimal(str(res.data["shipping_fee"])), Decimal("0.00"))
         self.assertEqual(Decimal(str(res.data["total_amount"])), Decimal("5000.00"))
 
-        # Line item snapshots captured at purchase time
         self.assertEqual(len(res.data["items"]), 1)
         item = res.data["items"][0]
         self.assertEqual(item["product_title"], "Linen Shirt")
         self.assertEqual(Decimal(str(item["unit_price"])), Decimal("2500.00"))
         self.assertEqual(Decimal(str(item["line_total"])), Decimal("5000.00"))
 
-        # Stock decremented atomically, cart cleared
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock_quantity, 3)
         self.assertEqual(self.cart.items.count(), 0)
 
-        # WhatsApp link returned + confirmation email sent
         self.assertIn("wa.me/", res.data["whatsapp_link"])
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn(res.data["order_number"], mail.outbox[0].subject)
 
-        # COD starts in the pipeline awaiting staff confirmation.
         order = Order.objects.get(order_number=res.data["order_number"])
         self.assertEqual(order.status, Order.Status.PROCESSING)
         self.assertEqual(order.payment_status, Order.PaymentStatus.PENDING)
@@ -381,7 +360,6 @@ class CheckoutAPITestCase(TestCase):
 
     @override_settings(MANAGER_EMAIL="boss@wayaz.co.ke")
     def test_checkout_sends_merchant_copy(self):
-        """The merchant gets a new-order email when MANAGER_EMAIL is set."""
         res = self.checkout()
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertEqual(len(mail.outbox), 2)
@@ -608,11 +586,8 @@ class OrderHistoryAPITestCase(TestCase):
 
 
 class AdminOrderConfirmTestCase(TestCase):
-    """Staff sign-off from the dashboard: PROCESSING -> CONFIRMED + email.
-
-    M-Pesa payment only marks the order PAID; it stays PROCESSING until a
-    staff member confirms it, and that transition is what emails the
-    customer."""
+    """Staff sign-off: PROCESSING -> CONFIRMED + email. M-Pesa payment only
+    marks the order PAID; this transition is what emails the customer."""
 
     def setUp(self):
         self.client = APIClient()
@@ -826,8 +801,6 @@ class CouponCheckoutTestCase(TestCase):
         self.assertEqual(order.discount_amount, Decimal("500.00"))
         self.assertEqual(order.total_amount, Decimal("5500.00"))
 
-    # ---- Auto-applying coupons ----------------------------------------
-
     @staticmethod
     def make_auto(code, percent, audience=Coupon.Audience.EVERYONE, **kwargs):
         return Coupon.objects.create(
@@ -896,8 +869,7 @@ class CouponCheckoutTestCase(TestCase):
         CartItem.objects.create(cart=own_cart, product=self.product, quantity=2)
         self.client.force_authenticate(user=shopper)
 
-        # Typing it is refused outright (the 400 rolls back, so the cart
-        # is still full for the next attempt)...
+        # Typing it is refused outright; the 400 rolls back the cart too.
         res = self.checkout("GUEST5", cart=own_cart)
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("coupon_code", res.data)
@@ -1003,8 +975,7 @@ class CouponValidateAPITestCase(TestCase):
         self.assertEqual(self.validate("PAUSED").status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_guest_cart_id_is_all_that_is_needed(self):
-        # No signed-in user anywhere in this request - exactly how the
-        # guest checkout flow calls it.
+        # No signed-in user anywhere, exactly how guest checkout calls it.
         res = self.client.post(
             "/api/v1/orders/coupons/validate/",
             {"code": "TAKE500"},
@@ -1018,8 +989,6 @@ class CouponValidateAPITestCase(TestCase):
         res = self.validate("TAKE500", cart=empty)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(Decimal(str(res.data["discount_amount"])), Decimal("0.00"))
-
-    # ---- Auto-apply previews (no code in the request) ------------------
 
     def auto_validate(self, cart=None):
         return self.client.post(
@@ -1230,12 +1199,8 @@ class AdminCouponAPITestCase(TestCase):
 
 
 class CancelStaleOrdersTestCase(TestCase):
-    """Unpaid M-Pesa orders must not hold stock forever.
-
-    Checkout decrements stock immediately; if the STK push is abandoned
-    the order sits PROCESSING + PENDING and the stock stays reserved until
-    this command cancels it and restocks via Order.cancel().
-    """
+    """Unpaid M-Pesa orders must not hold stock forever; the command cancels
+    stale ones and restocks via Order.cancel()."""
 
     def setUp(self):
         self.category = Category.objects.create(name="Denim", slug="denim")

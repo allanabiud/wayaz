@@ -18,7 +18,6 @@ import {
 
 interface ProductReviewsProps {
   slug: string;
-  /** Current aggregate - refreshed after the form posts. */
   rating: ProductRatingSummary;
   onRatingChange: (summary: ProductRatingSummary) => void;
 }
@@ -37,7 +36,7 @@ function formatDate(iso: string): string {
       });
 }
 
-/** One star: outline base with an amber fill clipped to `fill` (0 - 1). */
+/** Outline star with an amber fill clipped to `fill` (0-1). */
 function StarGlyph({ fill }: { fill: number }) {
   return (
     <span className="relative inline-flex" aria-hidden="true">
@@ -52,7 +51,6 @@ function StarGlyph({ fill }: { fill: number }) {
   );
 }
 
-/** Static `value`-out-of-5 star row (fractional fills like the PDP header). */
 function StarRow({ value }: { value: number }) {
   return (
     <span className="flex items-center gap-0.5">
@@ -82,18 +80,16 @@ export function ProductReviews({
   const [busy, setBusy] = useState(false);
   const prefillRef = useRef(false);
 
-  // `.then` callbacks (like useQuery) rather than await-then-setState, so
-  // the state updates are clearly deferred out of the effect's body.
+  // Chain .then (like useQuery) so state updates stay out of the effect body.
   const load = useCallback((): Promise<void> => {
     return fetchProductReviews(slug, page, PAGE_SIZE)
       .then((result) => {
         setReviews(result.results);
         setTotal(result.count);
         setListError(null);
-        // Pre-fill the box with the viewer's own review the first time we
-        // can see it, so returning shoppers edit instead of overwriting
-        // blind. (The `mine` flag only appears once auth has resolved,
-        // hence the refetch when it does.) Keep whatever they have typed.
+        // Pre-fill the viewer's own review once auth resolves the `mine`
+        // flag, so returning shoppers edit instead of overwriting blind.
+        // Keep whatever they have typed.
         if (!prefillRef.current) {
           const mine = result.results.find((review) => review.mine);
           if (mine) {
@@ -127,14 +123,14 @@ export function ProductReviews({
 
     setBusy(true);
     try {
-      // Always send the comment explicitly: the form owns it now, including
-      // clearing it when the shopper deletes their text.
+      // Always send the comment: the form owns it now, including clearing
+      // it when the shopper deletes their text.
       const summary = await submitProductRating(slug, stars, comment.trim());
       onRatingChange(summary);
       setPicked(null);
       toast.success("Thanks for your review!");
-      // New reviews lead the list, so hop back to page 1 to show it
-      // (unless we are already there - then just refresh).
+      // New reviews lead the list, so hop back to page 1 (or refresh if
+      // already there).
       if (page === 1) {
         await load();
       } else {
@@ -149,8 +145,8 @@ export function ProductReviews({
     }
   };
 
-  // Hover previews a click, then the freshly picked star, then what they
-  // already rated (so the form opens showing their standing rating).
+  // Hover previews a click, then the picked star, then their standing
+  // rating, so the form opens showing what they already rated.
   const shownStars = hover ?? picked ?? rating.user_rating ?? 0;
 
   return (
@@ -171,8 +167,8 @@ export function ProductReviews({
         </p>
       </div>
 
-      {/* Leave a review - guests are prompted to sign in on submit, which
-          keeps whatever they typed in the box. */}
+      {/* Guests are prompted to sign in on submit, keeping whatever they
+          typed in the box. */}
       <form
         onSubmit={submit}
         className="mt-4 rounded-2xl border bg-card p-4 shadow-(--shadow-card)"

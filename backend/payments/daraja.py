@@ -84,10 +84,8 @@ def generate_stk_password(shortcode: str, passkey: str, timestamp: str) -> str:
 
 
 def initiate_stk_push(order, phone_number: str) -> dict:
-    """
-    Triggers Lipa na M-Pesa Online STK Push.
-    Supports 'mock' mode for immediate local testing without external Safaricom connectivity.
-    """
+    """Triggers Lipa na M-Pesa Online STK Push; 'mock' mode answers
+    immediately without external Safaricom connectivity."""
     formatted_phone = format_phone_number(phone_number)
     amount = int(Decimal(str(order.total_amount)).quantize(Decimal("1")))
 
@@ -108,7 +106,6 @@ def initiate_stk_push(order, phone_number: str) -> dict:
             "is_mock": True,
         }
 
-    # Real Daraja Gateway Call (Sandbox or Production)
     token = get_oauth_token()
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     shortcode = get_active_shortcode()
@@ -146,21 +143,12 @@ def initiate_stk_push(order, phone_number: str) -> dict:
 
 
 def stk_query(checkout_request_id: str) -> dict | None:
-    """Asks Safaricom for the authoritative status of an STK Push request
-    (stkpushqueryrequestv1).
-
-    Used to re-verify a success callback before marking an order paid -
-    callback POSTs are unauthenticated beyond the secret URL, so the
-    callback alone is not proof of payment.
-
-    Returns the Daraja response dict (with "ResultCode"), or None when the
-    status could not be determined (transport error, API error response)
-    so callers can distinguish "not completed" from "couldn't ask" and ask
-    Safaricom to redeliver the callback later.
-    """
+    """Ask Safaricom for the authoritative status of an STK Push request,
+    re-verifying a success callback (the callback POST alone is not proof).
+    Returns the Daraja dict, or None when it could not be asked."""
     if settings.MPESA_ENVIRONMENT == "mock":
-        # Local mock gateway has no Safaricom to ask; the simulated
-        # callback is its own authority here.
+        # Local mock has no Safaricom to ask; the simulated callback is
+        # its own authority here.
         return {"ResultCode": 0, "ResultDesc": "Mock gateway: processed successfully."}
 
     try:

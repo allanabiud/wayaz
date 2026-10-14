@@ -69,8 +69,6 @@ class MpesaPaymentTests(TestCase):
             status=PaymentTransaction.Status.PENDING,
         )
 
-    # ---- STK push ownership -------------------------------------------
-
     def test_stk_push_initiate_mock(self):
         url = reverse("mpesa-stk-push")
         data = {
@@ -83,7 +81,6 @@ class MpesaPaymentTests(TestCase):
         self.assertIn("checkout_request_id", response.data)
         self.assertTrue(response.data["is_mock"])
 
-        # Check transaction created in DB
         tx = PaymentTransaction.objects.get(checkout_request_id=response.data["checkout_request_id"])
         self.assertEqual(tx.order, self.order)
         self.assertEqual(tx.status, PaymentTransaction.Status.PENDING)
@@ -135,8 +132,6 @@ class MpesaPaymentTests(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    # ---- Status polling ownership --------------------------------------
-
     def test_payment_status_polling(self):
         tx = self._make_tx("ws_CO_123456")
         url = reverse("payment-status", kwargs={"checkout_request_id": tx.checkout_request_id})
@@ -151,8 +146,6 @@ class MpesaPaymentTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         response = self.client.get(url, {"payment_token": "bogus"})
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
-    # ---- Mock simulator gating ------------------------------------------
 
     def test_mock_simulate_success(self):
         tx = self._make_tx("ws_CO_789012")
@@ -169,8 +162,7 @@ class MpesaPaymentTests(TestCase):
         self.assertEqual(tx.status, PaymentTransaction.Status.COMPLETED)
         self.assertIsNotNone(tx.mpesa_receipt_number)
         self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
-        # Payment makes the order real but does not confirm it - staff do
-        # that from the dashboard, so it stays PROCESSING until then.
+        # Payment does not confirm; staff do that, so it stays PROCESSING.
         self.assertEqual(self.order.status, Order.Status.PROCESSING)
 
     @override_settings(MPESA_ENVIRONMENT="sandbox")
@@ -186,8 +178,6 @@ class MpesaPaymentTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         tx.refresh_from_db()
         self.assertEqual(tx.status, PaymentTransaction.Status.PENDING)
-
-    # ---- Daraja callback hardening --------------------------------------
 
     def test_daraja_callback_webhook(self):
         tx = self._make_tx("ws_CO_CALLBACK_123")

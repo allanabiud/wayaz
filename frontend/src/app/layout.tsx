@@ -25,8 +25,8 @@ export const metadata: Metadata = {
   description:
     "Shop the Wayaz Collection - browse the latest pieces and order on WhatsApp or add them to your cart. Delivery across Kenya.",
   icons: { icon: "/wayaz_favicon.jpeg" },
-  // Default social-preview image for WhatsApp/Facebook shares (the
-  // storefront's primary sharing channel); product pages override it.
+  // Default social-preview image for WhatsApp/Facebook shares; product
+  // pages override it.
   openGraph: {
     type: "website",
     siteName: "Wayaz Collection",
@@ -36,8 +36,8 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     images: ["/og-image.png"],
   },
-  // The storefront is indexable; admin (/admin/layout.tsx) and auth
-  // (/(auth)/layout.tsx) re-declare noindex for their own routes.
+  // The storefront is indexable; admin and auth layouts re-declare noindex
+  // for their own routes.
   robots: { index: true, follow: true },
 };
 

@@ -31,17 +31,9 @@ def _amounts_match(callback_value, expected: Decimal) -> bool:
 
 
 class STKPushInitiateView(APIView):
-    """
-    POST /api/v1/payments/mpesa/stk-push/
-    Initiates STK Push prompt for an Order.
-    Body: { "order_number": "WAYAZ-2610-1234", "phone_number": "0712345678",
-            "payment_token": "<issued in the checkout response>" }
-
-    Ownership is enforced: the caller must be the authenticated shopper who
-    placed the order, or hold the signed payment_token from checkout
-    (guest checkout). Without this, anyone who knew an order number could
-    fire M-Pesa prompts at that order's phone number.
-    """
+    """POST /api/v1/payments/mpesa/stk-push/ - initiates an STK Push for an
+    order. Ownership is enforced (authenticated shopper or checkout
+    payment_token), else anyone knowing an order number could prompt its phone."""
     permission_classes = [permissions.AllowAny]
     throttle_scope = "payments"
 
@@ -111,7 +103,6 @@ class STKPushInitiateView(APIView):
                 status=PaymentTransaction.Status.PENDING,
             )
 
-            # Auto-simulate mock completion if in mock mode
             is_mock = daraja_res.get("is_mock", False)
 
             return Response(
@@ -134,11 +125,8 @@ class STKPushInitiateView(APIView):
 
 
 class STKPushStatusView(APIView):
-    """
-    GET /api/v1/payments/status/<checkout_request_id>/?payment_token=...
-    Frontend polling endpoint for real-time payment confirmation.
-    Same ownership rule as STK push: authenticated owner or payment_token.
-    """
+    """GET payment status polling endpoint; same ownership rule as STK push
+    (authenticated owner or payment_token)."""
     permission_classes = [permissions.AllowAny]
     throttle_scope = "payments"
 
@@ -192,14 +180,8 @@ class STKPushStatusView(APIView):
 
 
 class STKPushMockSimulateView(APIView):
-    """
-    POST /api/v1/payments/mock-simulate/
-    Allows test/dev environments to simulate an instant callback (Success or Failure).
-    Body: { "checkout_request_id": "...", "action": "success" | "fail" }
-
-    Only exists in mock mode: outside local development this returns 404,
-    so nobody can mint a "paid" order without paying.
-    """
+    """Simulate an instant STK callback in mock mode only; returns 404
+    elsewhere so nobody can mint a "paid" order without paying."""
     permission_classes = [permissions.AllowAny]
 
     @extend_schema(
@@ -235,8 +217,7 @@ class STKPushMockSimulateView(APIView):
 
             order = transaction.order
             order.payment_status = Order.PaymentStatus.PAID
-            # Order stays PROCESSING: payment is what makes the order real,
-            # admin/staff confirmation (CONFIRMED) happens from the dashboard.
+            # Stays PROCESSING until admin confirms from the dashboard.
             order.save()
 
             try:
@@ -268,21 +249,9 @@ class STKPushMockSimulateView(APIView):
 
 
 class DarajaCallbackView(APIView):
-    """
-    POST /api/v1/payments/mpesa/callback/<token>/
-    Safaricom webhook endpoint called asynchronously after user PIN entry.
-
-    Anti-spoofing measures:
-    - the URL carries a shared secret (MPESA_CALLBACK_SECRET) that only
-      Safaricom knows, checked in constant time;
-    - a reported success is re-verified against Daraja's
-      stkpushqueryrequestv1 - the callback POST alone is not proof;
-    - the callback Amount must match the amount we asked the order to pay.
-
-    Logs are PII-safe (no phone numbers, no payload dumps). Safaricom gets
-    200 once the callback is accepted or deliberately flagged; a transient
-    verification failure returns 503 so the webhook is redelivered.
-    """
+    """Safaricom webhook (POST /api/v1/payments/mpesa/callback/<token>/).
+    Anti-spoofing: constant-time shared-secret URL, success re-verified via
+    stkpushquery, Amount must match; 503 on transient failures to redeliver."""
     permission_classes = [permissions.AllowAny]
 
     @extend_schema(
@@ -339,8 +308,7 @@ class DarajaCallbackView(APIView):
     def post(self, request, token=None):
         secret = settings.MPESA_CALLBACK_SECRET
         if not secret:
-            # Misconfiguration: without a shared secret anyone could post
-            # a forged "payment succeeded" payload.
+            # Without a shared secret anyone could forge a "paid" callback.
             logger.error(
                 "Rejected Daraja callback: MPESA_CALLBACK_SECRET is not configured."
             )
@@ -384,7 +352,6 @@ class DarajaCallbackView(APIView):
             transaction.raw_callback_payload = payload
 
             if result_code == 0:
-                # Success: pull Amount + receipt out of the metadata.
                 items = stk_callback.get("CallbackMetadata", {}).get("Item", [])
                 receipt_number = None
                 callback_amount = None
@@ -395,10 +362,8 @@ class DarajaCallbackView(APIView):
                     elif name == "Amount":
                         callback_amount = item.get("Value")
 
-                # Cross-check the reported amount against what we asked
-                # this order to pay - a mismatch means this callback is not
-                # describing our transaction (or is forged). Flag, don't
-                # mark paid: a human verifies it in the Daraja portal.
+                # Amount mismatch: not our transaction or a forged callback.
+                # Flag for manual verification, don't mark paid.
                 if callback_amount is not None and not _amounts_match(
                     callback_amount, transaction.amount
                 ):
@@ -410,13 +375,10 @@ class DarajaCallbackView(APIView):
                     )
                     return Response({"ResultCode": 0, "ResultDesc": "Accepted"})
 
-                # Re-verify with Safaricom itself: a callback can only reach
-                # us through the secret URL, but this asks the source of
-                # truth whether the STK request actually completed.
+                # Re-verify with Safaricom: the callback POST alone is not proof.
                 query = stk_query(checkout_request_id)
                 if query is None:
-                    # Couldn't verify (gateway/network) - 5xx so Safaricom
-                    # redelivers the webhook and we retry later.
+                    # Couldn't verify; 5xx makes Safaricom redeliver the webhook.
                     return Response(
                         {
                             "ResultCode": 1,
@@ -443,8 +405,7 @@ class DarajaCallbackView(APIView):
                 transaction.mpesa_receipt_number = receipt_number
                 transaction.save()
 
-                # Update Order: payment is captured, but the order itself
-                # remains PROCESSING until admin/staff confirm it.
+                # Update Order: paid, but stays PROCESSING until admin confirms.
                 order = transaction.order
                 order.payment_status = Order.PaymentStatus.PAID
                 order.save()

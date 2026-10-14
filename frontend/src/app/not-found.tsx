@@ -1,11 +1,8 @@
 import Link from "next/link";
 import { SearchX } from "lucide-react";
 
-/**
- * Global 404 for routes outside the store group (the storefront ships its
- * own richer (store)/not-found.tsx). Kept server-rendered and indexed as a
- * normal page.
- */
+/** Global 404 outside the store group (which ships its own richer one).
+ *  Kept server-rendered and indexed as a normal page. */
 export default function NotFound() {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 py-16 text-center">

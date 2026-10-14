@@ -28,7 +28,6 @@ import { api } from "@/lib/api";
 import { formatKsh } from "@/lib/store";
 import { useQuery } from "@/lib/use-query";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
 
 type PaymentMethodFilter = "all" | "mpesa" | "cod";
 type PaymentStatusFilter = "all" | "COMPLETED" | "PENDING" | "FAILED";
@@ -53,7 +52,6 @@ interface PaymentsResponse {
   results: PaymentEntry[];
 }
 
-// ─── Constants ───────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 10;
 
@@ -98,7 +96,6 @@ function formatDate(iso: string): string {
       });
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
 
 export default function AdminPaymentsPage() {
   const [search, setSearch] = useState("");
@@ -120,7 +117,6 @@ export default function AdminPaymentsPage() {
     [method, statusFilter, page],
   );
 
-  // Client-side search filter (order number / phone)
   const rows = search.trim()
     ? (data?.results ?? []).filter(
         (p) =>
@@ -142,7 +138,6 @@ export default function AdminPaymentsPage() {
         }
       />
 
-      {/* Filter bar */}
       <FilterToolbar
         search={
           <FilterSearch
@@ -153,7 +148,6 @@ export default function AdminPaymentsPage() {
         }
         filters={
           <>
-            {/* Method filter */}
             <Select
               value={method}
               onValueChange={(val) => {
@@ -173,7 +167,6 @@ export default function AdminPaymentsPage() {
               </SelectContent>
             </Select>
 
-            {/* Status filter */}
             <Select
               value={statusFilter}
               onValueChange={(val) => {
@@ -230,7 +223,6 @@ export default function AdminPaymentsPage() {
 
       {data && rows.length > 0 && (
         <>
-          {/* Desktop table */}
           <div className="hidden rounded-2xl bg-card shadow-(--shadow-card) overflow-hidden md:block">
             <Table className="table-fixed">
               <TableHeader>
@@ -247,7 +239,6 @@ export default function AdminPaymentsPage() {
               <TableBody>
                 {rows.map((tx) => (
                   <TableRow key={tx.id} className="hover:bg-muted/50">
-                    {/* Method */}
                     <TableCell>
                       <Badge
                         variant={tx.type === "mpesa" ? "success" : "info"}
@@ -262,7 +253,6 @@ export default function AdminPaymentsPage() {
                       </Badge>
                     </TableCell>
 
-                    {/* Order */}
                     <TableCell>
                       <span className="font-semibold text-sm tabular-nums text-foreground">
                         {tx.order_number}
@@ -272,17 +262,14 @@ export default function AdminPaymentsPage() {
                       )}
                     </TableCell>
 
-                    {/* Amount */}
                     <TableCell className="text-right font-semibold tabular-nums text-sm">
                       Ksh {formatKsh(tx.amount)}
                     </TableCell>
 
-                    {/* Phone */}
                     <TableCell className="font-mono text-xs text-muted-foreground">
                       {tx.phone}
                     </TableCell>
 
-                    {/* Receipt */}
                     <TableCell className="font-mono text-xs">
                       {tx.reference ? (
                         <span className="font-semibold text-emerald-700 dark:text-emerald-400">
@@ -293,7 +280,6 @@ export default function AdminPaymentsPage() {
                       )}
                     </TableCell>
 
-                    {/* Status */}
                     <TableCell>
                       <Badge
                         variant={STATUS_BADGE_VARIANT[tx.status] ?? "secondary"}
@@ -303,7 +289,6 @@ export default function AdminPaymentsPage() {
                       </Badge>
                     </TableCell>
 
-                    {/* Date */}
                     <TableCell className="text-right text-xs text-muted-foreground">
                       {formatDate(tx.date)}
                     </TableCell>
@@ -313,7 +298,6 @@ export default function AdminPaymentsPage() {
             </Table>
           </div>
 
-          {/* Mobile cards */}
           <div className="md:hidden space-y-3">
             {rows.map((tx) => (
               <Card key={tx.id} className="p-4">
@@ -354,7 +338,6 @@ export default function AdminPaymentsPage() {
             ))}
           </div>
 
-          {/* Pagination */}
           <ListPagination
             page={page}
             count={data.count}

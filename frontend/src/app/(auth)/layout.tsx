@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 
-// Shared metadata for the auth pages (login, forgot/reset password):
-// branded by the root layout but never indexed - they sit behind login
-// walls for shoppers and mustn't surface in search results.
+// Shared auth metadata: branded by the root layout but never indexed -
+// these pages sit behind login walls and mustn't surface in search.
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };

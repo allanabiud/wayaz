@@ -144,7 +144,6 @@ export default function ProductDetailPage() {
 
   return (
     <div className="space-y-5">
-      {/* Back link */}
       <Link
         href="/admin/products"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -153,7 +152,6 @@ export default function ProductDetailPage() {
         Products
       </Link>
 
-      {/* Header: title + Edit / Delete */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="mb-1 text-xs font-semibold uppercase tracking-[0.25em] text-gold">
@@ -191,12 +189,9 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      {/* Overview */}
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Image - first column, full-bleed inside its card. The invisible
-            3:4 sizer sets the row height when the image side is tallest;
-            the image absolutely fills the card edge to edge (no gutter),
-            clipped by the card's rounded corners. */}
+        {/* The invisible 3:4 sizer sets the row height; the image
+            absolutely fills the card edge to edge, clipped by its corners. */}
         <Card className="relative p-0">
           <div className="aspect-[3/4] w-full" aria-hidden="true" />
           {primaryImage ? (
@@ -215,8 +210,7 @@ export default function ProductDetailPage() {
           )}
         </Card>
 
-        {/* At-a-glance cards + Description + Details - second column,
-            stretches so its bottom edge lands level with the image */}
+        {/* Stretches so its bottom edge lands level with the image. */}
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-3 gap-4">
             <Card>
@@ -263,7 +257,6 @@ export default function ProductDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Details - grows to match the image height */}
           <Card className="flex-1">
             <CardHeader>
               <CardTitle className="text-base font-semibold">Details</CardTitle>
@@ -319,7 +312,6 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      {/* Photos */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
@@ -379,7 +371,6 @@ export default function ProductDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Images Manager Dialog */}
       <ImageManagerDialog
         open={imagesOpen}
         onOpenChange={(isOpen) => {
@@ -392,7 +383,6 @@ export default function ProductDetailPage() {
         productTitle={product.title}
       />
 
-      {/* Delete confirmation */}
       <Dialog
         open={confirmDelete}
         onOpenChange={(isOpen) => {

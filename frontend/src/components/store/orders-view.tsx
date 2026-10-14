@@ -25,10 +25,8 @@ import {
 } from "@/lib/store";
 import type { Paginated } from "@/lib/types";
 
-/** Server page size for GET /api/v1/orders/. */
 const PAGE_SIZE = 10;
 
-/** Status pill styling per pipeline stage (matches Badge variants). */
 const STATUS_VARIANT: Record<
   OrderStatus,
   "warning" | "success" | "info" | "destructive"
@@ -88,12 +86,10 @@ function OrderProgressTimeline({ status }: { status: OrderStatus }) {
   return (
     <div className="my-4 px-1" aria-label="Order status timeline">
       <div className="relative flex items-center justify-between">
-        {/* Connecting track line */}
         <div
           aria-hidden="true"
           className="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 w-full bg-border"
         />
-        {/* Active progress track */}
         <div
           aria-hidden="true"
           className="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-primary transition-all duration-300"
@@ -140,7 +136,6 @@ function OrderProgressTimeline({ status }: { status: OrderStatus }) {
   );
 }
 
-/** One order: header (number + status), timeline stepper, line items, totals, delivery. */
 function OrderCard({
   order,
   printing,
@@ -190,8 +185,8 @@ function OrderCard({
                   {item.quantity}×
                 </span>{" "}
                 {item.product_title}
-                {/* Re-pick the size on the product page (order items don't
-                    store size snapshots). */}
+                {/* Re-pick the size on the product page; order items don't
+                    store size snapshots. */}
                 {item.product_slug && (
                   <Link
                     href={`/products/${item.product_slug}`}
@@ -267,31 +262,25 @@ function OrderCard({
   );
 }
 
-/**
- * Account order history behind Account → Orders; signed-out visitors get the
- * store's in-place login dialog instead of a redirect.
- */
+/** Signed-out visitors get the store's in-place login dialog, not a redirect. */
 export function OrdersView() {
   const { ready, isAuthenticated } = useAuth();
   const { openLogin } = useStore();
   const [page, setPage] = useState(1);
-  // Order currently styled for the browser print dialog (receipt).
   const [printingId, setPrintingId] = useState<number | null>(null);
 
-  // Release the print-target marker once the dialog closes.
   useEffect(() => {
     const clear = () => setPrintingId(null);
     window.addEventListener("afterprint", clear);
     return () => window.removeEventListener("afterprint", clear);
   }, []);
 
-  // Open the browser dialog once the target class has painted.
+  // Open the dialog once the target class has painted.
   useEffect(() => {
     if (printingId !== null) window.print();
   }, [printingId]);
 
-  // Skips the network while signed out; fetches as soon as isAuthenticated
-  // flips (i.e. right after the login dialog).
+  // Skips the network while signed out; fetches once isAuthenticated flips.
   const { data, error, loading, refetch } = useQuery<
     Paginated<StoreOrder> | null
   >(

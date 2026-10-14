@@ -188,8 +188,7 @@ function ResetPasswordContent() {
 }
 
 export default function ResetPasswordPage() {
-  // useSearchParams needs a Suspense boundary to keep the page
-  // prerenderable (same pattern as the admin products page).
+  // useSearchParams needs a Suspense boundary to keep the page prerenderable.
   return (
     <Suspense
       fallback={

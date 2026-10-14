@@ -45,11 +45,8 @@ function GateSkeleton() {
   );
 }
 
-/**
- * Client-side auth gate for the admin dashboard. Lives in its own client
- * component so app/admin/layout.tsx can stay a server component and
- * export `noindex` metadata.
- */
+/** Client-side auth gate for the admin dashboard. Own client component so
+ *  app/admin/layout.tsx can stay a server component and export noindex. */
 export function AdminGate({ children }: { children: React.ReactNode }) {
   const { ready, isAuthenticated, canManage } = useAuth();
   const router = useRouter();
@@ -60,7 +57,7 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
     if (!isAuthenticated) {
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
     } else if (!canManage) {
-      // Normal customers wandering to /admin are silently redirected to storefront
+      // Customers wandering to /admin are silently redirected to the storefront.
       router.replace("/");
     }
   }, [ready, isAuthenticated, canManage, pathname, router]);

@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { AdminGate } from "@/components/admin/admin-gate";
 
 // Server component on purpose: admin routes must never be indexed, and
-// metadata can only be exported from server components (the dashboard
-// itself is the client-side AdminGate).
+// metadata can only be exported from server components.
 export const metadata: Metadata = {
   title: {
     default: "Admin",

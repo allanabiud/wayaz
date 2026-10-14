@@ -67,8 +67,7 @@
   --muted: #f4f4f5;
   --muted-foreground: #71717a;
   --gold: #c8a44d;
-  /* Restock/notify actions: deliberately off-palette (warm amber) so a
-     "Notify on restock" button never reads as a purchase CTA. */
+  /* Off-palette amber so restock/notify never reads as a purchase CTA. */
   --amber-600: #d97706;
   --amber-700: #b45309;
   --amber-foreground: #ffffff;
@@ -80,14 +79,13 @@
   --input: #e4e4e7;
   --ring: #e00613;
   --chart-1: #e00613; /* brand red */
-  --chart-2: #18181b; /* charcoal (inverse in dark) */
+  --chart-2: #18181b; /* charcoal */
   --chart-3: #c8a44d; /* gold */
-  --chart-4: #991b1b; /* deep maroon (inverse in dark) */
-  --chart-5: #71717a; /* neutral grey */
+  --chart-4: #991b1b; /* maroon */
+  --chart-5: #71717a; /* grey */
   --radius: 0.375rem;
   --shadow-card: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06);
   --shadow-card-hover: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.06);
-  /* Sidebar: follows the light theme (soft off-white with red accents) */
   --sidebar: #fafafa;
   --sidebar-foreground: #000000;
   --sidebar-primary: #e00613;
@@ -113,7 +111,7 @@
   --muted: #2a2c32;
   --muted-foreground: #a1a1aa;
   --gold: #d9b968;
-  /* Lifted for the dark card so the button stays legible on #222428. */
+  /* Lifted for legibility on the dark card (#222428). */
   --amber-600: #f59e0b;
   --amber-700: #d97706;
   --amber-foreground: #17181a;
@@ -125,10 +123,10 @@
   --input: #2e3138;
   --ring: #e00613;
   --chart-1: #e00613; /* brand red */
-  --chart-2: #fafafa; /* light neutral (charcoal inverted for dark card) */
-  --chart-3: #d9b968; /* gold (matches --gold dark) */
-  --chart-4: #f87171; /* bright red (maroon lifted for dark card) */
-  --chart-5: #71717a; /* neutral grey */
+  --chart-2: #fafafa; /* charcoal inverted for dark card */
+  --chart-3: #d9b968; /* gold */
+  --chart-4: #f87171; /* maroon lifted for dark card */
+  --chart-5: #71717a; /* grey */
   --shadow-card: 0 4px 6px -1px rgb(0 0 0 / 0.45), 0 2px 4px -2px rgb(0 0 0 / 0.35);
   --shadow-card-hover: 0 10px 15px -3px rgb(0 0 0 / 0.55), 0 4px 6px -4px rgb(0 0 0 / 0.4);
   --sidebar: #18191c;
@@ -155,8 +153,7 @@
   html {
     @apply font-sans;
   }
-  /* Hide the native up/down spinner arrows on number inputs - values are
-     typed (or steppers added deliberately) instead. */
+  /* Hide native number-input spinners; values are typed or use custom steppers. */
   input[type="number"] {
     appearance: textfield;
     -moz-appearance: textfield;
@@ -169,8 +166,8 @@
   }
 }
 
-/* Printable order receipt: show only the targeted order card and drop the
-   site chrome. Elements opt out with .print:hidden where relevant. */
+/* Printable order receipt: show only the .print-target card and drop the
+   site chrome. Elements opt out with .print:hidden. */
 @media print {
   body:has(.print-target) * {
     visibility: hidden;
@@ -194,19 +191,15 @@
   }
 }
 
-/* ---- Notify-on-restock actions ----
-   Off-palette warm amber, shared by the product card, the product detail
-   page, its sticky bar, and the opt-in dialog. Deliberately not
-   primary/secondary so a "waiting for stock" action never reads as a
-   purchase CTA, and never sits next to Add to Cart / Buy now.
+/* Notify-on-restock actions: off-palette warm amber, shared by the product
+   card, detail page, sticky bar, and opt-in dialog. Never primary/secondary
+   so a "waiting for stock" action never reads as a purchase CTA.
 
-   The `!` on background-color is load-bearing, not defensive styling. All
-   Tailwind rules land in one @layer utilities, sorted by declaration order,
-   so bg-card (emitted ~31.6k) and hover:bg-muted (~67.2k) come AFTER a
-   custom utility (~29.4k) and would win the cascade - which is exactly why
-   an earlier non-important version of this rendered card-white instead of
-   amber. `!important` beats any layer regardless of order, so the fill holds
-   against every variant's background, dark-mode overrides included. */
+   The `!important` is load-bearing, not defensive: Tailwind emits all
+   utilities into one @layer sorted by declaration order, so bg-card and
+   hover:bg-muted come after this custom utility and would win the cascade
+   (an earlier non-important version rendered card-white, not amber).
+   `!important` beats any layer regardless of order. */
 @utility restock-button {
   background-color: var(--amber-600) !important;
   color: var(--amber-foreground);

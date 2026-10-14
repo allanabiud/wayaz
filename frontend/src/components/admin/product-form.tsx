@@ -34,7 +34,6 @@ interface Props {
   categories: Category[];
   /** null = create mode */
   product: Product | null;
-  /** Called after the photo manager dialog closes, so pages can refetch. */
   onImagesChanged?: () => void;
 }
 
@@ -186,7 +185,6 @@ export function ProductForm({ categories, product, onImagesChanged }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Header */}
       <Link
         href={backHref}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -238,7 +236,6 @@ export function ProductForm({ categories, product, onImagesChanged }: Props) {
       )}
 
       <div className="grid gap-4 lg:grid-cols-3">
-        {/* Left: details + photos */}
         <div className="space-y-4 lg:col-span-2">
           <Card>
             <CardHeader>
@@ -390,7 +387,6 @@ export function ProductForm({ categories, product, onImagesChanged }: Props) {
           </Card>
         </div>
 
-        {/* Right: storefront visibility, category, pricing, stock */}
         <div className="space-y-4">
           <Card>
             <CardHeader>

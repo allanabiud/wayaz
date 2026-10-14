@@ -57,16 +57,12 @@ export function CheckoutView() {
   const { user, isAuthenticated } = useAuth();
   const { cart, clearCart, openLogin } = useStore();
 
-  // Saved addresses state for logged in customers
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<number | "new">("new");
-  // Persist a freshly typed address to the account after checkout.
   const [saveToAccount, setSaveToAccount] = useState(false);
   const [saveAsDefault, setSaveAsDefault] = useState(false);
-  // Expand the form for a selected saved address (collapsed into a summary otherwise).
   const [editingAddress, setEditingAddress] = useState(false);
 
-  // Address form fields
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -75,22 +71,21 @@ export function CheckoutView() {
   const [streetAddress, setStreetAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "mpesa">("cod");
 
-  // Coupon: validated against the cart before the order exists, so the
-  // discount in the summary is the one the server will actually take.
+  // Validated against the cart pre-order, so the summary shows the
+  // discount the server will actually take.
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidation | null>(
     null,
   );
   const [couponBusy, setCouponBusy] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
-  // Once the shopper takes over - typing a code or removing one - the
-  // auto preview stands down and stops overwriting their choice.
+  // Once the shopper takes over (typing or removing a code) the auto
+  // preview stands down.
   const couponOverrideRef = useRef(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<StoreOrder | null>(null);
 
-  // M-Pesa STK Push Modal State
   const [mpesaModal, setMpesaModal] = useState<{
     open: boolean;
     order: CheckoutOrder | null;
@@ -105,15 +100,12 @@ export function CheckoutView() {
     isMock: false,
   });
 
-  // Load saved addresses when authenticated. State updates happen in the
-  // async callbacks, never synchronously in the effect body.
   useEffect(() => {
     if (!isAuthenticated) return;
     fetchUserAddresses()
       .then((res) => {
         const addrs = res.results || [];
         setSavedAddresses(addrs);
-        // Pre-fill contact details from the account.
         if (user?.email) setEmail((prev) => prev || user.email);
         if (addrs.length > 0) {
           const def = addrs.find((a) => a.is_default) || addrs[0];
@@ -129,15 +121,12 @@ export function CheckoutView() {
         }
       })
       .catch(() => {
-        // If address fetch fails, fall back to the manual form.
         if (user?.email) setEmail((prev) => prev || user.email);
       });
   }, [isAuthenticated, user]);
 
-  // Self-applying coupons: preview whichever auto coupon would claim this
-  // cart so the discount shows up with nothing typed. Re-runs when the
-  // cart or sign-in state changes; the ref stops it dead once the
-  // shopper has made their own choice.
+  // Preview whichever auto coupon would claim this cart so the discount
+  // shows with nothing typed; the ref stops it once the shopper takes over.
   const cartSubtotal = cart?.subtotal ?? null;
   const cartItemCount = cart?.items.length ?? 0;
   useEffect(() => {
@@ -149,14 +138,13 @@ export function CheckoutView() {
         setAppliedCoupon(preview);
       })
       .catch(() => {
-        // Non-fatal: the server re-decides when the order is placed.
+        // Non-fatal; the server re-decides at order placement.
       });
     return () => {
       cancelled = true;
     };
   }, [cartSubtotal, cartItemCount, isAuthenticated]);
 
-  // When user picks an existing saved address card
   const handleSelectAddress = (addr: Address) => {
     setSelectedAddressId(addr.id);
     setFullName(addr.full_name);
@@ -166,7 +154,7 @@ export function CheckoutView() {
     setStreetAddress(addr.street_address);
     setSaveToAccount(false);
     setSaveAsDefault(false);
-    setEditingAddress(false); // collapse into the summary card
+    setEditingAddress(false);
   };
 
   const handleSelectNewAddress = () => {
@@ -208,8 +196,7 @@ export function CheckoutView() {
   };
 
   const removeCoupon = () => {
-    // Removing is an explicit choice too: tell the server to skip any
-    // auto coupon by sending a blank code rather than omitting the key.
+    // A blank code (not a missing key) tells the server to skip auto coupons.
     couponOverrideRef.current = true;
     setAppliedCoupon(null);
     setCouponError(null);
@@ -237,15 +224,13 @@ export function CheckoutView() {
         town: town.trim(),
         street_address: streetAddress.trim(),
         payment_method: paymentMethod,
-        // The server re-validates and recomputes; this only names the
-        // code. Omitting the key lets an auto coupon claim the order,
-        // while an explicit blank means "no coupon, not even an auto one".
+        // The server re-validates; omitting the key lets an auto coupon
+        // claim the order, a blank means "no coupon at all".
         coupon_code:
           appliedCoupon?.code ??
           (couponOverrideRef.current ? "" : undefined),
       });
 
-      // Persist the freshly typed address for faster checkout next time.
       if (isAuthenticated && selectedAddressId === "new" && saveToAccount) {
         try {
           await createAddress({
@@ -261,7 +246,6 @@ export function CheckoutView() {
         }
       }
 
-      // If Lipa na M-Pesa is chosen, trigger STK Push immediately
       if (paymentMethod === "mpesa") {
         try {
           const stkRes = await initiateMpesaStkPush(
@@ -283,7 +267,7 @@ export function CheckoutView() {
               ? stkErr.message
               : "Failed to dispatch M-Pesa STK Push. You can pay on delivery.",
           );
-          // Fall through to show order completed with payment pending
+          // Fall through: order completes with payment pending.
         }
       }
 
@@ -299,7 +283,6 @@ export function CheckoutView() {
     }
   };
 
-  // Order Success Screen
   if (completedOrder) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
@@ -417,7 +400,6 @@ export function CheckoutView() {
     );
   }
 
-  // Empty cart guard
   if (!cart || cart.items.length === 0) {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
@@ -466,7 +448,6 @@ export function CheckoutView() {
       </div>
 
       <form onSubmit={handleSubmit} className="mt-8 grid gap-8 lg:grid-cols-12">
-        {/* Left Column: Shipping & Payment details */}
         <div className="space-y-6 lg:col-span-7">
           <Card>
             <CardHeader>
@@ -490,7 +471,6 @@ export function CheckoutView() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Saved Addresses Selector (for authenticated users with saved addresses) */}
               {isAuthenticated && savedAddresses.length > 0 && (
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold uppercase text-muted-foreground">
@@ -549,8 +529,7 @@ export function CheckoutView() {
                 </div>
               )}
 
-              {/* Selected saved address: compact summary (email stays editable
-                  since it isn't part of a saved address) */}
+              {/* Email stays editable: it isn't part of a saved address. */}
               {isAuthenticated && selectedAddressId !== "new" && !editingAddress ? (
                 <div className="space-y-4">
                   <div className="flex items-start justify-between gap-3 rounded-xl border bg-muted/30 p-4">
@@ -664,7 +643,6 @@ export function CheckoutView() {
                     />
                   </div>
 
-                  {/* Save the typed address for faster checkout next time */}
                   {isAuthenticated && selectedAddressId === "new" && (
                     <label className="flex items-center gap-2 sm:col-span-2 cursor-pointer">
                       <input
@@ -754,7 +732,6 @@ export function CheckoutView() {
           </Card>
         </div>
 
-        {/* Right Column: Order Summary */}
         <div className="lg:col-span-5">
           <Card className="sticky top-20">
             <CardHeader>
@@ -905,7 +882,6 @@ export function CheckoutView() {
         </div>
       </form>
 
-      {/* M-Pesa STK Push Polling & Simulation Modal */}
       {mpesaModal.order && (
         <MpesaPaymentModal
           open={mpesaModal.open}
@@ -929,7 +905,6 @@ export function CheckoutView() {
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
           onCancelOrFailed={() => {
-            // Shopper dismissed modal or failed: complete order as pending payment
             clearCart();
             const pendingOrder = mpesaModal.order!;
             setMpesaModal((prev) => ({ ...prev, open: false }));

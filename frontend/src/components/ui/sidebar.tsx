@@ -28,7 +28,7 @@ import {
 const SIDEBAR_COOKIE_NAME = "sidebar:state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = "16rem"
-// Same as SIDEBAR_WIDTH so the mobile sheet's logo header height matches the page header exactly
+// Same as SIDEBAR_WIDTH so the mobile sheet's header height matches.
 const SIDEBAR_WIDTH_MOBILE = "16rem"
 const SIDEBAR_WIDTH_ICON = "3.25rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
@@ -191,7 +191,6 @@ function Sidebar({
         data-side={side}
         data-slot="sidebar"
       >
-        {/* Sidebar Gap */}
         <div
           data-slot="sidebar-gap"
           className="relative h-svh w-(--sidebar-width) bg-transparent"
@@ -229,7 +228,6 @@ function Sidebar({
       data-side={side}
       data-slot="sidebar"
     >
-      {/* Sidebar Gap */}
       <div
         data-slot="sidebar-gap"
         className={cn(

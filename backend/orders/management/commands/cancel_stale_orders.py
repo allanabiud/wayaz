@@ -1,23 +1,6 @@
-"""Cancel stale unpaid orders and give their stock back.
-
-Checkout decrements stock immediately, but an M-Pesa order whose STK push
-was abandoned (or failed before any callback) never becomes PAID - it
-sits in PROCESSING forever with its stock reserved. This command cancels
-those orders once they're older than --minutes and restores stock via the
-atomic Order.cancel().
-
-Cash-on-delivery orders are left alone by default: payment arrives on
-delivery and staff confirmation legitimately takes longer than any
-cancellation window. Opt them in with --include-cod (aged by
---cod-minutes, default 24h).
-
-In-flight guard: an order with a PENDING payment transaction from the
-last hour is skipped - the shopper may still be at the PIN prompt. If an
-M-Pesa callback arrives after cancellation anyway, the order is marked
-PAID while CANCELLED and staff refund manually (the money is real).
-
-Intended to run from cron every 10 minutes (see docs/deployment-guide.md).
-"""
+"""Cancel stale unpaid orders and give their stock back. COD is excluded
+unless --include-cod; a PENDING payment in the last hour is skipped as
+in-flight. Runs from cron (docs/deployment-guide.md)."""
 
 from datetime import timedelta
 
@@ -27,8 +10,7 @@ from django.utils import timezone
 from orders.models import Order
 from payments.models import PaymentTransaction
 
-# A PENDING transaction younger than this means someone may still be
-# paying (STK prompts can be retried/redelivered by Safaricom).
+# Recent PENDING transaction means the shopper may still be at the PIN prompt.
 IN_FLIGHT_GRACE = timedelta(hours=1)
 
 

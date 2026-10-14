@@ -20,15 +20,12 @@ import type { Category } from "@/lib/types";
 interface CategoryViewProps {
   category: Category;
   products: StoreProduct[];
-  /** Total items across every page. */
   count: number;
   page: number;
   pages: number;
-  /** Sort/price state mirrored in the URL. */
   filters: CatalogFilters;
 }
 
-/** Dedicated category listing: breadcrumb, header, filters, grid, pagination. */
 export function CategoryView({
   category,
   products,

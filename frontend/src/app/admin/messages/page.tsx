@@ -112,7 +112,6 @@ export default function AdminMessagesPage() {
   const viewMessage = (msg: ContactMessage) => {
     setSelectedMessage(msg);
     if (!msg.is_read) {
-      // Automatically mark read on click
       api.patch<ContactMessage>(`/api/v1/admin/contact-messages/${msg.id}/`, { is_read: true })
         .then((updated) => {
           setSelectedMessage(updated);
@@ -122,8 +121,8 @@ export default function AdminMessagesPage() {
     }
   };
 
-  // Header-bell deep link (?message=<id>): open the referenced message once
-  // the first page arrives; opening marks it read via viewMessage above.
+  // Header-bell deep link (?message=<id>): open it once the first page
+  // arrives; opening marks it read.
   const attemptedDeepLink = useRef(false);
   useEffect(() => {
     if (attemptedDeepLink.current || !data) return;
@@ -132,8 +131,8 @@ export default function AdminMessagesPage() {
     attemptedDeepLink.current = true;
     const target = messages.find((m) => m.id === Number(idParam));
     if (!target) return;
-    // Defer past the effect pass (react-hooks/set-state-in-effect): open the
-    // dialog on the next frame, once the list has painted.
+    // Defer past the effect pass (react-hooks/set-state-in-effect): open
+    // on the next frame, once the list has painted.
     const frame = requestAnimationFrame(() => viewMessage(target));
     return () => cancelAnimationFrame(frame);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -171,7 +170,6 @@ export default function AdminMessagesPage() {
         }
       />
 
-      {/* Filter toolbar */}
       <FilterToolbar
         search={
           <FilterSearch
@@ -226,7 +224,6 @@ export default function AdminMessagesPage() {
         <p className="text-xs font-medium text-destructive">{actionError}</p>
       )}
 
-      {/* Content */}
       {loading && !data ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -321,7 +318,6 @@ export default function AdminMessagesPage() {
         </div>
       )}
 
-      {/* Pagination */}
       {data && data.count > PAGE_SIZE && (
         <ListPagination
           page={page}
@@ -332,7 +328,6 @@ export default function AdminMessagesPage() {
         />
       )}
 
-      {/* Detail View Dialog */}
       <Dialog
         open={Boolean(selectedMessage)}
         onOpenChange={(open) => {
@@ -397,7 +392,6 @@ export default function AdminMessagesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirmation dialog */}
       <Dialog
         open={Boolean(pendingDelete)}
         onOpenChange={(open) => {

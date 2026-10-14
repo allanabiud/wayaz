@@ -40,11 +40,8 @@ User = get_user_model()
 
 
 def _order_counts_by_day(since, dates):
-    """Order counts bucketed by local calendar day, bounded by `since`.
-
-    The bound matches the query behind the matching KPI (all statuses), so
-    the bars always sum to the number shown beside the chart.
-    """
+    """Order counts per local calendar day from `since`; the bound matches
+    the KPI query so the bars sum to the number shown beside the chart."""
     rows = (
         Order.objects.filter(created_at__gte=since)
         .values("created_at__date")
@@ -83,20 +80,16 @@ class AdminOverviewView(APIView):
         total_categories = Category.objects.count()
         total_customers = User.objects.filter(role="customer").count()
 
-        # Time anchors for period-based KPIs (Today, This Week, This Month).
-        # Local time, not UTC: TIME_ZONE is Africa/Nairobi, so a UTC-based
-        # "today" would start at 03:00 local and drop early-morning orders.
+        # Local time, not UTC: a UTC "today" would start at 03:00 local.
         now = timezone.localtime()
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         yesterday_start = today_start - timedelta(days=1)
 
-        # Monday of this week
         week_start = (now - timedelta(days=now.weekday())).replace(
             hour=0, minute=0, second=0, microsecond=0
         )
         prev_week_start = week_start - timedelta(days=7)
 
-        # 1st of this month
         month_start = now.replace(
             day=1, hour=0, minute=0, second=0, microsecond=0
         )
@@ -111,7 +104,6 @@ class AdminOverviewView(APIView):
             Order.Status.DELIVERED,
         ]
 
-        # Helper to calculate count and delta %
         def calc_delta(curr: float, prev: float):
             if prev <= 0:
                 pct = 100.0 if curr > 0 else 0.0
@@ -119,7 +111,6 @@ class AdminOverviewView(APIView):
                 pct = round(((curr - prev) / prev) * 100, 1)
             return {"current": curr, "previous": prev, "percent": pct}
 
-        # Revenue metrics across periods
         rev_today = float(
             Order.objects.filter(
                 status__in=confirmed_statuses, created_at__gte=today_start
@@ -165,7 +156,6 @@ class AdminOverviewView(APIView):
             or 0
         )
 
-        # Orders counts across periods
         orders_today = Order.objects.filter(created_at__gte=today_start).count()
         orders_yesterday = Order.objects.filter(
             created_at__gte=yesterday_start, created_at__lt=today_start
@@ -179,7 +169,6 @@ class AdminOverviewView(APIView):
             created_at__gte=prev_month_start, created_at__lt=month_start
         ).count()
 
-        # Customers joined across periods
         cust_today = User.objects.filter(
             role="customer", date_joined__gte=today_start
         ).count()
@@ -223,7 +212,6 @@ class AdminOverviewView(APIView):
             },
         }
 
-        # Top products by sales (excluding cancelled orders)
         sales_rows = list(
             OrderItem.objects.filter(product__isnull=False)
             .exclude(order__status=Order.Status.CANCELLED)
@@ -248,7 +236,6 @@ class AdminOverviewView(APIView):
             if row["product_id"] in sales_products
         ]
 
-        # Top products by wishlisted
         wishlist_rows = list(
             WishlistItem.objects.values("product_id")
             .annotate(saves=Count("id"))
@@ -269,7 +256,6 @@ class AdminOverviewView(APIView):
             if row["product_id"] in wishlist_products
         ]
 
-        # All-time units sold (excluding cancelled) for the Top Products header
         sales_summary = {
             "units_sold": (
                 OrderItem.objects.exclude(order__status=Order.Status.CANCELLED).aggregate(
@@ -280,7 +266,6 @@ class AdminOverviewView(APIView):
             "wishlist_saves": WishlistItem.objects.count(),
         }
 
-        # Today revenue series: 24 hours
         today_hourly_rows = (
             Order.objects.filter(
                 status__in=confirmed_statuses,
@@ -299,7 +284,6 @@ class AdminOverviewView(APIView):
             for hour in range(24)
         ]
 
-        # Week revenue series: 7 days of current week (Mon -> Sun)
         week_daily_rows = (
             Order.objects.filter(
                 status__in=confirmed_statuses,
@@ -322,7 +306,6 @@ class AdminOverviewView(APIView):
             for d in range(7)
         ]
 
-        # Month revenue series: days from 1st of current month to today (or end of month)
         month_daily_rows = (
             Order.objects.filter(
                 status__in=confirmed_statuses,
@@ -346,7 +329,6 @@ class AdminOverviewView(APIView):
             for d in range(days_in_month)
         ]
 
-        # Revenue series: last 30 days (default rolling snapshot)
         series_start = timezone.localdate() - timedelta(days=29)
         daily_revenue = {
             row["created_at__date"]: row
@@ -388,7 +370,6 @@ class AdminOverviewView(APIView):
             ),
         }
 
-        # Weekly order counts for the dashboard bar chart
         weeks_count = 8
         today = timezone.localdate()
         this_week_start = today - timedelta(days=today.weekday())
@@ -412,9 +393,8 @@ class AdminOverviewView(APIView):
             for i in range(weeks_count)
         ]
 
-        # Bucketed order counts for the dashboard's Today / This Week /
-        # This Month bar chart. Unlike revenue, these count every order, so
-        # each series sums to its time_metrics.orders KPI.
+        # Order series count every order, so each sums to its
+        # time_metrics.orders KPI (revenue series do not).
         hour_rows = (
             Order.objects.filter(created_at__gte=today_start)
             .values("created_at__hour")
@@ -437,7 +417,6 @@ class AdminOverviewView(APIView):
             ],
         )
 
-        # Stock share per category
         stock_by_category = [
             {
                 "name": row["category__name"] or "Uncategorized",
@@ -454,7 +433,6 @@ class AdminOverviewView(APIView):
             )
         ]
 
-        # Timeline activity feed: Orders placed, Products created, Customers joined
         activity = [
             {
                 "type": "order",
@@ -593,9 +571,8 @@ class AdminProductViewSet(viewsets.ModelViewSet):
 
 
 class AdminCategoryViewSet(viewsets.ModelViewSet):
-    # Explicit order_by: annotate() puts this in GROUP BY mode, where
-    # Meta.ordering stops counting as an ordering - categories would list
-    # in arbitrary DB order (see CategoryViewSet in catalog/views.py).
+    # Explicit order_by: annotate() switches to GROUP BY mode where
+    # Meta.ordering no longer applies.
     queryset = (
         Category.objects.annotate(product_count=Count("products"))
         .order_by("display_order", "name")
@@ -606,8 +583,7 @@ class AdminCategoryViewSet(viewsets.ModelViewSet):
     lookup_field = "id"
 
     def destroy(self, request, *args, **kwargs):
-        # Products cascade-delete with their category, so refuse while the
-        # category still owns any - staff move or delete them first.
+        # Products cascade-delete with their category; refuse while it owns any.
         category = self.get_object()
         if category.products.exists():
             return Response(
@@ -618,10 +594,9 @@ class AdminCategoryViewSet(viewsets.ModelViewSet):
 
 
 class AdminReviewViewSet(viewsets.ModelViewSet):
-    """Moderate shopper reviews: list them, hide/restore, or remove one.
-
-    Reviews are written by shoppers through the storefront, so there is no
-    create path here - `is_approved` is the only writable field."""
+    """Moderate shopper reviews: list, hide/restore, or delete. Reviews come
+    from the storefront, so there is no create path; `is_approved` is the
+    only writable field."""
 
     queryset = ProductReview.objects.select_related("product", "user").all()
     serializer_class = AdminReviewSerializer
@@ -867,11 +842,8 @@ class AdminProductImageDetailView(APIView):
 
 
 class AdminAnalyticsView(APIView):
-    """Detailed analytics and reporting endpoint.
-
-    Supports ?period=7d|30d|90d|month|year|all (default 30d).
-    Also supports ?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD for custom range.
-    """
+    """Analytics for ?period=7d|30d|90d|month|year|all (default 30d) or a
+    custom ?start_date=&end_date= range."""
 
     permission_classes = [IsStaffOrAdminUser]
 
@@ -902,8 +874,7 @@ class AdminAnalyticsView(APIView):
         responses={200: AdminAnalyticsResponseSerializer},
     )
     def get(self, request):
-        # Local time so "This Month"/"This Year" start at local midnight
-        # rather than 03:00 (TIME_ZONE is Africa/Nairobi).
+        # Local time so period presets start at local midnight, not 03:00.
         now = timezone.localtime()
         period = request.query_params.get("period", "30d")
         start_date_str = request.query_params.get("start_date")
@@ -944,11 +915,9 @@ class AdminAnalyticsView(APIView):
             else:  # default "30d"
                 start_date = now - timedelta(days=30)
 
-        # Baseline queries
         period_orders = Order.objects.filter(created_at__gte=start_date, created_at__lte=end_date)
         confirmed_orders = period_orders.exclude(status=Order.Status.CANCELLED)
 
-        # 1. Financial summary
         gross_sales = float(confirmed_orders.aggregate(total=Sum("total_amount"))["total"] or 0)
         net_sales = float(confirmed_orders.aggregate(total=Sum("subtotal"))["total"] or 0)
         total_discount = float(confirmed_orders.aggregate(total=Sum("discount_amount"))["total"] or 0)
@@ -968,7 +937,6 @@ class AdminAnalyticsView(APIView):
             else 0.0
         )
 
-        # Returning customer rate
         customer_ids = period_orders.filter(user__isnull=False).values_list("user_id", flat=True)
         unique_customers = len(set(customer_ids))
         repeat_customers = (
@@ -982,9 +950,7 @@ class AdminAnalyticsView(APIView):
             round((repeat_customers / unique_customers) * 100, 1) if unique_customers > 0 else 0.0
         )
 
-        # 2. Timeline Series (day-by-day)
         num_days = max(1, (end_date.date() - start_date.date()).days + 1)
-        # Cap daily granularity to 90 days, or group by week if larger
         day_map = {
             r["created_at__date"]: r
             for r in confirmed_orders.values("created_at__date").annotate(
@@ -1002,7 +968,6 @@ class AdminAnalyticsView(APIView):
                 "orders": entry["orders"] if entry else 0,
             })
 
-        # 3. Status Distribution
         status_counts = {
             s[0]: 0 for s in Order.Status.choices
         }
@@ -1014,14 +979,12 @@ class AdminAnalyticsView(APIView):
             for k, v in status_counts.items()
         ]
 
-        # 4. Payment Method Distribution
         payment_methods = list(
             period_orders.values("payment_method")
             .annotate(count=Count("id"), volume=Sum("total_amount"))
             .order_by("-count")
         )
 
-        # 5. Top Revenue Driving Products in period
         item_rows = (
             OrderItem.objects.filter(order__in=confirmed_orders)
             .values("product_id", "product_title")
@@ -1041,14 +1004,12 @@ class AdminAnalyticsView(APIView):
             for r in item_rows
         ]
 
-        # 6. Delivery Destinations (Counties & Towns)
         destinations = list(
             period_orders.values("county")
             .annotate(orders=Count("id"), volume=Sum("total_amount"))
             .order_by("-orders")[:8]
         )
 
-        # 7. Slow Moving / Dead Stock (products with stock > 0 but 0 units sold in period)
         sold_product_ids = OrderItem.objects.filter(order__in=confirmed_orders).values_list("product_id", flat=True)
         dead_stock = list(
             Product.objects.filter(stock_quantity__gt=0)
@@ -1128,11 +1089,8 @@ class AdminStoreSettingsView(APIView):
 
 
 class AdminMpesaConfigView(APIView):
-    """
-    GET /api/v1/admin/mpesa-config/
-    Returns non-sensitive M-Pesa configuration status and recent transactions.
-    Credentials (Consumer Key, Secret, Passkey) are intentionally never exposed.
-    """
+    """Non-sensitive M-Pesa config status and recent transactions;
+    credentials (Consumer Key, Secret, Passkey) are never exposed."""
 
     permission_classes = [IsStaffOrAdminUser]
 
@@ -1156,7 +1114,6 @@ class AdminMpesaConfigView(APIView):
             and django_settings.MPESA_PASSKEY
         )
 
-        # Recent transactions (last 50)
         transactions = PaymentTransaction.objects.select_related("order").order_by(
             "-created_at"
         )[:50]

@@ -14,10 +14,8 @@ interface Paginated {
   next?: string | null;
 }
 
-/**
- * Fetch every page of a paginated catalog endpoint. Bounded so a backend
- * quirk can't make the sitemap loop forever.
- */
+/** Fetch every page of a paginated catalog endpoint, bounded so a backend
+ *  quirk can't make the sitemap loop forever. */
 async function fetchAllSlugs(path: string, maxPages = 20): Promise<SlugPayload[]> {
   const slugs: SlugPayload[] = [];
   let url: string | null = `${SERVER_API_URL}${path}`;
@@ -49,9 +47,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  // Catalog URLs are best-effort: if the API is unreachable (e.g. a build
-  // machine without network access to it), ship the static routes rather
-  // than failing the build. The sitemap regenerates hourly in normal runs.
+  // Best-effort: if the API is unreachable, ship the static routes rather
+  // than failing the build; the sitemap regenerates hourly in normal runs.
   try {
     const [categories, products] = await Promise.all([
       fetchAllSlugs("/api/v1/catalog/categories/"),

@@ -6,11 +6,8 @@ import { AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-/**
- * Route-segment error boundary: catches runtime crashes in any page below
- * the root layout so shoppers see a branded recovery screen instead of a
- * white Next.js error page. `retry` re-renders the failed segment.
- */
+/** Catches runtime crashes below the root layout so shoppers see a branded
+ *  recovery screen. `retry` re-renders the failed segment. */
 export default function RouteError({
   error,
   retry,

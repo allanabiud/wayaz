@@ -4,9 +4,8 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.text import slugify
 
-# StoreSettings is a singleton (pk forced to 1), so reading it is pure
-# overhead once a request has seen it. Order history serializes whatsapp_link
-# per row, which used to re-SELECT this table once per order.
+# StoreSettings is a singleton (pk forced to 1); memoize per request so
+# serializing order rows doesn't re-SELECT this table once per order.
 _REQUEST_CACHE_ATTR = "_wayaz_store_settings"
 
 
@@ -78,10 +77,8 @@ class Product(models.Model):
 
     @property
     def primary_image(self):
-        # `select_related("images")` is used everywhere this is read, so
-        # iterating the cached queryset avoids a per-product query that used
-        # to be the storefront's worst N+1. Display order wins; is_primary is
-        # the tiebreak, then insertion order.
+        # Display order wins, then is_primary, then id. Reads come from
+        # select_related("images"), so reuse the cached queryset.
         images = list(self.images.all())
         if not images:
             return None
@@ -128,12 +125,9 @@ class ProductImage(models.Model):
 
 
 class ProductReview(models.Model):
-    """A 1-5 star rating, optionally with written feedback, from a signed-in
-    user. One per product per user.
-
-    Reviews publish immediately (is_approved defaults to True); staff can
-    hide one from the dashboard afterwards, which drops it from the public
-    list and the rating average."""
+    """A 1-5 star rating, optionally with written feedback, one per product
+    per user. Publishes immediately; a staff-hidden review drops from the
+    public list and the rating average."""
 
     product = models.ForeignKey(
         Product, on_delete=models.CASCADE, related_name="reviews"
@@ -228,9 +222,7 @@ class StoreSettings(models.Model):
     @classmethod
     def load(cls):
         # Memoize per request, not across requests: one SELECT serves every
-        # row in a list response, and the value is discarded at request
-        # teardown so a later write (or a rolled-back test transaction) is
-        # never masked by a stale cross-request cache.
+        # row, and the value dies with the request so later writes are safe.
         holder = getattr(settings, _REQUEST_CACHE_ATTR, None)
         if holder is not None and "store_settings" in holder:
             return holder["store_settings"]
@@ -266,17 +258,15 @@ request_finished.connect(_teardown_request_cache)
 
 
 class RestockNotification(models.Model):
-    """Shopper opt-in to hear when an out-of-stock piece is back.
-
-    One row per product + email. An existing row is treated as already
-    subscribed, so resubscribing is idempotent rather than a 400."""
+    """Shopper opt-in for an out-of-stock piece. One row per product + email;
+    resubscribing is idempotent, not a 400."""
 
     product = models.ForeignKey(
         Product, on_delete=models.CASCADE, related_name="restock_notifications"
     )
     email = models.EmailField()
-    # Optional phone: some shoppers would rather get the WhatsApp ping the
-    # store already sends from, so we keep it when they offer it.
+    # Optional phone: some shoppers prefer the WhatsApp ping the store
+    # already sends from.
     phone = models.CharField(max_length=30, blank=True, default="")
     is_notified = models.BooleanField(
         default=False,
