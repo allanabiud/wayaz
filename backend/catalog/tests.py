@@ -320,7 +320,7 @@ class SeedShopGuardTestCase(TestCase):
 
         with override_settings(DEBUG=False):
             with self.assertRaises(CommandError):
-                call_command("seed_shop")
+                call_command("seed", "shop")
 
 
 class StoreSettingsTestCase(TestCase):
