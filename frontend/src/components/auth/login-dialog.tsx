@@ -61,7 +61,7 @@ export function LoginDialog({
       tokenStore.save({ access: result.access, refresh: result.refresh });
       signIn(result.user);
 
-      // Plain welcome for everyone — staff find the dashboard via the
+      // Plain welcome for everyone; staff find the dashboard via the
       // Admin Dashboard item in the account menu.
       toast.success(
         `Welcome back, ${result.user.display_name || result.user.username}!`,

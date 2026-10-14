@@ -88,7 +88,7 @@ const STATUS_LABEL: Record<string, string> = {
 function formatDate(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
-    ? "—"
+    ? "-"
     : d.toLocaleDateString("en-KE", {
         day: "numeric",
         month: "short",
@@ -289,7 +289,7 @@ export default function AdminPaymentsPage() {
                           {tx.reference}
                         </span>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
 

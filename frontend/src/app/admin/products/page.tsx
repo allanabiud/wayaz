@@ -302,7 +302,7 @@ function ProductsContent() {
             </Table>
           </div>
 
-          {/* Pagination: Showing x–y of z (left) · Previous 1/3 Next (right) */}
+          {/* Pagination: Showing x-y of z (left) - Previous 1/3 Next (right) */}
           <ListPagination
             page={page}
             count={data?.count ?? 0}

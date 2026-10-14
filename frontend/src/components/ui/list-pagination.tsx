@@ -37,7 +37,7 @@ export function ListPagination({
       className={`flex flex-wrap items-center justify-between gap-3 pt-2 ${className ?? ""}`}
     >
       <p className="text-xs text-muted-foreground tabular-nums">
-        Showing {start}–{end} of {count.toLocaleString()}
+        Showing {start}-{end} of {count.toLocaleString()}
       </p>
       <div className="flex items-center gap-2">
         <Button

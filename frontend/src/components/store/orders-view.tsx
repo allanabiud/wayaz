@@ -372,7 +372,7 @@ export function OrdersView() {
             {data && data.count > 0 && (
               <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-xs text-muted-foreground tabular-nums">
-                  Showing {(page - 1) * PAGE_SIZE + 1}–
+                  Showing {(page - 1) * PAGE_SIZE + 1}-
                   {(page - 1) * PAGE_SIZE + orders.length} of{" "}
                   {data.count.toLocaleString()}
                 </p>

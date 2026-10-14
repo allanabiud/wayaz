@@ -194,7 +194,7 @@ class AdminOrderDetailView(APIView):
             if status_changed:
                 order.status = new_status
 
-            # COD: cash is collected on delivery — auto-mark as paid.
+            # COD: cash is collected on delivery, so auto-mark as paid.
             if (
                 status_changed
                 and new_status == Order.Status.DELIVERED
@@ -251,11 +251,11 @@ class AdminPaymentsView(APIView):
     GET /api/v1/admin/orders/payments/
     Unified payments list: M-Pesa PaymentTransactions + COD orders.
     Query params:
-      ?method=mpesa   — only M-Pesa
-      ?method=cod     — only Cash on Delivery
-      ?status=COMPLETED|PENDING|FAILED  — filter by payment status (M-Pesa) or PAID/PENDING (COD)
-      ?page=<n>       — 1-indexed
-      ?page_size=<n>  — results per page (default 10, max 100)
+      ?method=mpesa   -> only M-Pesa
+      ?method=cod     -> only Cash on Delivery
+      ?status=COMPLETED|PENDING|FAILED -> payment status (M-Pesa) or PAID/PENDING (COD)
+      ?page=<n>       -> 1-indexed
+      ?page_size=<n>  -> results per page (default 10, max 100)
     """
 
     permission_classes = [IsStaffOrAdminUser]
@@ -313,7 +313,7 @@ class AdminPaymentsView(APIView):
                     "date": tx.created_at.isoformat(),
                 })
 
-        # COD orders — all COD orders, status reflects payment collection
+        # COD orders: all COD orders, status reflects payment collection
         if not method or method == "cod":
             cod_qs = Order.objects.filter(
                 payment_method=Order.PaymentMethod.COD

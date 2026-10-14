@@ -7,7 +7,7 @@ Re-runnable:
 - photos from ``examples/<category>/`` are copied into
   ``media/products/<category>/`` and attached as each product's primary
   image (curated products get photos first, then generated products are
-  added until every photo in the folder is used — one photo per product);
+  added until every photo in the folder is used, one photo per product);
 - categories without an ``examples/<slug>/`` folder are skipped with a
   warning, so ``shirts/`` or ``bikinis/`` photos can be dropped in later
   without any code change.
@@ -336,7 +336,7 @@ class Command(BaseCommand):
             },
         ]
 
-        # Curated titles per category, in declaration order — these products
+        # Curated titles per category, in declaration order; these products
         # receive photos before any generated ones.
         curated_titles = {slug: [] for slug in categories}
 
@@ -361,7 +361,7 @@ class Command(BaseCommand):
                 f"Stock: {product.stock_quantity}"
             )
 
-        # 4. Attach photos from examples/<slug>/ — one photo per product.
+        # 4. Attach photos from examples/<slug>/, one photo per product.
         #    Curated products come first; generated products are added until
         #    every photo in the folder has a home.
         attached = 0

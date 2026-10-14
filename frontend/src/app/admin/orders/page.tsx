@@ -360,7 +360,7 @@ export default function AdminOrdersPage() {
                     {selectedOrder.payment_method === "mpesa"
                       ? selectedOrder.payment_status === "PAID"
                         ? "M-Pesa payment received. Confirm to accept this order."
-                        : "M-Pesa payment not received yet — confirm only if you have verified payment."
+                        : "M-Pesa payment not received yet. Confirm only if you have verified payment."
                       : "Confirm to accept this cash-on-delivery order."}
                   </p>
                   <Button

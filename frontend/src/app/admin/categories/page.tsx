@@ -258,7 +258,7 @@ export default function AdminCategoriesPage() {
                       </p>
                     </TableCell>
                     <TableCell className="truncate text-xs text-muted-foreground">
-                      {category.description || "—"}
+                      {category.description || "-"}
                     </TableCell>
                     <TableCell>
                       <Badge

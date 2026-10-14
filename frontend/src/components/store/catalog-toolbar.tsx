@@ -92,7 +92,7 @@ export function CatalogToolbar({ filters, basePath, search }: CatalogToolbarProp
           className="h-9 w-[4.5rem] text-xs"
         />
         <span aria-hidden="true" className="text-muted-foreground">
-          –
+          -
         </span>
         <Input
           type="number"

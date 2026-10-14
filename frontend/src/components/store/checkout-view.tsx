@@ -357,7 +357,7 @@ export function CheckoutView() {
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Order Status:</span>
               <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                Processing — awaiting confirmation
+                Processing - awaiting confirmation
               </span>
             </div>
             <div className="flex justify-between">

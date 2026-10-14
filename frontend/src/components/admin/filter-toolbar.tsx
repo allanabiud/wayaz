@@ -18,7 +18,7 @@ export function FilterToolbar({
 }: {
   /** The `FilterSearch` field (or any search control). */
   search: ReactNode;
-  /** Filter selects — rendered left, right next to the search field. */
+  /** Filter selects rendered left, right next to the search field. */
   filters?: ReactNode;
   /** Right-aligned extras: count badges, export buttons, … */
   trailing?: ReactNode;
