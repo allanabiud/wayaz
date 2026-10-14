@@ -20,7 +20,7 @@ import { useAuth } from "@/lib/auth-context";
 // The dialog only reads the id (to POST) and the title (to echo back in the
 // toast), so it accepts any catalog shape - the card's StoreProduct and the
 // detail page's StoreProductDetail both satisfy this.
-export interface RestockableProduct {
+interface RestockableProduct {
   id: number;
   title: string;
 }

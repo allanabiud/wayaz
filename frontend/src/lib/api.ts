@@ -174,7 +174,7 @@ export function login(username: string, password: string) {
   });
 }
 
-export interface RegisterPayload {
+interface RegisterPayload {
   username: string;
   email: string;
   password: string;

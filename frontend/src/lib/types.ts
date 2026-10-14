@@ -279,12 +279,6 @@ export interface Customer {
   wishlist_count: number;
 }
 
-export interface ProductQuery {
-  search?: string;
-  category?: number | string;
-  in_stock?: "true" | "false";
-}
-
 export interface AdminOrderItem {
   id: number;
   product_title: string;

@@ -8,7 +8,7 @@
  * narrower result set always starts at page 1.
  */
 
-export const CATALOG_SORTS = ["newest", "price_asc", "price_desc", "title"] as const;
+const CATALOG_SORTS = ["newest", "price_asc", "price_desc", "title"] as const;
 export type CatalogSort = (typeof CATALOG_SORTS)[number];
 
 export interface CatalogFilters {

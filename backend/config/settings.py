@@ -229,7 +229,6 @@ SPECTACULAR_SETTINGS = {
     },
 }
 
-# Throttling is disabled under `manage.py test`: the rate-limit cache is
 # Throttling is rate-limiting, not behaviour: it keys on the client IP and so
 # is process-wide, and a full suite would trip anon/auth limits and fail
 # spuriously. Match on any "test" argument so both the "manage.py test" and

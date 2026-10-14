@@ -49,7 +49,7 @@ export interface StoreProductDetail {
 }
 
 /** Product summary embedded in each cart line. */
-export interface CartProduct {
+interface CartProduct {
   id: number;
   product_title: string;
   product_slug: string;
@@ -87,7 +87,7 @@ export type OrderStatus =
   | "DELIVERED"
   | "CANCELLED";
 
-export interface StoreOrderItem {
+interface StoreOrderItem {
   id: number;
   /** Live catalog slug for buy-again links; null once the product is removed. */
   product_slug: string | null;
@@ -312,13 +312,13 @@ export function removeCartItem(item_id: number): Promise<Cart> {
     .then(rememberCart);
 }
 
-export function clearStoredCart(): void {
+function clearStoredCart(): void {
   if (typeof window !== "undefined") {
     window.localStorage.removeItem(CART_KEY);
   }
 }
 
-export interface CheckoutPayload {
+interface CheckoutPayload {
   email: string;
   phone_number: string;
   full_name: string;
@@ -388,7 +388,7 @@ export function submitCheckout(payload: CheckoutPayload): Promise<CheckoutOrder>
  */
 export type CheckoutOrder = StoreOrder & { payment_token: string };
 
-export interface MpesaInitiateResponse {
+interface MpesaInitiateResponse {
   detail: string;
   checkout_request_id: string;
   order_number: string;
@@ -529,30 +529,6 @@ export function resetPassword(
     token,
     new_password,
   });
-}
-
-// ---- Favourites (device-local) ----------------------------------------
-
-const WISHLIST_KEY = "wayaz.wishlist";
-
-/** Saved favourite ids; loaded async so SSR markup never mismatches. */
-export function storedWishlist(): Promise<number[]> {
-  return Promise.resolve().then(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const raw = window.localStorage.getItem(WISHLIST_KEY);
-      const parsed: unknown = raw ? JSON.parse(raw) : [];
-      if (!Array.isArray(parsed)) return [];
-      return parsed.filter((id): id is number => Number.isInteger(id));
-    } catch {
-      return [];
-    }
-  });
-}
-
-export function rememberWishlist(ids: number[]): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(WISHLIST_KEY, JSON.stringify(ids));
 }
 
 // ---- Search history ---------------------------------------------------
