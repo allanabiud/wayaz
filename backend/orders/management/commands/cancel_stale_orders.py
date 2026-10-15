@@ -22,8 +22,8 @@ class Command(BaseCommand):
         parser.add_argument(
             "--minutes",
             type=int,
-            default=30,
-            help="Age in minutes before an unpaid M-Pesa order is swept (default: 30).",
+            default=1440,
+            help="Age in minutes before an unpaid M-Pesa order is swept (default: 1440 = 24h).",
         )
         parser.add_argument(
             "--include-cod",

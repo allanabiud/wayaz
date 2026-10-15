@@ -1326,6 +1326,9 @@ class CancelStaleOrdersTestCase(TestCase):
     holds are restocked and dropped outright, while pre-hold orders that
     never got verified are cancelled the old way."""
 
+    # Older than the 24h sweep window.
+    STALE_MINUTES = 25 * 60
+
     def setUp(self):
         self.category = Category.objects.create(name="Denim", slug="denim")
         self.product = create_product(
@@ -1368,7 +1371,7 @@ class CancelStaleOrdersTestCase(TestCase):
         return order
 
     def test_stale_hold_is_swept_and_restocked(self):
-        order = self._order(minutes_old=45)
+        order = self._order(minutes_old=self.STALE_MINUTES)
         call_command("cancel_stale_orders")
         # The hold is gone entirely, and its units are back on the shelf.
         self.assertFalse(Order.objects.filter(pk=order.pk).exists())
@@ -1377,7 +1380,9 @@ class CancelStaleOrdersTestCase(TestCase):
 
     def test_legacy_unpaid_mpesa_order_is_cancelled(self):
         """Pre-hold orders (PROCESSING + PENDING) still get cancelled."""
-        order = self._order(minutes_old=45, status=Order.Status.PROCESSING)
+        order = self._order(
+            minutes_old=self.STALE_MINUTES, status=Order.Status.PROCESSING
+        )
         call_command("cancel_stale_orders")
         order.refresh_from_db()
         self.product.refresh_from_db()
@@ -1385,14 +1390,15 @@ class CancelStaleOrdersTestCase(TestCase):
         self.assertEqual(self.product.total_stock, 7)  # 5 + 2 restored
 
     def test_recent_order_is_left_alone(self):
-        order = self._order(minutes_old=5)
+        # Halfway to the limit: the window is a day, not minutes.
+        order = self._order(minutes_old=12 * 60)
         call_command("cancel_stale_orders")
         order.refresh_from_db()
         self.assertEqual(order.status, Order.Status.AWAITING_PAYMENT)
 
     def test_in_flight_payment_is_skipped(self):
         """A fresh PENDING transaction means the shopper may still be paying."""
-        order = self._order(minutes_old=45)
+        order = self._order(minutes_old=self.STALE_MINUTES)
         PaymentTransaction.objects.create(
             order=order,
             merchant_request_id="MR1",
@@ -1407,11 +1413,13 @@ class CancelStaleOrdersTestCase(TestCase):
 
     def test_paid_and_manually_confirmed_orders_are_left_alone(self):
         paid = self._order(
-            minutes_old=120,
+            minutes_old=self.STALE_MINUTES,
             payment_status=Order.PaymentStatus.PAID,
             status=Order.Status.PROCESSING,
         )
-        confirmed = self._order(minutes_old=120, status=Order.Status.CONFIRMED)
+        confirmed = self._order(
+            minutes_old=self.STALE_MINUTES, status=Order.Status.CONFIRMED
+        )
         call_command("cancel_stale_orders")
         paid.refresh_from_db()
         confirmed.refresh_from_db()
@@ -1434,7 +1442,7 @@ class CancelStaleOrdersTestCase(TestCase):
         self.assertEqual(cod.status, Order.Status.CANCELLED)
 
     def test_dry_run_changes_nothing(self):
-        order = self._order(minutes_old=45)
+        order = self._order(minutes_old=self.STALE_MINUTES)
         call_command("cancel_stale_orders", "--dry-run")
         order.refresh_from_db()
         self.product.refresh_from_db()
