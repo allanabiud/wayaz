@@ -10,10 +10,38 @@ _REQUEST_CACHE_ATTR = "_wayaz_store_settings"
 
 
 class Category(models.Model):
+    # Lucide icon keys the admin can pick; blank or unknown values render a tag.
+    ICON_CHOICES = [
+        ("tag", "Tag (default)"),
+        ("shirt", "Shirt / tops"),
+        ("jeans", "Jeans"),
+        ("sneakers", "Shoes"),
+        ("watch", "Watches"),
+        ("gem", "Jewellery"),
+        ("glasses", "Eyewear"),
+        ("backpack", "Backpacks"),
+        ("shopping-bag", "Bags"),
+        ("package", "Parcels"),
+        ("scissors", "Scissors"),
+        ("footprints", "Footprints"),
+        ("sparkles", "New arrivals"),
+        ("crown", "Premium"),
+        ("flame", "Hot"),
+        ("star", "Featured"),
+        ("heart", "Loved"),
+        ("gift", "Gifts"),
+        ("sun", "Summer"),
+        ("moon", "Night"),
+        ("zap", "Trending"),
+        ("award", "Awards"),
+        ("ruler", "Measurements"),
+    ]
+
     name = models.CharField(max_length=120, unique=True)
     slug = models.SlugField(max_length=140, unique=True, blank=True)
     description = models.TextField(blank=True)
     image = models.ImageField(upload_to="categories/", blank=True, null=True)
+    icon = models.CharField(max_length=32, choices=ICON_CHOICES, blank=True)
     display_order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -2,17 +2,18 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { ProductCard } from "@/components/store/product-card";
+import { CategoryIcon } from "@/components/store/category-icon";
 import { useStore } from "@/lib/store-context";
-import type { StoreProduct, StorefrontCatalog } from "@/lib/store-api";
+import { type StoreProduct, type StorefrontCatalog } from "@/lib/store-api";
 
 interface Section {
   key: string;
   name: string;
+  icon: string | null;
   products: StoreProduct[];
 }
 
@@ -38,7 +39,12 @@ function buildSections(catalog: StorefrontCatalog): Section[] {
     const products = bySlug.get(category.slug);
     if (products && products.length > 0) {
       claimed.add(category.slug);
-      sections.push({ key: category.slug, name: category.name, products });
+      sections.push({
+        key: category.slug,
+        name: category.name,
+        icon: category.icon,
+        products,
+      });
     }
   }
 
@@ -53,6 +59,7 @@ function buildSections(catalog: StorefrontCatalog): Section[] {
     sections.push({
       key: "more",
       name: "More to explore",
+      icon: null,
       products: leftovers,
     });
   }
@@ -159,7 +166,7 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
   }, [catalog]);
 
   // Banner links only for categories with items; empty and leftover
-  // buckets get no button.
+  // buckets get no chip.
   const categorySections = sections.filter((section) => section.key !== "more");
 
   const toggleSection = (key: string) => {
@@ -172,34 +179,43 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
     <>
       <section className="border-b bg-muted/30">
         <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
-          <p className="text-xs font-semibold tracking-[0.25em] text-gold uppercase">
-            Wayaz Collection
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-            Shop the collection.
-          </h1>
-          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Fresh fits delivered across Kenya - order on WhatsApp or add pieces
-            to your cart.
-          </p>
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
+            <div className="min-w-0 lg:flex-1">
+              <p className="text-xs font-semibold tracking-[0.25em] text-gold uppercase">
+                Wayaz Collection
+              </p>
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+                Shop the collection.
+              </h1>
+              <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+                Fresh fits delivered across Kenya - order on WhatsApp or add
+                pieces to your cart.
+              </p>
+            </div>
 
-          {catalogLoading && !catalog ? (
-            <div className="mt-5 flex flex-wrap gap-2" aria-hidden="true">
-              <Skeleton className="h-10 w-28" />
-              <Skeleton className="h-10 w-28" />
-            </div>
-          ) : categorySections.length > 0 ? (
-            <div className="mt-5 flex flex-wrap gap-2">
-              {categorySections.map((section) => (
-                <Button key={section.key} size="lg" className="gap-1.5" asChild>
-                  <Link href={`/categories/${section.key}`}>
-                    {section.name}
-                    <ArrowRight className="size-4" aria-hidden="true" />
-                  </Link>
-                </Button>
-              ))}
-            </div>
-          ) : null}
+            {catalogLoading && !catalog ? (
+              <div className="flex shrink-0 flex-wrap gap-2" aria-hidden="true">
+                <Skeleton className="h-9 w-28 lg:h-14 lg:w-32" />
+                <Skeleton className="h-9 w-28 lg:h-14 lg:w-32" />
+              </div>
+            ) : categorySections.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2 lg:shrink-0 lg:flex-nowrap">
+                {categorySections.map((section) => (
+                  <Button
+                    key={section.key}
+                    size="lg"
+                    className="gap-1.5 lg:h-14 lg:gap-2.5 lg:px-6 lg:text-base"
+                    asChild
+                  >
+                    <Link href={`/categories/${section.key}`}>
+                      <CategoryIcon name={section.icon} className="lg:size-6" />
+                      {section.name}
+                    </Link>
+                  </Button>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </div>
       </section>
 
@@ -243,7 +259,7 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
 
           return (
             <section key={section.key} className="mb-10 last:mb-0">
-              <div className="mb-4 flex items-baseline justify-between gap-4">
+              <div className="mb-4 flex items-center justify-between gap-4">
                 <h2 className="text-lg font-semibold tracking-tight uppercase">
                   {sectionHref ? (
                     <Link
@@ -256,20 +272,11 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
                     section.name
                   )}
                 </h2>
-                <span className="flex items-baseline gap-3 text-xs text-muted-foreground">
-                  <span className="tabular-nums">
-                    {section.products.length}{" "}
-                    {section.products.length === 1 ? "item" : "items"}
-                  </span>
-                  {sectionHref && (
-                    <Link
-                      href={sectionHref}
-                      className="font-medium text-foreground transition-colors hover:text-primary"
-                    >
-                      View all →
-                    </Link>
-                  )}
-                </span>
+                {sectionHref && (
+                  <Button size="sm" className="shrink-0" asChild>
+                    <Link href={sectionHref}>View all</Link>
+                  </Button>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">

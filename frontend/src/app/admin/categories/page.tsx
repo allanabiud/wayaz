@@ -15,6 +15,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ListPagination } from "@/components/ui/pagination";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -25,6 +32,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  CATEGORY_ICON_CHOICES,
+  CategoryIcon,
+} from "@/components/store/category-icon";
 import { EmptyState, ErrorState, PageHeader } from "@/components/ui/states";
 import { api, ApiError } from "@/lib/api";
 import { useQuery } from "@/lib/use-query";
@@ -34,6 +45,7 @@ interface CategoryForm {
   id: number | null;
   name: string;
   description: string;
+  icon: string;
   display_order: string;
 }
 
@@ -41,6 +53,7 @@ const emptyForm: CategoryForm = {
   id: null,
   name: "",
   description: "",
+  icon: "tag",
   display_order: "0",
 };
 
@@ -77,6 +90,7 @@ export default function AdminCategoriesPage() {
       id: category.id,
       name: category.name,
       description: category.description,
+      icon: category.icon || "tag",
       display_order: String(category.display_order),
     });
     setFormError(null);
@@ -102,6 +116,7 @@ export default function AdminCategoriesPage() {
       const payload = {
         name,
         description: form.description.trim(),
+        icon: form.icon,
         display_order: Number(form.display_order) || 0,
       };
       if (form.id) {
@@ -254,12 +269,20 @@ export default function AdminCategoriesPage() {
                     className="transition-colors hover:bg-muted/50"
                   >
                     <TableCell className="truncate">
-                      <p className="truncate text-sm font-medium">
-                        {category.name}
-                      </p>
-                      <p className="truncate text-[11px] text-muted-foreground">
-                        /categories/{category.slug}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <CategoryIcon
+                          name={category.icon}
+                          className="shrink-0 text-muted-foreground"
+                        />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {category.name}
+                          </p>
+                          <p className="truncate text-[11px] text-muted-foreground">
+                            /categories/{category.slug}
+                          </p>
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell className="truncate text-xs text-muted-foreground">
                       {category.description || "-"}
@@ -350,6 +373,31 @@ export default function AdminCategoriesPage() {
                   placeholder="Shown on the category page (optional)"
                   rows={3}
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="category-icon">Icon</Label>
+                <Select
+                  value={form.icon}
+                  onValueChange={(value) => setForm({ ...form, icon: value })}
+                >
+                  <SelectTrigger id="category-icon" className="w-full">
+                    <SelectValue placeholder="Icon" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORY_ICON_CHOICES.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        <span className="flex items-center gap-2">
+                          <CategoryIcon name={option.value} />
+                          {option.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Shown beside the category name in the storefront banner.
+                </p>
               </div>
 
               <div className="space-y-1.5">

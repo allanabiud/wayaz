@@ -35,6 +35,7 @@ class AdminCategorySerializer(serializers.ModelSerializer):
             "name",
             "slug",
             "description",
+            "icon",
             "display_order",
             "product_count",
         )

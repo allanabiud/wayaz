@@ -30,6 +30,7 @@ class CategorySerializer(serializers.ModelSerializer):
             "slug",
             "description",
             "image",
+            "icon",
             "display_order",
             "product_count",
         )

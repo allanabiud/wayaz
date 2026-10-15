@@ -44,30 +44,6 @@ SHOE_STYLES = [
     "Lace-Up Derby Shoes",
 ]
 SHOE_COLORS = ["Triple White", "Jet Black", "Navy Blue", "Tan", "Crimson"]
-SHIRT_STYLES = [
-    "Oversized Graphic Tee",
-    "Button-Down Oxford Shirt",
-    "Camp Collar Resort Shirt",
-    "Boxy Linen Shirt",
-    "Ribbed Knit Top",
-    "Relaxed Flannel Shirt",
-]
-SHIRT_COLORS = ["Chalk White", "Pitch Black", "Wayaz Red", "Sky Blue", "Natural Cream"]
-BIKINI_STYLES = [
-    "Triangle Two-Piece Set",
-    "High-Cut One-Piece",
-    "Bandeau Bikini Set",
-    "Wrap-Front Swimsuit",
-    "Halter Neck Set",
-    "Boyshort Swim Set",
-]
-BIKINI_COLORS = [
-    "Scarlet Red",
-    "Classic Black",
-    "Emerald Green",
-    "Sunset Orange",
-    "Ivory",
-]
 
 GEN_PLANS = {
     "jeans": {
@@ -106,42 +82,6 @@ GEN_PLANS = {
             "the street. {extra}"
         ),
     },
-    "shirts": {
-        "styles": SHIRT_STYLES,
-        "colors": SHIRT_COLORS,
-        "sizes": ["S", "M", "L", "XL"],
-        "base_start": Decimal("1500"),
-        "step": Decimal("250"),
-        "sale_drop": Decimal("300"),
-        "extras": [
-            "Soft-touch fabric with a relaxed, everyday fit.",
-            "Streetwear-ready cut that layers easily over tees.",
-            "Durable stitching and a clean finish throughout.",
-        ],
-        "description": (
-            "{title} in a {color} colorway. Easy, relaxed fit with a "
-            "soft hand-feel and reinforced seams for repeat wear. "
-            "{extra}"
-        ),
-    },
-    "bikinis": {
-        "styles": BIKINI_STYLES,
-        "colors": BIKINI_COLORS,
-        "sizes": ["S", "M", "L"],
-        "base_start": Decimal("1900"),
-        "step": Decimal("250"),
-        "sale_drop": Decimal("300"),
-        "extras": [
-            "Quick-dry stretch fabric with adjustable ties.",
-            "Removable padding and a supportive, secure fit.",
-            "Double-lined construction that keeps its shape.",
-        ],
-        "description": (
-            "{title} in a {color} colorway. Flattering stretch fit "
-            "with secure support built for pool days and the coast. "
-            "{extra}"
-        ),
-    },
 }
 
 CATEGORIES_DATA = [
@@ -149,25 +89,15 @@ CATEGORIES_DATA = [
         "name": "Jeans",
         "slug": "jeans",
         "description": "Premium denim jeans, wide-leg, baggy cargo, and straight cuts.",
+        "icon": "jeans",
         "display_order": 1,
     },
     {
         "name": "Shoes",
         "slug": "shoes",
         "description": "Streetwear sneakers, stylish loafers, boots, and casual footwear.",
+        "icon": "sneakers",
         "display_order": 2,
-    },
-    {
-        "name": "Shirts",
-        "slug": "shirts",
-        "description": "Oversized graphic tees, crisp button-downs, streetwear tops, and blouses.",
-        "display_order": 3,
-    },
-    {
-        "name": "Bikinis",
-        "slug": "bikinis",
-        "description": "Trendy swimwear sets, two-piece sets, high-cut and triangle bikinis.",
-        "display_order": 4,
     },
 ]
 
@@ -357,144 +287,6 @@ def seed_catalog(stdout, style, source=None, wipe=False):
                     "color_hex": "#4a2e18",
                     "size": "42",
                     "stock_quantity": 4,
-                },
-            ],
-        },
-        {
-            "title": "Heavyweight Oversized Graphic Tee",
-            "category": categories["shirts"],
-            "description": "240 GSM organic cotton t-shirt with ribbed crew neck, dropped shoulders, and minimal typography screenprint.",
-            "base_price": 1800.00,
-            "sale_price": 1500.00,
-            "variants": [
-                {
-                    "color_name": "Chalk White",
-                    "color_hex": "#f5f5f5",
-                    "size": "S",
-                    "stock_quantity": 15,
-                },
-                {
-                    "color_name": "Chalk White",
-                    "color_hex": "#f5f5f5",
-                    "size": "M",
-                    "stock_quantity": 25,
-                },
-                {
-                    "color_name": "Chalk White",
-                    "color_hex": "#f5f5f5",
-                    "size": "L",
-                    "stock_quantity": 20,
-                },
-                {
-                    "color_name": "Wayaz Red",
-                    "color_hex": "#dc2626",
-                    "size": "M",
-                    "stock_quantity": 18,
-                },
-                {
-                    "color_name": "Wayaz Red",
-                    "color_hex": "#dc2626",
-                    "size": "L",
-                    "stock_quantity": 14,
-                },
-                {
-                    "color_name": "Pitch Black",
-                    "color_hex": "#09090b",
-                    "size": "M",
-                    "stock_quantity": 30,
-                },
-            ],
-        },
-        {
-            "title": "Boxy Resort Linen Short-Sleeve Shirt",
-            "category": categories["shirts"],
-            "description": "Breathable linen-cotton blend camp collar shirt with mother-of-pearl buttons, ideal for warm coast getaways.",
-            "base_price": 2500.00,
-            "sale_price": None,
-            "variants": [
-                {
-                    "color_name": "Natural Cream",
-                    "color_hex": "#fef08a",
-                    "size": "M",
-                    "stock_quantity": 10,
-                },
-                {
-                    "color_name": "Natural Cream",
-                    "color_hex": "#fef08a",
-                    "size": "L",
-                    "stock_quantity": 12,
-                },
-                {
-                    "color_name": "Sky Blue",
-                    "color_hex": "#93c5fd",
-                    "size": "M",
-                    "stock_quantity": 8,
-                },
-            ],
-        },
-        {
-            "title": "Ribbed Triangle Two-Piece Bikini Set",
-            "category": categories["bikinis"],
-            "description": "Soft ribbed stretch swimwear fabric with adjustable neck and back ties, removable padding, and cheeky bottoms.",
-            "base_price": 2200.00,
-            "sale_price": 1900.00,
-            "variants": [
-                {
-                    "color_name": "Scarlet Red",
-                    "color_hex": "#dc2626",
-                    "size": "S",
-                    "stock_quantity": 12,
-                },
-                {
-                    "color_name": "Scarlet Red",
-                    "color_hex": "#dc2626",
-                    "size": "M",
-                    "stock_quantity": 16,
-                },
-                {
-                    "color_name": "Scarlet Red",
-                    "color_hex": "#dc2626",
-                    "size": "L",
-                    "stock_quantity": 8,
-                },
-                {
-                    "color_name": "Classic Black",
-                    "color_hex": "#111111",
-                    "size": "S",
-                    "stock_quantity": 14,
-                },
-                {
-                    "color_name": "Classic Black",
-                    "color_hex": "#111111",
-                    "size": "M",
-                    "stock_quantity": 20,
-                },
-            ],
-        },
-        {
-            "title": "High-Cut One-Piece Cutout Swimsuit",
-            "category": categories["bikinis"],
-            "description": "Sleek silhouette featuring a side cutout, high leg opening, and double-lined supportive stretch fabric.",
-            "base_price": 2600.00,
-            "sale_price": None,
-            "variants": [
-                {
-                    "color_name": "Emerald Green",
-                    "color_hex": "#047857",
-                    "size": "S",
-                    "stock_quantity": 7,
-                },
-                {
-                    "color_name": "Emerald Green",
-                    "color_hex": "#047857",
-                    "size": "M",
-                    "stock_quantity": 9,
-                },
-                {
-                    "color_name": "Midnight Black",
-                    "color_hex": "#09090b",
-                    "size": "M",
-                    "stock_quantity": 12,
                 },
             ],
         },

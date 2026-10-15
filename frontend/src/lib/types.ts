@@ -168,6 +168,7 @@ export interface Category {
   slug: string;
   description: string;
   image: string | null;
+  icon: string | null;
   display_order: number;
   product_count: number;
 }

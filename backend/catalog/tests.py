@@ -70,6 +70,15 @@ class CatalogAPITestCase(TestCase):
         results = response.data.get("results", response.data)
         self.assertEqual(len(results), 1)
 
+    def test_category_list_exposes_icon(self):
+        self.category.icon = "jeans"
+        self.category.save(update_fields=["icon"])
+        response = self.client.get("/api/v1/catalog/categories/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data.get("results", response.data)
+        jeans = next(category for category in results if category["slug"] == "jeans")
+        self.assertEqual(jeans["icon"], "jeans")
+
     def test_search_suggestions_api(self):
         response = self.client.get(
             "/api/v1/catalog/products/search-suggestions/?q=Vintage"
