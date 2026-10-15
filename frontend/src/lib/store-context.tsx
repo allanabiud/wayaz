@@ -66,6 +66,7 @@ interface StoreContextValue {
   openLogin: () => void;
   closeLogin: () => void;
   clearCart: () => void;
+  refreshCart: () => void;
   updateCart: (next: Cart | null) => void;
 }
 
@@ -338,6 +339,15 @@ export function StoreProvider({
       openLogin: () => setLoginOpen(true),
       closeLogin: () => setLoginOpen(false),
       clearCart: () => setCart(null),
+      refreshCart: () => {
+        // Server truth after a payment: purchased lines are gone, any line
+        // added mid-payment survives.
+        void fetchCart()
+          .then(setCart)
+          .catch(() => {
+            // Cart is empty or unreachable; the next cart action fixes it.
+          });
+      },
       updateCart: (next: Cart | null) => setCart(next),
     }),
     [

@@ -1,6 +1,7 @@
-"""Cancel stale unpaid orders and give their stock back. COD is excluded
-unless --include-cod; a PENDING payment in the last hour is skipped as
-in-flight. Runs from cron (docs/deployment-guide.md)."""
+"""Sweep unpaid orders: restore their stock and drop stale M-Pesa payment
+holds outright. COD is excluded unless --include-cod; a PENDING payment in
+the last hour is skipped as in-flight. Runs from cron
+(docs/deployment-guide.md)."""
 
 from datetime import timedelta
 
@@ -15,14 +16,14 @@ IN_FLIGHT_GRACE = timedelta(hours=1)
 
 
 class Command(BaseCommand):
-    help = "Cancel stale unpaid orders and restock their products."
+    help = "Sweep stale unpaid M-Pesa holds and cancel stale COD orders."
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--minutes",
             type=int,
             default=30,
-            help="Age in minutes before an unpaid M-Pesa order is cancelled (default: 30).",
+            help="Age in minutes before an unpaid M-Pesa order is swept (default: 30).",
         )
         parser.add_argument(
             "--include-cod",
@@ -38,17 +39,17 @@ class Command(BaseCommand):
         parser.add_argument(
             "--dry-run",
             action="store_true",
-            help="Report what would be cancelled without changing anything.",
+            help="Report what would be swept or cancelled without changing anything.",
         )
 
-    def _stale(self, method, cutoff):
+    def _stale(self, method, statuses, cutoff):
         in_flight = PaymentTransaction.objects.filter(
             status=PaymentTransaction.Status.PENDING,
             created_at__gte=timezone.now() - IN_FLIGHT_GRACE,
         ).values_list("order_id", flat=True)
         return (
             Order.objects.filter(
-                status=Order.Status.PROCESSING,
+                status__in=statuses,
                 payment_status=Order.PaymentStatus.PENDING,
                 payment_method=method,
                 created_at__lt=cutoff,
@@ -62,30 +63,42 @@ class Command(BaseCommand):
         dry = options["dry_run"]
         cancelled = []
 
-        targets = [
-            *self._stale(
-                Order.PaymentMethod.M_PESA, now - timedelta(minutes=options["minutes"])
+        targets = list(
+            self._stale(
+                Order.PaymentMethod.M_PESA,
+                # AWAITING_PAYMENT is the hold itself; PROCESSING catches
+                # pre-hold M-Pesa orders that never got verified.
+                [Order.Status.AWAITING_PAYMENT, Order.Status.PROCESSING],
+                now - timedelta(minutes=options["minutes"]),
             )
-        ]
+        )
         if options["include_cod"]:
             targets.extend(
                 self._stale(
                     Order.PaymentMethod.COD,
+                    [Order.Status.PROCESSING],
                     now - timedelta(minutes=options["cod_minutes"]),
                 )
             )
 
         for order in targets:
+            hold = order.status == Order.Status.AWAITING_PAYMENT
             if dry:
-                self.stdout.write(f"  [dry-run] would cancel {order.order_number}")
+                verb = "sweep" if hold else "cancel"
+                self.stdout.write(f"  [dry-run] would {verb} {order.order_number}")
                 continue
             order.cancel()  # atomic: status flip + stock restoration
+            if hold:
+                # A hold was never a real order: drop it outright, failing
+                # payment attempts and all.
+                order.delete()
             cancelled.append(order.order_number)
             self.stdout.write(
-                f"  cancelled {order.order_number} ({order.payment_method}, restocked)"
+                f"  {'swept' if hold else 'cancelled'} {order.order_number} "
+                f"({order.payment_method}, restocked)"
             )
 
-        verb = "would cancel" if dry else "cancelled"
+        verb = "would clear" if dry else "cleared"
         self.stdout.write(
             self.style.SUCCESS(
                 f"Stale-order sweep: {verb} {len(targets)} order(s)"

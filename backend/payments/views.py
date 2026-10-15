@@ -4,6 +4,7 @@ import uuid
 from decimal import Decimal
 
 from django.conf import settings
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import (
     OpenApiParameter,
@@ -15,8 +16,8 @@ from rest_framework import permissions, serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from orders.emails import send_payment_received_email
-from orders.models import Order
+from orders.emails import send_new_order_email_merchant, send_payment_received_email
+from orders.models import CartItem, Order
 from orders.tokens import request_owns_order
 
 from .daraja import format_phone_number, initiate_stk_push, stk_query
@@ -33,6 +34,27 @@ def _amounts_match(callback_value, expected: Decimal) -> bool:
         ) == expected.quantize(Decimal("0.01"))
     except Exception:
         return False
+
+
+def complete_paid_order(order):
+    """Verification-time reveal: mark the order paid, surface a held M-Pesa
+    order as a real one, drop the cart lines it bought, and tell the shopper
+    and the merchant. Shared by the Daraja callback and the mock simulator."""
+    with transaction.atomic():
+        order.payment_status = Order.PaymentStatus.PAID
+        if order.status == Order.Status.AWAITING_PAYMENT:
+            order.status = Order.Status.PROCESSING
+        order.save()
+        if order.checkout_cart_item_ids:
+            CartItem.objects.filter(id__in=order.checkout_cart_item_ids).delete()
+    try:
+        send_payment_received_email(order)
+    except Exception:
+        logger.exception("Payment-received email failed for %s", order.order_number)
+    try:
+        send_new_order_email_merchant(order)
+    except Exception:
+        logger.exception("Merchant order email failed for %s", order.order_number)
 
 
 class STKPushInitiateView(APIView):
@@ -233,17 +255,8 @@ class STKPushMockSimulateView(APIView):
             transaction.result_desc = "The service request is processed successfully."
             transaction.save()
 
-            order = transaction.order
-            order.payment_status = Order.PaymentStatus.PAID
-            # Stays PROCESSING until admin confirms from the dashboard.
-            order.save()
-
-            try:
-                send_payment_received_email(order)
-            except Exception:
-                logger.exception(
-                    "Payment-received email failed for %s", order.order_number
-                )
+            # Same reveal path as the real callback.
+            complete_paid_order(transaction.order)
 
             return Response(
                 {
@@ -432,15 +445,9 @@ class DarajaCallbackView(APIView):
                 transaction.mpesa_receipt_number = receipt_number
                 transaction.save()
 
-                # Update Order: paid, but stays PROCESSING until admin confirms.
-                order = transaction.order
-                order.payment_status = Order.PaymentStatus.PAID
-                order.save()
-
-                try:
-                    send_payment_received_email(order)
-                except Exception as e:
-                    logger.error(f"Failed sending payment email: {e}")
+                # Reveal a held order; it stays PROCESSING until staff
+                # confirm it from the dashboard.
+                complete_paid_order(transaction.order)
 
             else:
                 # Cancelled or failed PIN entry

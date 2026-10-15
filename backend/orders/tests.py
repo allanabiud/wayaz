@@ -463,14 +463,56 @@ class CheckoutAPITestCase(TestCase):
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Order.objects.count(), 0)
 
-    def test_checkout_mpesa_initiates_processing(self):
+    def test_checkout_mpesa_holds_order_until_paid(self):
         payload = {**self.checkout_payload, "payment_method": "mpesa"}
         res = self.checkout(payload)
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(res.data["status"], Order.Status.PROCESSING)
-        # Stock stays reserved while processing.
+        self.assertEqual(res.data["status"], Order.Status.AWAITING_PAYMENT)
+
+        order = Order.objects.get(order_number=res.data["order_number"])
+        # Stock is reserved now, but nothing is ordered yet: no emails and
+        # the cart stays intact until the callback verifies the money.
         self.product.refresh_from_db()
         self.assertEqual(self.product.total_stock, 3)
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertEqual(self.cart.items.count(), 1)
+        self.assertEqual(
+            order.checkout_cart_item_ids,
+            [item.id for item in self.cart.items.all()],
+        )
+
+    def test_second_mpesa_checkout_is_rejected_while_hold_exists(self):
+        payload = {**self.checkout_payload, "payment_method": "mpesa"}
+        first = self.checkout(payload)
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+
+        res = self.checkout(payload)
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("in progress", res.data["detail"])
+        # The double stock reservation never happened.
+        self.assertEqual(Order.objects.count(), 1)
+
+    def test_mpesa_hold_blocks_only_the_shopper_who_owns_it(self):
+        holder = User.objects.create_user(
+            username="holder", email="holder@example.com", password="Password123!"
+        )
+        self.cart.user = holder
+        self.cart.save()
+        self.client.force_authenticate(user=holder)
+        payload = {**self.checkout_payload, "payment_method": "mpesa"}
+        first = self.checkout(payload)
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+
+        # Someone else's hold must not block this shopper's checkout.
+        rival = User.objects.create_user(
+            username="rival", email="rival@example.com", password="Password123!"
+        )
+        rival_cart = Cart.objects.create(user=rival)
+        CartItem.objects.create(cart=rival_cart, product=self.product, quantity=1)
+        self.client.force_authenticate(user=rival)
+        res = self.checkout(payload, cart_id=str(rival_cart.id))
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Order.objects.count(), 2)
 
     def test_authenticated_checkout_attaches_user(self):
         user = User.objects.create_user(
@@ -636,6 +678,17 @@ class OrderHistoryAPITestCase(TestCase):
         self.assertIsNone(payload["items"][0]["product_slug"])
         self.assertEqual(payload["items"][0]["product_title"], "Linen Shirt")
 
+    def test_payment_holds_are_not_history(self):
+        hold = self.make_order(self.user)
+        hold.status = Order.Status.AWAITING_PAYMENT
+        hold.save()
+
+        self.client.force_authenticate(user=self.user)
+        res = self.client.get("/api/v1/orders/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        order_numbers = [o["order_number"] for o in res.data["results"]]
+        self.assertNotIn(hold.order_number, order_numbers)
+
     def test_paginates_with_standard_results_set(self):
         self.client.force_authenticate(user=self.user)
         res = self.client.get("/api/v1/orders/?page_size=1")
@@ -732,6 +785,16 @@ class AdminOrderConfirmTestCase(TestCase):
         self.product.refresh_from_db()
         self.assertEqual(self.product.total_stock, 5)
         # Cancelling is not the confirmation event - no confirm email.
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_payment_hold_cannot_be_changed(self):
+        self.order.status = Order.Status.AWAITING_PAYMENT
+        self.order.save()
+
+        res = self.patch({"status": Order.Status.CONFIRMED})
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.AWAITING_PAYMENT)
         self.assertEqual(len(mail.outbox), 0)
 
     def test_customer_cannot_update_order_status(self):
@@ -1259,8 +1322,9 @@ class AdminCouponAPITestCase(TestCase):
 
 
 class CancelStaleOrdersTestCase(TestCase):
-    """Unpaid M-Pesa orders must not hold stock forever; the command cancels
-    stale ones and restocks via Order.cancel()."""
+    """Unpaid M-Pesa orders must not hold stock forever: stale payment
+    holds are restocked and dropped outright, while pre-hold orders that
+    never got verified are cancelled the old way."""
 
     def setUp(self):
         self.category = Category.objects.create(name="Denim", slug="denim")
@@ -1276,7 +1340,7 @@ class CancelStaleOrdersTestCase(TestCase):
         minutes_old=0,
         payment_method=Order.PaymentMethod.M_PESA,
         payment_status=Order.PaymentStatus.PENDING,
-        status=Order.Status.PROCESSING,
+        status=Order.Status.AWAITING_PAYMENT,
     ):
         order = Order.objects.create(
             email="shopper@example.com",
@@ -1303,8 +1367,17 @@ class CancelStaleOrdersTestCase(TestCase):
             )
         return order
 
-    def test_stale_unpaid_mpesa_order_is_cancelled_and_restocked(self):
+    def test_stale_hold_is_swept_and_restocked(self):
         order = self._order(minutes_old=45)
+        call_command("cancel_stale_orders")
+        # The hold is gone entirely, and its units are back on the shelf.
+        self.assertFalse(Order.objects.filter(pk=order.pk).exists())
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.total_stock, 7)  # 5 + 2 restored
+
+    def test_legacy_unpaid_mpesa_order_is_cancelled(self):
+        """Pre-hold orders (PROCESSING + PENDING) still get cancelled."""
+        order = self._order(minutes_old=45, status=Order.Status.PROCESSING)
         call_command("cancel_stale_orders")
         order.refresh_from_db()
         self.product.refresh_from_db()
@@ -1315,7 +1388,7 @@ class CancelStaleOrdersTestCase(TestCase):
         order = self._order(minutes_old=5)
         call_command("cancel_stale_orders")
         order.refresh_from_db()
-        self.assertEqual(order.status, Order.Status.PROCESSING)
+        self.assertEqual(order.status, Order.Status.AWAITING_PAYMENT)
 
     def test_in_flight_payment_is_skipped(self):
         """A fresh PENDING transaction means the shopper may still be paying."""
@@ -1330,10 +1403,14 @@ class CancelStaleOrdersTestCase(TestCase):
         )
         call_command("cancel_stale_orders")
         order.refresh_from_db()
-        self.assertEqual(order.status, Order.Status.PROCESSING)
+        self.assertEqual(order.status, Order.Status.AWAITING_PAYMENT)
 
     def test_paid_and_manually_confirmed_orders_are_left_alone(self):
-        paid = self._order(minutes_old=120, payment_status=Order.PaymentStatus.PAID)
+        paid = self._order(
+            minutes_old=120,
+            payment_status=Order.PaymentStatus.PAID,
+            status=Order.Status.PROCESSING,
+        )
         confirmed = self._order(minutes_old=120, status=Order.Status.CONFIRMED)
         call_command("cancel_stale_orders")
         paid.refresh_from_db()
@@ -1343,7 +1420,11 @@ class CancelStaleOrdersTestCase(TestCase):
         self.assertEqual(confirmed.status, Order.Status.CONFIRMED)
 
     def test_cod_left_alone_unless_explicitly_included(self):
-        cod = self._order(minutes_old=120, payment_method=Order.PaymentMethod.COD)
+        cod = self._order(
+            minutes_old=120,
+            payment_method=Order.PaymentMethod.COD,
+            status=Order.Status.PROCESSING,
+        )
         call_command("cancel_stale_orders")
         cod.refresh_from_db()
         self.assertEqual(cod.status, Order.Status.PROCESSING)
@@ -1357,5 +1438,5 @@ class CancelStaleOrdersTestCase(TestCase):
         call_command("cancel_stale_orders", "--dry-run")
         order.refresh_from_db()
         self.product.refresh_from_db()
-        self.assertEqual(order.status, Order.Status.PROCESSING)
+        self.assertEqual(order.status, Order.Status.AWAITING_PAYMENT)
         self.assertEqual(self.product.total_stock, 5)

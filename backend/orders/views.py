@@ -335,7 +335,8 @@ class OrderListView(generics.ListAPIView):
 
     def get_queryset(self):
         return (
-            Order.objects.filter(user=self.request.user)
+            Order.objects.placed()
+            .filter(user=self.request.user)
             .select_related("coupon")
             .prefetch_related("items")
             .order_by("-created_at")
@@ -370,6 +371,33 @@ class CheckoutView(APIView):
 
         try:
             with transaction.atomic():
+                is_mpesa = data["payment_method"] == Order.PaymentMethod.M_PESA
+                guest_id = data.get("guest_id") or (
+                    str(cart.id) if not request.user.is_authenticated else ""
+                )
+                if is_mpesa:
+                    # One payment hold per shopper: a second would double-
+                    # reserve stock while the first STK push is unresolved.
+                    holds = Order.objects.filter(
+                        status=Order.Status.AWAITING_PAYMENT,
+                        payment_status=Order.PaymentStatus.PENDING,
+                    )
+                    holder = (
+                        holds.filter(user=request.user)
+                        if request.user.is_authenticated
+                        else holds.filter(guest_id=guest_id)
+                    )
+                    if holder.exists():
+                        raise ValidationError(
+                            {
+                                "detail": (
+                                    "An M-Pesa payment for your previous order "
+                                    "is still in progress. Wait a few minutes "
+                                    "for it to expire, then try again."
+                                )
+                            }
+                        )
+
                 locked_rows = {
                     (row.product_id, row.size): row
                     for row in ProductSize.objects.select_for_update().filter(
@@ -443,13 +471,17 @@ class CheckoutView(APIView):
                         discount = coupon.discount_for(subtotal)
                 total = subtotal + shipping_fee - discount
 
-                # New orders start PROCESSING; staff confirm from the dashboard.
-                order_status = Order.Status.PROCESSING
+                # M-Pesa creates an invisible hold until payment is
+                # verified; COD orders start PROCESSING (staff confirm).
+                order_status = (
+                    Order.Status.AWAITING_PAYMENT
+                    if is_mpesa
+                    else Order.Status.PROCESSING
+                )
 
                 order = Order.objects.create(
                     user=request.user if request.user.is_authenticated else None,
-                    guest_id=data.get("guest_id")
-                    or (str(cart.id) if not request.user.is_authenticated else ""),
+                    guest_id=guest_id,
                     email=data["email"],
                     phone_number=data["phone_number"],
                     shipping_name=data["full_name"],
@@ -464,6 +496,10 @@ class CheckoutView(APIView):
                     total_amount=total,
                     status=order_status,
                     payment_method=data["payment_method"],
+                    # The callback drops exactly these lines once paid.
+                    checkout_cart_item_ids=(
+                        [item.id for item in items] if is_mpesa else None
+                    ),
                 )
 
                 for item in items:
@@ -480,7 +516,10 @@ class CheckoutView(APIView):
                         quantity=F("quantity") - item.quantity
                     )
 
-                cart.items.all().delete()
+                if not is_mpesa:
+                    # M-Pesa keeps the cart intact until payment is verified;
+                    # checkout_cart_item_ids names the lines to drop then.
+                    cart.items.all().delete()
 
                 if request.user.is_authenticated:
                     u = request.user
@@ -508,9 +547,12 @@ class CheckoutView(APIView):
         except ValidationError as exc:
             return Response(exc.detail, status=status.HTTP_400_BAD_REQUEST)
 
-        # Fire-and-forget emails: shopper confirmation + merchant copy.
-        send_order_confirmation_email(order)
-        send_new_order_email_merchant(order)
+        # COD is confirmed at checkout; M-Pesa emails fire only once the
+        # callback has verified the payment
+        # (see payments.views.complete_paid_order).
+        if not is_mpesa:
+            send_order_confirmation_email(order)
+            send_new_order_email_merchant(order)
 
         # Capability token for driving M-Pesa STK; the only place it is
         # handed out (see orders/tokens.py).

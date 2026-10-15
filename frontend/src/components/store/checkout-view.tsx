@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
+  AlertCircle,
   Banknote,
   Check,
   CheckCircle2,
@@ -55,7 +56,7 @@ import { MpesaPaymentModal } from "@/components/store/mpesa-modal";
 
 export function CheckoutView() {
   const { user, isAuthenticated } = useAuth();
-  const { cart, clearCart, openLogin } = useStore();
+  const { cart, clearCart, refreshCart, openLogin } = useStore();
 
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<number | "new">(
@@ -87,6 +88,12 @@ export function CheckoutView() {
 
   const [submitting, setSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<StoreOrder | null>(null);
+  // An STK push that never completed: nothing was ordered, cart intact.
+  const [failedPayment, setFailedPayment] = useState<{
+    order: CheckoutOrder;
+    phone: string;
+  } | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
   const [mpesaModal, setMpesaModal] = useState<{
     open: boolean;
@@ -250,6 +257,8 @@ export function CheckoutView() {
       }
 
       if (paymentMethod === "mpesa") {
+        // The order is a hidden hold until payment verifies, so success and
+        // failure both surface below - never an instant "placed" screen.
         try {
           const stkRes = await initiateMpesaStkPush(
             order.order_number,
@@ -263,15 +272,16 @@ export function CheckoutView() {
             phoneNumber: stkRes.phone_number,
             isMock: stkRes.is_mock,
           });
-          return;
         } catch (stkErr) {
           toast.error(
             stkErr instanceof ApiError
               ? stkErr.message
-              : "Failed to dispatch M-Pesa STK Push. You can pay on delivery.",
+              : "Failed to dispatch M-Pesa STK Push.",
           );
-          // Fall through: order completes with payment pending.
+          setFailedPayment({ order, phone: phone.trim() });
+          window.scrollTo({ top: 0, behavior: "smooth" });
         }
+        return;
       }
 
       clearCart();
@@ -285,6 +295,70 @@ export function CheckoutView() {
       setSubmitting(false);
     }
   };
+
+  const retryPayment = async () => {
+    if (!failedPayment) return;
+    setRetrying(true);
+    try {
+      // The hold and its payment token stay valid until the sweep collects
+      // them, so a retry needs no new order.
+      const stkRes = await initiateMpesaStkPush(
+        failedPayment.order.order_number,
+        failedPayment.phone,
+        failedPayment.order.payment_token,
+      );
+      setFailedPayment(null);
+      setMpesaModal({
+        open: true,
+        order: failedPayment.order,
+        checkoutRequestId: stkRes.checkout_request_id,
+        phoneNumber: stkRes.phone_number,
+        isMock: stkRes.is_mock,
+      });
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError
+          ? err.message
+          : "Failed to dispatch M-Pesa STK Push.",
+      );
+    } finally {
+      setRetrying(false);
+    }
+  };
+
+  if (failedPayment) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
+        <div className="rounded-3xl border bg-card p-6 sm:p-8 text-center shadow-xs">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-amber-500/10 text-amber-600">
+            <AlertCircle className="size-8" />
+          </div>
+
+          <h1 className="mt-4 font-heading text-2xl font-bold sm:text-3xl">
+            Payment not completed
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            No order was placed and no money was received. Your cart is
+            untouched - try the payment again or keep shopping.
+          </p>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Button
+              onClick={() => void retryPayment()}
+              disabled={retrying}
+              className="gap-2"
+            >
+              {retrying && <Loader2 className="size-4 animate-spin" />}
+              Try again
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/cart">Back to cart</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (completedOrder) {
     return (
@@ -918,7 +992,9 @@ export function CheckoutView() {
           amount={formatKsh(mpesaModal.order.total_amount)}
           isMock={mpesaModal.isMock}
           onSuccess={(receipt) => {
-            clearCart();
+            // The server already dropped the purchased lines; re-fetch so a
+            // line added mid-payment isn't wiped from view.
+            refreshCart();
             const finalizedOrder = {
               ...mpesaModal.order!,
               payment_status: "PAID",
@@ -931,10 +1007,10 @@ export function CheckoutView() {
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
           onCancelOrFailed={() => {
-            clearCart();
-            const pendingOrder = mpesaModal.order!;
+            const hold = mpesaModal.order!;
             setMpesaModal((prev) => ({ ...prev, open: false }));
-            setCompletedOrder(pendingOrder);
+            // Nothing was ordered - offer a retry, never a success screen.
+            setFailedPayment({ order: hold, phone: mpesaModal.phoneNumber });
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
         />

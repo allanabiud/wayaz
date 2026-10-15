@@ -83,7 +83,7 @@ export interface Cart {
 }
 
 export type OrderStatus =
-  "PROCESSING" | "CONFIRMED" | "DELIVERED" | "CANCELLED";
+  "AWAITING_PAYMENT" | "PROCESSING" | "CONFIRMED" | "DELIVERED" | "CANCELLED";
 
 interface StoreOrderItem {
   id: number;
@@ -361,7 +361,9 @@ export function submitCheckout(
       headers: cartHeaders(),
     })
     .then((order) => {
-      clearStoredCart();
+      // M-Pesa keeps the cart until the payment is verified; only a
+      // completed COD checkout takes ownership of it outright.
+      if (payload.payment_method !== "mpesa") clearStoredCart();
       return order;
     });
 }

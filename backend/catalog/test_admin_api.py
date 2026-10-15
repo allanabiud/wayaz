@@ -178,6 +178,39 @@ class AdminAPITestCase(TestCase):
         self.assertEqual(res.data["results"][0]["total_amount"], "2100.00")
         self.assertEqual(res.data["results"][0]["item_count"], 0)
 
+    def test_admin_orders_hide_payment_holds(self):
+        hold = Order.objects.create(
+            email="shopper@example.com",
+            phone_number="+254700000003",
+            shipping_name="Held Shopper",
+            county="Nairobi",
+            town="Kilimani",
+            street_address="4 Acacia Lane",
+            subtotal=Decimal("1500.00"),
+            total_amount=Decimal("1500.00"),
+            status=Order.Status.AWAITING_PAYMENT,
+            payment_method=Order.PaymentMethod.M_PESA,
+        )
+        real = Order.objects.create(
+            email="buyer@example.com",
+            phone_number="+254700000004",
+            shipping_name="Real Buyer",
+            county="Nairobi",
+            town="Westlands",
+            street_address="1 Some Road",
+            subtotal=Decimal("2000.00"),
+            total_amount=Decimal("2000.00"),
+            status=Order.Status.PROCESSING,
+            payment_method=Order.PaymentMethod.M_PESA,
+        )
+
+        self.client.force_authenticate(user=self.admin_user)
+        res = self.client.get("/api/v1/admin/orders/")
+        self.assertEqual(res.data["count"], 1)
+        self.assertEqual(res.data["pending_count"], 1)
+        self.assertEqual(res.data["results"][0]["order_number"], real.order_number)
+        self.assertNotEqual(res.data["results"][0]["order_number"], hold.order_number)
+
     def test_admin_overview_revenue_reflects_confirmed_orders(self):
         def make_order(total, order_status):
             return Order.objects.create(

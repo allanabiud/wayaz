@@ -51,7 +51,8 @@ def _order_counts_by_day(since, dates):
     """Order counts per local calendar day from `since`; the bound matches
     the KPI query so the bars sum to the number shown beside the chart."""
     rows = (
-        Order.objects.filter(created_at__gte=since)
+        Order.objects.placed()
+        .filter(created_at__gte=since)
         .values("created_at__date")
         .annotate(n=Count("id"))
     )
@@ -162,18 +163,30 @@ class AdminOverviewView(APIView):
             or 0
         )
 
-        orders_today = Order.objects.filter(created_at__gte=today_start).count()
-        orders_yesterday = Order.objects.filter(
-            created_at__gte=yesterday_start, created_at__lt=today_start
-        ).count()
-        orders_this_week = Order.objects.filter(created_at__gte=week_start).count()
-        orders_prev_week = Order.objects.filter(
-            created_at__gte=prev_week_start, created_at__lt=week_start
-        ).count()
-        orders_this_month = Order.objects.filter(created_at__gte=month_start).count()
-        orders_prev_month = Order.objects.filter(
-            created_at__gte=prev_month_start, created_at__lt=month_start
-        ).count()
+        orders_today = (
+            Order.objects.placed().filter(created_at__gte=today_start).count()
+        )
+        orders_yesterday = (
+            Order.objects.placed()
+            .filter(created_at__gte=yesterday_start, created_at__lt=today_start)
+            .count()
+        )
+        orders_this_week = (
+            Order.objects.placed().filter(created_at__gte=week_start).count()
+        )
+        orders_prev_week = (
+            Order.objects.placed()
+            .filter(created_at__gte=prev_week_start, created_at__lt=week_start)
+            .count()
+        )
+        orders_this_month = (
+            Order.objects.placed().filter(created_at__gte=month_start).count()
+        )
+        orders_prev_month = (
+            Order.objects.placed()
+            .filter(created_at__gte=prev_month_start, created_at__lt=month_start)
+            .count()
+        )
 
         cust_today = User.objects.filter(
             role="customer", date_joined__gte=today_start
@@ -220,7 +233,12 @@ class AdminOverviewView(APIView):
 
         sales_rows = list(
             OrderItem.objects.filter(product__isnull=False)
-            .exclude(order__status=Order.Status.CANCELLED)
+            .exclude(
+                order__status__in=[
+                    Order.Status.CANCELLED,
+                    Order.Status.AWAITING_PAYMENT,
+                ]
+            )
             .values("product_id")
             .annotate(
                 units_sold=Sum("quantity"),
@@ -265,7 +283,10 @@ class AdminOverviewView(APIView):
         sales_summary = {
             "units_sold": (
                 OrderItem.objects.exclude(
-                    order__status=Order.Status.CANCELLED
+                    order__status__in=[
+                        Order.Status.CANCELLED,
+                        Order.Status.AWAITING_PAYMENT,
+                    ]
                 ).aggregate(units=Sum("quantity"))["units"]
                 or 0
             ),
@@ -375,7 +396,7 @@ class AdminOverviewView(APIView):
                 confirmed.aggregate(total=Sum("total_amount"))["total"] or 0
             ),
             "this_month": rev_this_month,
-            "orders_total": Order.objects.count(),
+            "orders_total": Order.objects.placed().count(),
             "orders_this_month": orders_this_month,
             "pending_orders": Order.objects.filter(
                 status=Order.Status.PROCESSING
@@ -395,7 +416,8 @@ class AdminOverviewView(APIView):
         this_week_start = today - timedelta(days=today.weekday())
         orders_week_start = this_week_start - timedelta(weeks=weeks_count - 1)
         weekly_rows = (
-            Order.objects.filter(created_at__date__gte=orders_week_start)
+            Order.objects.placed()
+            .filter(created_at__date__gte=orders_week_start)
             .annotate(
                 week=TruncWeek("created_at", tzinfo=timezone.get_current_timezone())
             )
@@ -418,7 +440,8 @@ class AdminOverviewView(APIView):
         # Order series count every order, so each sums to its
         # time_metrics.orders KPI (revenue series do not).
         hour_rows = (
-            Order.objects.filter(created_at__gte=today_start)
+            Order.objects.placed()
+            .filter(created_at__gte=today_start)
             .values("created_at__hour")
             .annotate(n=Count("id"))
         )
@@ -459,7 +482,7 @@ class AdminOverviewView(APIView):
                 "detail": f"{o.shipping_name or o.email} · Ksh {float(o.total_amount):,.0f} ({o.get_status_display()})",
                 "at": o.created_at,
             }
-            for o in Order.objects.order_by("-created_at")[:6]
+            for o in Order.objects.placed().order_by("-created_at")[:6]
         ]
         activity += [
             {
@@ -543,7 +566,7 @@ class AdminNavCountsView(APIView):
         cod_count = Order.objects.filter(payment_method="cod").count()
         return Response(
             {
-                "orders": Order.objects.count(),
+                "orders": Order.objects.placed().count(),
                 "products": Product.objects.count(),
                 "categories": Category.objects.count(),
                 "reviews": ProductReview.objects.count(),
@@ -948,7 +971,7 @@ class AdminAnalyticsView(APIView):
                     month=1, day=1, hour=0, minute=0, second=0, microsecond=0
                 )
             elif period == "all":
-                first_order = Order.objects.order_by("created_at").first()
+                first_order = Order.objects.placed().order_by("created_at").first()
                 start_date = (
                     timezone.localtime(first_order.created_at)
                     if first_order
@@ -957,7 +980,7 @@ class AdminAnalyticsView(APIView):
             else:  # default "30d"
                 start_date = now - timedelta(days=30)
 
-        period_orders = Order.objects.filter(
+        period_orders = Order.objects.placed().filter(
             created_at__gte=start_date, created_at__lte=end_date
         )
         confirmed_orders = period_orders.exclude(status=Order.Status.CANCELLED)
@@ -1000,7 +1023,8 @@ class AdminAnalyticsView(APIView):
         )
         unique_customers = len(set(customer_ids))
         repeat_customers = (
-            Order.objects.filter(user_id__in=customer_ids)
+            Order.objects.placed()
+            .filter(user_id__in=customer_ids)
             .values("user_id")
             .annotate(cnt=Count("id"))
             .filter(cnt__gt=1)
@@ -1034,7 +1058,12 @@ class AdminAnalyticsView(APIView):
                 }
             )
 
-        status_counts = {s[0]: 0 for s in Order.Status.choices}
+        # Holds are never rendered - they aren't orders until paid.
+        status_counts = {
+            key: 0
+            for key in Order.Status.values
+            if key != Order.Status.AWAITING_PAYMENT
+        }
         for row in period_orders.values("status").annotate(count=Count("id")):
             status_counts[row["status"]] = row["count"]
 

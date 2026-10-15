@@ -2,12 +2,15 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from orders.models import Order
+from catalog.factories import create_product
+from catalog.models import Category
+from orders.models import Cart, CartItem, Order
 from orders.tokens import make_payment_token
 from payments.models import PaymentTransaction
 
@@ -170,6 +173,84 @@ class MpesaPaymentTests(TestCase):
         self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
         # Payment does not confirm; staff do that, so it stays PROCESSING.
         self.assertEqual(self.order.status, Order.Status.PROCESSING)
+
+    def _make_hold(self, cart_item_ids=None):
+        self.order.status = Order.Status.AWAITING_PAYMENT
+        self.order.checkout_cart_item_ids = cart_item_ids
+        self.order.save()
+
+    @override_settings(MANAGER_EMAIL="boss@wayaz.co.ke")
+    def test_mock_simulate_reveals_hold_and_clears_purchased_cart_lines(self):
+        category = Category.objects.create(name="Denim", slug="denim")
+        product = create_product(
+            title="Stale Jeans",
+            category=category,
+            base_price=Decimal("3500.00"),
+            stock_quantity=5,
+        )
+        cart = Cart.objects.create()
+        bought = CartItem.objects.create(cart=cart, product=product, quantity=2)
+        kept = CartItem.objects.create(cart=cart, product=product, size="32")
+        self._make_hold([bought.id])
+
+        tx = self._make_tx("ws_CO_HOLD_1")
+        response = self.client.post(
+            reverse("mock-simulate"),
+            {"checkout_request_id": tx.checkout_request_id, "action": "success"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.PROCESSING)
+        self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
+        # Only the purchased line left the cart; a line added mid-PIN stays.
+        self.assertFalse(CartItem.objects.filter(id=bought.id).exists())
+        self.assertTrue(CartItem.objects.filter(id=kept.id).exists())
+        # Shopper and merchant both hear about it - and only now.
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertEqual(
+            [m.to for m in mail.outbox if "boss@wayaz.co.ke" in m.to],
+            [["boss@wayaz.co.ke"]],
+        )
+
+    @override_settings(MANAGER_EMAIL="boss@wayaz.co.ke")
+    def test_daraja_callback_reveals_held_order(self):
+        self._make_hold()
+        tx = self._make_tx("ws_CO_HOLD_CB")
+        response = self.client.post(
+            callback_url(), success_payload(tx.checkout_request_id), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.PROCESSING)
+        self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
+        self.assertEqual(len(mail.outbox), 2)
+
+    def test_failed_callback_leaves_hold_untouched(self):
+        self._make_hold()
+        tx = self._make_tx("ws_CO_HOLD_FAIL")
+        payload = {
+            "Body": {
+                "stkCallback": {
+                    "MerchantRequestID": tx.merchant_request_id,
+                    "CheckoutRequestID": tx.checkout_request_id,
+                    "ResultCode": 1032,
+                    "ResultDesc": "Request cancelled by user",
+                }
+            }
+        }
+        response = self.client.post(callback_url(), payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        tx.refresh_from_db()
+        self.order.refresh_from_db()
+        self.assertEqual(tx.status, PaymentTransaction.Status.FAILED)
+        # Nothing ordered, nobody emailed - the sweep collects it later.
+        self.assertEqual(self.order.status, Order.Status.AWAITING_PAYMENT)
+        self.assertEqual(self.order.payment_status, Order.PaymentStatus.PENDING)
+        self.assertEqual(len(mail.outbox), 0)
 
     @override_settings(MPESA_ENVIRONMENT="sandbox")
     def test_mock_simulate_disabled_outside_mock_mode(self):

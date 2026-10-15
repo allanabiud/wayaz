@@ -155,7 +155,8 @@ class Coupon(models.Model):
         # guest cart counts as a first-time customer too.
         if user is None:
             return True
-        return not Order.objects.filter(user=user).exists()
+        # Placed only: an unpaid M-Pesa hold isn't an order yet.
+        return not Order.objects.placed().filter(user=user).exists()
 
     def discount_for(self, amount):
         """Discount for a pre-discount `amount`, clamped so it is never
@@ -186,8 +187,19 @@ def auto_coupon_for(user, subtotal):
     return best
 
 
+class OrderQuerySet(models.QuerySet):
+    def placed(self):
+        """Orders that really exist - unpaid M-Pesa payment holds excluded."""
+        return self.exclude(status=Order.Status.AWAITING_PAYMENT)
+
+
 class Order(models.Model):
+    objects = OrderQuerySet.as_manager()
+
     class Status(models.TextChoices):
+        # Created by M-Pesa checkout; invisible everywhere until the
+        # callback verifies the money, then revealed as PROCESSING.
+        AWAITING_PAYMENT = "AWAITING_PAYMENT", "Awaiting payment"
         PROCESSING = "PROCESSING", "Processing"
         CONFIRMED = "CONFIRMED", "Confirmed"
         DELIVERED = "DELIVERED", "Delivered"
@@ -256,6 +268,9 @@ class Order(models.Model):
     payment_status = models.CharField(
         max_length=16, choices=PaymentStatus.choices, default=PaymentStatus.PENDING
     )
+    # For held M-Pesa orders: the cart lines this payment covers. Deleted
+    # from the cart only once the callback has verified the money.
+    checkout_cart_item_ids = models.JSONField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

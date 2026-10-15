@@ -31,6 +31,8 @@ const STATUS_VARIANT: Record<
   OrderStatus,
   "warning" | "success" | "info" | "destructive"
 > = {
+  // Holds never reach this screen; "warning" is a defensive tone only.
+  AWAITING_PAYMENT: "warning",
   PROCESSING: "warning",
   CONFIRMED: "info",
   DELIVERED: "success",

@@ -49,7 +49,7 @@ class AdminOrdersView(APIView):
         responses={200: AdminOrderListResponseSerializer},
     )
     def get(self, request):
-        all_orders = Order.objects.all()
+        all_orders = Order.objects.placed()
         qs = (
             all_orders.select_related("user")
             .prefetch_related("items")
@@ -164,6 +164,13 @@ class AdminOrderDetailView(APIView):
             return Response(
                 {"detail": "Order not found."},
                 status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if order.status == Order.Status.AWAITING_PAYMENT:
+            # Unpaid M-Pesa holds aren't real orders yet; the sweep owns them.
+            return Response(
+                {"detail": "This order is awaiting payment and cannot be changed."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         new_status = request.data.get("status")
