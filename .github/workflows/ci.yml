@@ -38,7 +38,16 @@ jobs:
       # DEBUG is off in CI, so settings.py demands a (non-production) key.
       SECRET_KEY: ci-only-secret-key-not-for-production
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+
+      # The service container has no init scripts (bind-mounting workspace
+      # files would create root-owned dirs that break checkout), so grant
+      # the app user rights on `test_%` - same as docker/mysql-init/01-grants.sh.
+      - name: Grant test database privileges
+        run: |
+          docker exec "$(docker ps -q --filter "ancestor=mariadb:11.4")" \
+            mariadb -uroot -proot \
+            -e 'GRANT ALL PRIVILEGES ON `test_%`.* TO '"'"'wayaz'"'"'@'"'"'%'"'"'; FLUSH PRIVILEGES;'
 
       - uses: astral-sh/setup-uv@v5
         with:
@@ -70,9 +79,9 @@ jobs:
     name: Frontend (lint + build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
@@ -102,7 +111,7 @@ jobs:
     name: Style gate (no em/en dashes)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Fail on em or en dashes
         run: |
