@@ -1,5 +1,6 @@
 import os
 
+from django.db import transaction
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
@@ -9,6 +10,7 @@ from .models import (
     Product,
     ProductImage,
     ProductReview,
+    ProductSize,
     StoreSettings,
 )
 
@@ -73,6 +75,13 @@ class AdminProductImageUploadSerializer(serializers.Serializer):
         return image
 
 
+class AdminProductSizeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductSize
+        # List order is the display order, so it isn't sent by the client.
+        fields = ("id", "size", "quantity")
+
+
 class AdminProductSerializer(serializers.ModelSerializer):
     category_id = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(), source="category"
@@ -80,6 +89,8 @@ class AdminProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True)
     images = AdminProductImageSerializer(many=True, read_only=True)
     is_in_stock = serializers.BooleanField(read_only=True)
+    size_stock = AdminProductSizeSerializer(many=True, required=False)
+    stock_quantity = serializers.IntegerField(source="total_stock", read_only=True)
 
     class Meta:
         model = Product
@@ -92,34 +103,69 @@ class AdminProductSerializer(serializers.ModelSerializer):
             "description",
             "base_price",
             "sale_price",
+            "size_stock",
             "stock_quantity",
-            "sizes",
             "is_featured",
             "is_in_stock",
             "images",
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "slug", "created_at", "updated_at")
+        read_only_fields = ("id", "slug", "stock_quantity", "created_at", "updated_at")
 
-    def validate_sizes(self, value):
-        """Accept a list of size labels; trim, drop blanks, dedupe, keep order."""
-        if not isinstance(value, list):
-            raise serializers.ValidationError("Sizes must be a list.")
+    def _write_size_stock(self, product, rows):
+        """Validate the incoming rows, then replace the product's stock rows."""
         cleaned = []
-        for item in value:
-            text = str(item).strip()
-            if not text:
-                continue
-            if len(text) > 50:
+        for row in rows or []:
+            label = str(row.get("size") or "").strip()
+            quantity = row.get("quantity", 0)
+            try:
+                quantity = max(0, int(quantity))
+            except (TypeError, ValueError):
                 raise serializers.ValidationError(
-                    "Each size must be 50 characters or fewer."
-                )
-            if text not in cleaned:
-                cleaned.append(text)
+                    "Stock must be a whole number of units."
+                ) from None
+            if label not in [c["size"] for c in cleaned]:
+                cleaned.append({"size": label, "quantity": quantity})
         if len(cleaned) > 30:
             raise serializers.ValidationError("A product can have at most 30 sizes.")
-        return cleaned
+        if any(len(c["size"]) > 50 for c in cleaned):
+            raise serializers.ValidationError(
+                "Each size must be 50 characters or fewer."
+            )
+        # A blank size means one-size: it may not share the product with others.
+        one_size = [c for c in cleaned if not c["size"]]
+        if len(one_size) > 1 or (one_size and len(cleaned) > 1):
+            raise serializers.ValidationError(
+                "Either a single one-size entry or sized entries, not both."
+            )
+        product.size_stock.all().delete()
+        product.size_stock.bulk_create(
+            [
+                ProductSize(
+                    product=product,
+                    size=row["size"],
+                    quantity=row["quantity"],
+                    display_order=index,
+                )
+                for index, row in enumerate(cleaned)
+            ]
+        )
+
+    def create(self, validated_data):
+        rows = validated_data.pop("size_stock", None)
+        with transaction.atomic():
+            product = super().create(validated_data)
+            self._write_size_stock(product, rows)
+        return product
+
+    def update(self, instance, validated_data):
+        rows = validated_data.pop("size_stock", None)
+        with transaction.atomic():
+            product = super().update(instance, validated_data)
+            if rows is not None:
+                self._write_size_stock(product, rows)
+        return product
 
 
 class AdminReviewSerializer(serializers.ModelSerializer):

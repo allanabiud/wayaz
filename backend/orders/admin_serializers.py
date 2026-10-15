@@ -66,6 +66,7 @@ class AdminCouponSerializer(serializers.ModelSerializer):
 class AdminOrderItemSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     product_title = serializers.CharField()
+    size = serializers.CharField(allow_blank=True)
     unit_price = serializers.CharField(help_text="Money as a decimal string.")
     quantity = serializers.IntegerField()
     line_total = serializers.CharField(help_text="Money as a decimal string.")

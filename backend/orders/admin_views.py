@@ -108,6 +108,7 @@ class AdminOrdersView(APIView):
                     {
                         "id": item.id,
                         "product_title": item.product_title,
+                        "size": item.size,
                         "unit_price": str(item.unit_price),
                         "quantity": item.quantity,
                         "line_total": str(item.line_total),

@@ -1,5 +1,11 @@
 import { api } from "@/lib/api";
-import type { Address, Category, Paginated, ProductImage } from "@/lib/types";
+import type {
+  Address,
+  Category,
+  Paginated,
+  ProductImage,
+  SizeStock,
+} from "@/lib/types";
 
 export interface StoreProduct {
   id: number;
@@ -36,6 +42,8 @@ export interface StoreProductDetail {
   is_in_stock: boolean;
   stock_quantity: number;
   sizes: string[];
+  /** In-stock sizes with their remaining units; drives the quantity cap. */
+  size_stock: SizeStock[];
   images: ProductImage[];
   // user_rating is null for anonymous/SSR callers until refreshed client-side.
   average_rating: number | null;
@@ -82,6 +90,7 @@ interface StoreOrderItem {
   // Null once the product is removed from the catalog.
   product_slug: string | null;
   product_title: string;
+  size: string;
   unit_price: string;
   quantity: number;
   line_total: string;

@@ -338,6 +338,12 @@ export function OrdersSheet() {
                                       {it.quantity}×
                                     </span>{" "}
                                     {it.product_title}
+                                    {it.size && (
+                                      <span className="text-foreground/70">
+                                        {" "}
+                                        · {it.size}
+                                      </span>
+                                    )}
                                   </span>
                                   <span className="shrink-0 font-medium tabular-nums">
                                     Ksh {formatKsh(it.line_total)}

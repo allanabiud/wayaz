@@ -2,7 +2,7 @@ import uuid
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import F
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import generics, permissions, status
@@ -11,7 +11,7 @@ from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
 from accounts.models import Address
-from catalog.models import Product
+from catalog.models import Product, ProductSize
 
 from .delivery import delivery_fee
 from .emails import send_new_order_email_merchant, send_order_confirmation_email
@@ -111,7 +111,7 @@ class CartItemAddView(APIView):
         product_id = serializer.validated_data["product_id"]
         quantity = serializer.validated_data["quantity"]
         size = serializer.validated_data.get("size") or ""
-        product = Product.objects.get(id=product_id)
+        product = Product.objects.prefetch_related("size_stock").get(id=product_id)
 
         cart = get_or_create_cart(request)
         cart_item, created = CartItem.objects.get_or_create(
@@ -119,18 +119,14 @@ class CartItemAddView(APIView):
         )
 
         desired_qty = cart_item.quantity + quantity
-        # Stock is tracked per product, so count every size line in this cart.
-        other_qty = (
-            CartItem.objects.filter(cart=cart, product=product)
-            .exclude(pk=cart_item.pk)
-            .aggregate(total=Sum("quantity"))["total"]
-            or 0
-        )
-        if other_qty + desired_qty > product.stock_quantity:
+        # Stock lives per size, so only same-size lines compete for it.
+        available = product.size_quantity(size)
+        if desired_qty > available:
+            label = f" in size {size}" if size else ""
             return Response(
                 {
-                    "detail": f"Cannot add {quantity} item(s). Only {product.stock_quantity} left in stock.",
-                    "available_stock": product.stock_quantity,
+                    "detail": f"Cannot add {quantity} item(s). Only {available} left{label}.",
+                    "available_stock": available,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -155,7 +151,13 @@ class CartItemDetailView(APIView):
     )
     def patch(self, request, item_id):
         cart = get_or_create_cart(request)
-        cart_item = get_object_or_404(CartItem, id=item_id, cart=cart)
+        cart_item = get_object_or_404(
+            CartItem.objects.select_related("product").prefetch_related(
+                "product__size_stock"
+            ),
+            id=item_id,
+            cart=cart,
+        )
 
         serializer = UpdateCartItemSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -171,11 +173,35 @@ class CartItemDetailView(APIView):
                 .first()
             )
             if existing_duplicate:
-                existing_duplicate.quantity += cart_item.quantity
+                combined = existing_duplicate.quantity + cart_item.quantity
+                available = new_product.size_quantity(existing_duplicate.size)
+                # Unsized lines on sized products are validated at checkout.
+                incomplete = bool(new_product.sizes) and not existing_duplicate.size
+                if combined > available and not incomplete:
+                    label = f" in size {existing_duplicate.size}"
+                    return Response(
+                        {
+                            "detail": f"Only {available} unit(s) available{label}.",
+                            "available_stock": available,
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                existing_duplicate.quantity = combined
                 existing_duplicate.save()
                 cart_item.delete()
                 cart_item = existing_duplicate
             else:
+                if new_size or not new_product.sizes:
+                    available = new_product.size_quantity(new_size)
+                    if cart_item.quantity > available:
+                        label = f" in size {new_size}" if new_size else ""
+                        return Response(
+                            {
+                                "detail": f"Only {available} unit(s) available{label}.",
+                                "available_stock": available,
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
                 cart_item.product = new_product
                 cart_item.size = new_size
 
@@ -201,13 +227,16 @@ class CartItemDetailView(APIView):
                 )
                 if duplicate:
                     combined = duplicate.quantity + cart_item.quantity
-                    if combined > product.stock_quantity:
+                    available = product.size_quantity(requested)
+                    incomplete = bool(product.sizes) and not requested
+                    if combined > available and not incomplete:
+                        label = f" in size {requested}"
                         return Response(
                             {
                                 "detail": (
-                                    f"Only {product.stock_quantity} unit(s) available."
+                                    f"Only {available} unit(s) available{label}."
                                 ),
-                                "available_stock": product.stock_quantity,
+                                "available_stock": available,
                             },
                             status=status.HTTP_400_BAD_REQUEST,
                         )
@@ -216,25 +245,33 @@ class CartItemDetailView(APIView):
                     cart_item.delete()
                     cart_item = duplicate
                 else:
+                    if requested and cart_item.quantity > product.size_quantity(
+                        requested
+                    ):
+                        available = product.size_quantity(requested)
+                        return Response(
+                            {
+                                "detail": f"Only {available} unit(s) available in size {requested}.",
+                                "available_stock": available,
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
                     cart_item.size = requested
 
         if "quantity" in serializer.validated_data:
             qty = serializer.validated_data["quantity"]
-            # Stock is per product: total every other size line as well.
-            other_qty = (
-                CartItem.objects.filter(cart=cart, product=cart_item.product)
-                .exclude(id=cart_item.id)
-                .aggregate(total=Sum("quantity"))["total"]
-                or 0
-            )
-            if qty + other_qty > cart_item.product.stock_quantity:
-                return Response(
-                    {
-                        "detail": f"Only {cart_item.product.stock_quantity} unit(s) available.",
-                        "available_stock": cart_item.product.stock_quantity,
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            size = cart_item.size
+            if size or not cart_item.product.sizes:
+                available = cart_item.product.size_quantity(size)
+                if qty > available:
+                    label = f" in size {size}" if size else ""
+                    return Response(
+                        {
+                            "detail": f"Only {available} unit(s) available{label}.",
+                            "available_stock": available,
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
             cart_item.quantity = qty
 
         cart_item.save()
@@ -306,7 +343,7 @@ class OrderListView(generics.ListAPIView):
 
 
 class CheckoutView(APIView):
-    """Creates the order atomically with select_for_update product locks so
+    """Creates the order atomically with select_for_update size-row locks so
     concurrent checkouts cannot oversell."""
 
     permission_classes = [permissions.AllowAny]
@@ -323,7 +360,9 @@ class CheckoutView(APIView):
         data = serializer.validated_data
 
         cart = get_or_create_cart(request)
-        items = list(cart.items.select_related("product"))
+        items = list(
+            cart.items.select_related("product").prefetch_related("product__size_stock")
+        )
         if not items:
             return Response(
                 {"detail": "Your cart is empty."}, status=status.HTTP_400_BAD_REQUEST
@@ -331,29 +370,35 @@ class CheckoutView(APIView):
 
         try:
             with transaction.atomic():
-                locked_products = {
-                    product.id: product
-                    for product in Product.objects.select_for_update().filter(
-                        id__in=[item.product_id for item in items]
+                locked_rows = {
+                    (row.product_id, row.size): row
+                    for row in ProductSize.objects.select_for_update().filter(
+                        product_id__in=[item.product_id for item in items]
                     )
                 }
 
-                # Stock is per product, so total every size line together.
-                required: dict[int, int] = {}
+                # Stock is per size, so keys are (product, size) pairs.
+                required: dict[tuple[int, str], int] = {}
                 for item in items:
-                    required[item.product_id] = (
-                        required.get(item.product_id, 0) + item.quantity
-                    )
-                for product_id, needed in required.items():
-                    product = locked_products[product_id]
-                    if needed > product.stock_quantity:
+                    key = (item.product_id, item.size)
+                    required[key] = required.get(key, 0) + item.quantity
+                for (product_id, size), needed in required.items():
+                    row = locked_rows.get((product_id, size))
+                    available = row.quantity if row else 0
+                    if needed > available:
+                        title = next(
+                            item.product.title
+                            for item in items
+                            if item.product_id == product_id
+                        )
+                        label = f" in size {size}" if size else ""
                         raise ValidationError(
                             {
                                 "detail": (
-                                    f"Only {product.stock_quantity} unit(s) of "
-                                    f"{product.title} available."
+                                    f"Only {available} unit(s) of "
+                                    f"{title} available{label}."
                                 ),
-                                "available_stock": product.stock_quantity,
+                                "available_stock": available,
                             }
                         )
 
@@ -422,16 +467,18 @@ class CheckoutView(APIView):
                 )
 
                 for item in items:
-                    product = locked_products[item.product_id]
                     OrderItem.objects.create(
                         order=order,
-                        product=product,
-                        product_title=product.title,
-                        unit_price=product.current_price,
+                        product=item.product,
+                        product_title=item.product.title,
+                        size=item.size,
+                        unit_price=item.product.current_price,
                         quantity=item.quantity,
                     )
-                    product.stock_quantity -= item.quantity
-                    product.save(update_fields=["stock_quantity"])
+                    row = locked_rows[(item.product_id, item.size)]
+                    ProductSize.objects.filter(pk=row.pk).update(
+                        quantity=F("quantity") - item.quantity
+                    )
 
                 cart.items.all().delete()
 

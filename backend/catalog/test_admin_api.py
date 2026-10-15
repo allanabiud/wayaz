@@ -7,6 +7,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from accounts.models import WishlistItem
+from catalog.factories import create_product
 from catalog.models import Category, Product, ProductReview
 from orders.models import Order, OrderItem
 
@@ -34,7 +35,7 @@ class AdminAPITestCase(TestCase):
 
         self.category = Category.objects.create(name="Shoes", slug="shoes")
 
-        self.product = Product.objects.create(
+        self.product = create_product(
             title="Air Max 90",
             category=self.category,
             base_price=12000.00,
@@ -273,7 +274,7 @@ class AdminAPITestCase(TestCase):
         return order
 
     def test_admin_overview_top_products_ranked_by_sales(self):
-        second = Product.objects.create(
+        second = create_product(
             title="Pegasus Zoom",
             category=self.category,
             base_price=9000.00,
@@ -300,7 +301,7 @@ class AdminAPITestCase(TestCase):
     def test_admin_overview_top_lists_capped_at_five(self):
         # Six products each outselling the last, so the cap drops the lowest.
         for i in range(6):
-            product = Product.objects.create(
+            product = create_product(
                 title=f"Runner {i}",
                 category=self.category,
                 base_price=1000.00,
@@ -341,13 +342,32 @@ class AdminAPITestCase(TestCase):
             "category_id": self.category.id,
             "description": "Classic all-white sneakers",
             "base_price": "9500.00",
-            "stock_quantity": 35,
+            "size_stock": [
+                {"size": "40", "quantity": 20},
+                {"size": "41", "quantity": 15},
+            ],
         }
         res = self.client.post("/api/v1/admin/products/", payload, format="json")
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Product.objects.count(), 2)
         created_product = Product.objects.get(title="Air Force 1")
-        self.assertEqual(created_product.stock_quantity, 35)
+        self.assertEqual(created_product.total_stock, 35)
+        self.assertEqual(
+            [row.size for row in created_product.size_stock.all()], ["40", "41"]
+        )
+
+    def test_admin_update_product_replaces_size_stock(self):
+        self.client.force_authenticate(user=self.admin_user)
+        url = f"/api/v1/admin/products/{self.product.id}/"
+        res = self.client.patch(
+            url,
+            {"size_stock": [{"size": "42", "quantity": 7}]},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["stock_quantity"], 7)
+        rows = list(self.product.size_stock.all())
+        self.assertEqual([(row.size, row.quantity) for row in rows], [("42", 7)])
 
     def test_admin_adjust_product_stock(self):
         self.client.force_authenticate(user=self.admin_user)
@@ -355,13 +375,31 @@ class AdminAPITestCase(TestCase):
 
         res = self.client.post(url, {"stock_quantity": 50}, format="json")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.product.refresh_from_db()
-        self.assertEqual(self.product.stock_quantity, 50)
+        self.assertEqual(self.product.total_stock, 50)
 
         res = self.client.post(url, {"adjustment": -10}, format="json")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.product.refresh_from_db()
-        self.assertEqual(self.product.stock_quantity, 40)
+        self.assertEqual(self.product.total_stock, 40)
+
+    def test_admin_adjust_product_stock_per_size(self):
+        self.client.force_authenticate(user=self.admin_user)
+        sized = create_product(
+            title="Tee",
+            category=self.category,
+            base_price=1000.00,
+            stock_quantity=6,
+            sizes=["S", "M"],
+        )
+        url = f"/api/v1/admin/products/{sized.id}/adjust-stock/"
+
+        # A sized product must name which stock row to move.
+        res = self.client.post(url, {"stock_quantity": 5}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+        res = self.client.post(url, {"size": "M", "adjustment": -2}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(sized.size_stock.get(size="M").quantity, 1)
+        self.assertEqual(res.data["stock_quantity"], 4)
 
 
 class AdminCategoryAPITestCase(TestCase):
@@ -383,7 +421,7 @@ class AdminCategoryAPITestCase(TestCase):
             role=User.Role.CUSTOMER,
         )
         self.category = Category.objects.create(name="Jeans", display_order=1)
-        self.product = Product.objects.create(
+        self.product = create_product(
             title="Wide-Leg Jeans",
             category=self.category,
             base_price=3000.00,
@@ -472,7 +510,7 @@ class AdminReviewAPITestCase(TestCase):
             role=User.Role.CUSTOMER,
         )
         self.category = Category.objects.create(name="Denim", slug="denim")
-        self.product = Product.objects.create(
+        self.product = create_product(
             title="Wide-Leg Jeans",
             category=self.category,
             base_price=3000.00,

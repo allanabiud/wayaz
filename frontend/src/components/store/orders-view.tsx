@@ -185,8 +185,11 @@ function OrderCard({
                   {item.quantity}×
                 </span>{" "}
                 {item.product_title}
-                {/* Re-pick the size on the product page; order items don't
-                    store size snapshots. */}
+                {item.size && (
+                  <span className="text-muted-foreground"> · {item.size}</span>
+                )}
+                {/* Buy again opens the product page; the shopper re-picks
+                    their size there. */}
                 {item.product_slug && (
                   <Link
                     href={`/products/${item.product_slug}`}

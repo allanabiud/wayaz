@@ -2,6 +2,7 @@ from django.conf import settings
 from django.core.signals import request_finished, request_started
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models.functions import Coalesce
 from django.utils.text import slugify
 
 # StoreSettings is a singleton (pk forced to 1); memoize per request so
@@ -58,7 +59,17 @@ class Category(models.Model):
         return self.name
 
 
+class ProductQuerySet(models.QuerySet):
+    def with_stock(self):
+        """Annotates `_stock` with total units across size rows."""
+        return self.annotate(
+            _stock=Coalesce(models.Sum("size_stock__quantity"), models.Value(0))
+        )
+
+
 class Product(models.Model):
+    objects = ProductQuerySet.as_manager()
+
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
     category = models.ForeignKey(
@@ -69,9 +80,6 @@ class Product(models.Model):
     sale_price = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True
     )
-    stock_quantity = models.PositiveIntegerField(default=0, db_index=True)
-    # Sizes in display order, e.g. ["S", "M", "L"]; empty = one-size.
-    sizes = models.JSONField(blank=True, default=list)
     # Merchandising flag - surfaced in the storefront's Featured shelf.
     is_featured = models.BooleanField(default=False, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -122,14 +130,49 @@ class Product(models.Model):
 
     @property
     def total_stock(self):
-        return self.stock_quantity
+        return sum(row.quantity for row in self.size_stock.all())
 
     @property
     def is_in_stock(self):
-        return self.stock_quantity > 0
+        return self.total_stock > 0
+
+    @property
+    def sizes(self):
+        """Size labels this product offers (one-size products: [])."""
+        return [row.size for row in self.size_stock.all() if row.size]
+
+    @property
+    def available_sizes(self):
+        """Size labels with stock left - all the storefront offers."""
+        return [
+            row.size for row in self.size_stock.all() if row.size and row.quantity > 0
+        ]
+
+    def size_quantity(self, size):
+        for row in self.size_stock.all():
+            if row.size == size:
+                return row.quantity
+        return 0
 
     def __str__(self):
         return self.title
+
+
+class ProductSize(models.Model):
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name="size_stock"
+    )
+    # "" = one-size product; a single row keeps stock handling uniform.
+    size = models.CharField(max_length=50, blank=True, default="")
+    quantity = models.PositiveIntegerField(default=0)
+    display_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = ("product", "size")
+        ordering = ["display_order", "id"]
+
+    def __str__(self):
+        return f"{self.product.title} [{self.size or 'One size'}] x{self.quantity}"
 
 
 class ProductImage(models.Model):

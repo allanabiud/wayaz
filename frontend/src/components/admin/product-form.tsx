@@ -3,7 +3,15 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ImagePlus, Images, Loader2, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ImagePlus,
+  Images,
+  Loader2,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,12 +28,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { ImageManagerDialog } from "@/components/admin/image-manager-dialog";
 import { api, ApiError } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
-import type { Category, Product, ProductPayload } from "@/lib/types";
+import type { Category, Product, ProductPayload, SizeStock } from "@/lib/types";
 
 interface PendingImage {
   key: string;
   file: File;
   preview: string;
+}
+
+/** Inventory row while editing; quantity stays a string until submit. */
+interface SizeRow {
+  size: string;
+  quantity: string;
 }
 
 const MAX_FILE_MB = 5;
@@ -51,10 +65,12 @@ export function ProductForm({ categories, product, onImagesChanged }: Props) {
   );
   const [basePrice, setBasePrice] = useState(product?.base_price ?? "");
   const [salePrice, setSalePrice] = useState(product?.sale_price ?? "");
-  const [stockQuantity, setStockQuantity] = useState(
-    String(product?.stock_quantity ?? 0),
+  const [sizeStock, setSizeStock] = useState<SizeRow[]>(
+    (product?.size_stock ?? []).map((row) => ({
+      size: row.size,
+      quantity: String(row.quantity),
+    })),
   );
-  const [sizes, setSizes] = useState((product?.sizes ?? []).join(", "));
   const [isFeatured, setIsFeatured] = useState(product?.is_featured ?? false);
 
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
@@ -91,6 +107,11 @@ export function ProductForm({ categories, product, onImagesChanged }: Props) {
       return prev.filter((p) => p.key !== key);
     });
 
+  const updateRow = (index: number, patch: Partial<SizeRow>) =>
+    setSizeStock((prev) =>
+      prev.map((row, i) => (i === index ? { ...row, ...patch } : row)),
+    );
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (saving) return;
@@ -111,23 +132,36 @@ export function ProductForm({ categories, product, onImagesChanged }: Props) {
     ) {
       return setError("Sale price must be a valid number.");
     }
-    const stock = Number(stockQuantity);
-    if (!Number.isInteger(stock) || stock < 0) {
-      return setError("Stock quantity must be a whole number of 0 or more.");
+
+    const sizeRows: SizeStock[] = [];
+    const seen = new Set<string>();
+    for (const row of sizeStock) {
+      const size = row.size.trim();
+      if (size.length > 50) {
+        return setError("Each size must be 50 characters or fewer.");
+      }
+      if (seen.has(size)) {
+        return setError(`Duplicate size: ${size || "(one-size)"}.`);
+      }
+      seen.add(size);
+      const quantity = Number(row.quantity);
+      if (!Number.isInteger(quantity) || quantity < 0) {
+        return setError("Stock must be a whole number of 0 or more.");
+      }
+      sizeRows.push({ size, quantity });
     }
-    const sizeList = [
-      ...new Set(
-        sizes
-          .split(",")
-          .map((entry) => entry.trim())
-          .filter(Boolean),
-      ),
-    ];
-    if (sizeList.some((entry) => entry.length > 50)) {
-      return setError("Each size must be 50 characters or fewer.");
-    }
-    if (sizeList.length > 30) {
+    if (sizeRows.length > 30) {
       return setError("A product can have at most 30 sizes.");
+    }
+    // A blank size means one-size; it may not share the product with others.
+    const blankRows = sizeRows.filter((row) => !row.size);
+    if (
+      blankRows.length > 1 ||
+      (blankRows.length === 1 && sizeRows.length > 1)
+    ) {
+      return setError(
+        "Either a single one-size entry or sized entries, not both.",
+      );
     }
 
     const payload: ProductPayload = {
@@ -136,8 +170,7 @@ export function ProductForm({ categories, product, onImagesChanged }: Props) {
       base_price: basePrice.trim(),
       sale_price: salePrice.trim() === "" ? null : salePrice.trim(),
       category_id: Number(categoryId),
-      stock_quantity: stock,
-      sizes: sizeList,
+      size_stock: sizeRows,
       is_featured: isFeatured,
     };
 
@@ -481,32 +514,66 @@ export function ProductForm({ categories, product, onImagesChanged }: Props) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Label htmlFor="p-stock">Stock Quantity (units)</Label>
-              <Input
-                id="p-stock"
-                type="number"
-                step="1"
-                min="0"
-                value={stockQuantity}
-                onChange={(e) => setStockQuantity(e.target.value)}
+              <Label>Sizes &amp; stock</Label>
+              {sizeStock.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No rows yet - add one with a blank size for a one-size
+                  product.
+                </p>
+              )}
+              {sizeStock.map((row, index) => (
+                <div key={index} className="flex gap-2">
+                  <Input
+                    aria-label={`Size ${index + 1}`}
+                    value={row.size}
+                    onChange={(e) => updateRow(index, { size: e.target.value })}
+                    disabled={saving}
+                    placeholder="M (blank = one-size)"
+                  />
+                  <Input
+                    aria-label={`Stock for size ${index + 1}`}
+                    type="number"
+                    step="1"
+                    min="0"
+                    value={row.quantity}
+                    onChange={(e) =>
+                      updateRow(index, { quantity: e.target.value })
+                    }
+                    disabled={saving}
+                    className="w-24 shrink-0"
+                    placeholder="0"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Remove size ${index + 1}`}
+                    disabled={saving}
+                    onClick={() =>
+                      setSizeStock((prev) => prev.filter((_, i) => i !== index))
+                    }
+                    className="shrink-0 text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs cursor-pointer"
                 disabled={saving}
-                placeholder="0"
-              />
+                onClick={() =>
+                  setSizeStock((prev) => [...prev, { size: "", quantity: "0" }])
+                }
+              >
+                <Plus className="size-3.5" />
+                Add size
+              </Button>
               <p className="text-xs text-muted-foreground">
-                Total units on hand for this product.
-              </p>
-
-              <Label htmlFor="p-sizes">Sizes (optional)</Label>
-              <Input
-                id="p-sizes"
-                value={sizes}
-                onChange={(e) => setSizes(e.target.value)}
-                disabled={saving}
-                placeholder="e.g. S, M, L, XL"
-              />
-              <p className="text-xs text-muted-foreground">
-                Comma-separated, in display order - shoppers pick one before
-                adding to the cart. Leave empty for one-size products.
+                One row per size - stock is tracked separately for each, and
+                shoppers only see sizes that still have units.
               </p>
             </CardContent>
           </Card>

@@ -6,6 +6,7 @@ from .models import (
     Product,
     ProductImage,
     ProductReview,
+    ProductSize,
     RestockNotification,
 )
 
@@ -41,6 +42,12 @@ class CategoryAdmin(admin.ModelAdmin):
         return False
 
 
+class ProductSizeInline(admin.TabularInline):
+    model = ProductSize
+    extra = 0
+    fields = ("size", "quantity", "display_order")
+
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
@@ -53,10 +60,13 @@ class ProductAdmin(admin.ModelAdmin):
     list_filter = ("category",)
     search_fields = ("title", "description")
     prepopulated_fields = {"slug": ("title",)}
-    inlines = [ProductImageInline]
+    inlines = [ProductImageInline, ProductSizeInline]
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("size_stock")
 
     def total_stock_display(self, obj):
-        stock = obj.stock_quantity
+        stock = obj.total_stock
         color = "green" if stock > 10 else ("orange" if stock > 0 else "red")
         return format_html(
             '<span style="color: {}; font-weight: bold;">{}</span>', color, stock

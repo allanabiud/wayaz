@@ -293,8 +293,11 @@ export default function ProductDetailPage() {
                 <div>
                   <dt className="text-muted-foreground">Sizes</dt>
                   <dd className="font-medium text-foreground mt-0.5">
-                    {product.sizes.length > 0
-                      ? product.sizes.join(", ")
+                    {product.size_stock.some((row) => row.size)
+                      ? product.size_stock
+                          .filter((row) => row.size)
+                          .map((row) => row.size)
+                          .join(", ")
                       : "One size"}
                   </dd>
                 </div>

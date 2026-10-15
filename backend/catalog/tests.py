@@ -6,7 +6,8 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from catalog.models import Category, Product, ProductReview
+from catalog.factories import create_product
+from catalog.models import Category, ProductReview
 
 
 class CatalogAPITestCase(TestCase):
@@ -20,7 +21,7 @@ class CatalogAPITestCase(TestCase):
             display_order=1,
         )
 
-        self.product = Product.objects.create(
+        self.product = create_product(
             title="Vintage Washed Wide-Leg Jeans",
             category=self.category,
             description="Premium wide-leg denim",
@@ -36,7 +37,7 @@ class CatalogAPITestCase(TestCase):
         self.assertTrue(self.product.is_in_stock)
 
     def test_out_of_stock_product(self):
-        empty = Product.objects.create(
+        empty = create_product(
             title="Sold Out Jeans",
             category=self.category,
             base_price=3000.00,
@@ -61,6 +62,30 @@ class CatalogAPITestCase(TestCase):
         self.assertEqual(data["slug"], self.product.slug)
         self.assertEqual(data["stock_quantity"], 10)
         self.assertEqual(data["category"]["name"], "Jeans")
+
+    def test_sized_product_hides_out_of_stock_sizes(self):
+        sized = create_product(
+            title="Cargo Pants",
+            category=self.category,
+            base_price=3500.00,
+            stock_quantity=3,
+            sizes=["S", "M", "L"],
+        )
+        sized.size_stock.filter(size="M").update(quantity=0)
+
+        res = self.client.get(f"/api/v1/catalog/products/{sized.slug}/")
+        self.assertEqual(res.data["sizes"], ["S", "L"])
+        self.assertEqual(res.data["stock_quantity"], 2)
+        self.assertEqual(
+            {row["size"]: row["quantity"] for row in res.data["size_stock"]},
+            {"S": 1, "L": 1},
+        )
+
+        # The grid payload offers the same size list as the detail page.
+        res = self.client.get("/api/v1/catalog/products/")
+        results = res.data.get("results", res.data)
+        listed = next(p for p in results if p["id"] == sized.id)
+        self.assertEqual(listed["sizes"], ["S", "L"])
 
     def test_filter_products_by_category(self):
         response = self.client.get(
@@ -95,7 +120,7 @@ class ProductReviewAPITestCase(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.category = Category.objects.create(name="Shirts", slug="shirts")
-        self.product = Product.objects.create(
+        self.product = create_product(
             title="Oxford Shirt",
             category=self.category,
             base_price=2500.00,
@@ -260,7 +285,7 @@ class ProductPriceFilterTestCase(TestCase):
         self.client = APIClient()
         self.category = Category.objects.create(name="Denim", slug="denim")
         # Costs 4,200 today; the sticker says 5,000.
-        self.on_sale = Product.objects.create(
+        self.on_sale = create_product(
             title="On Sale Jean",
             category=self.category,
             base_price=5000.00,
@@ -292,14 +317,14 @@ class ProductPriceFilterTestCase(TestCase):
 
     def test_price_sort_ignores_the_sticker_price(self):
         # Current prices: Cheap Sale 2,500 / Plain 4,000 / On Sale 4,200.
-        Product.objects.create(
+        create_product(
             title="Cheap Sale Jean",
             category=self.category,
             base_price=5000.00,
             sale_price=2500.00,
             stock_quantity=5,
         )
-        Product.objects.create(
+        create_product(
             title="Plain Jean",
             category=self.category,
             base_price=4000.00,
@@ -428,7 +453,7 @@ class AdminProductImageUploadTestCase(TestCase):
             password="password123",
         )
         category = Category.objects.create(name="Tops", slug="tops")
-        cls.product = Product.objects.create(
+        cls.product = create_product(
             title="Test Tee",
             category=category,
             base_price=Decimal("1500.00"),
@@ -596,14 +621,14 @@ class RestockNotificationTestCase(TestCase):
         cache.clear()
         self.client = APIClient()
         self.category = Category.objects.create(name="Dresses", slug="dresses")
-        self.product = Product.objects.create(
+        self.product = create_product(
             title="Ankara Wrap Dress",
             category=self.category,
             base_price=Decimal("3500.00"),
             stock_quantity=0,
             sizes=["S", "M"],
         )
-        self.in_stock = Product.objects.create(
+        self.in_stock = create_product(
             title="Linen Shirt",
             category=self.category,
             base_price=Decimal("2000.00"),

@@ -17,6 +17,9 @@ class CartItemProductSerializer(serializers.ModelSerializer):
     unit_price = serializers.DecimalField(
         source="current_price", max_digits=10, decimal_places=2, read_only=True
     )
+    # Totals across size rows; keys kept for the storefront types.
+    stock_quantity = serializers.IntegerField(source="total_stock", read_only=True)
+    sizes = serializers.ListField(source="available_sizes", read_only=True)
 
     class Meta:
         model = Product
@@ -91,17 +94,19 @@ class AddToCartSerializer(serializers.Serializer):
 
     def validate_product_id(self, value):
         try:
-            product = Product.objects.get(id=value)
+            product = Product.objects.prefetch_related("size_stock").get(id=value)
         except Product.DoesNotExist:
             raise serializers.ValidationError("Product does not exist.") from None
 
-        if product.stock_quantity <= 0:
+        if not product.is_in_stock:
             raise serializers.ValidationError("This product is currently out of stock.")
 
         return value
 
     def validate(self, attrs):
-        product = Product.objects.get(id=attrs["product_id"])
+        product = Product.objects.prefetch_related("size_stock").get(
+            id=attrs["product_id"]
+        )
         size = (attrs.get("size") or "").strip()
 
         if product.sizes:
@@ -140,7 +145,9 @@ class UpdateCartItemSerializer(serializers.Serializer):
 
         if "product_id" in attrs:
             try:
-                product = Product.objects.get(id=attrs["product_id"])
+                product = Product.objects.prefetch_related("size_stock").get(
+                    id=attrs["product_id"]
+                )
                 attrs["product_obj"] = product
             except Product.DoesNotExist:
                 raise serializers.ValidationError(
@@ -203,6 +210,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "id",
             "product_slug",
             "product_title",
+            "size",
             "unit_price",
             "quantity",
             "line_total",

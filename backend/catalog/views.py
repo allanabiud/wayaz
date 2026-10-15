@@ -85,7 +85,9 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
 
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = (
-        Product.objects.select_related("category").prefetch_related("images").all()
+        Product.objects.select_related("category")
+        .prefetch_related("images", "size_stock")
+        .all()
     )
     permission_classes = [permissions.AllowAny]
     lookup_field = "slug"

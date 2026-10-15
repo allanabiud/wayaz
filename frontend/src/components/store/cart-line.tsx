@@ -28,6 +28,12 @@ export function CartLine({
   const thumbnail = product.thumbnail ? mediaUrl(product.thumbnail) : null;
   const hasSizes = product.sizes.length > 0;
   const needsSize = hasSizes && !item.size;
+  // The picked size may have sold out since (the list only shows what's in
+  // stock); keep it on the line so the choice stays visible and changeable.
+  const sizeOptions =
+    hasSizes && item.size && !product.sizes.includes(item.size)
+      ? [item.size, ...product.sizes]
+      : product.sizes;
 
   const run = async (action: () => Promise<Cart>, failure: string) => {
     if (busy) return;
@@ -88,7 +94,7 @@ export function CartLine({
               role="group"
               aria-label={`Size for ${product.product_title}`}
             >
-              {product.sizes.map((option) => (
+              {sizeOptions.map((option) => (
                 <button
                   key={option}
                   type="button"

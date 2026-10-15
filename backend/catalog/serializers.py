@@ -42,6 +42,11 @@ class ProductImageSerializer(serializers.ModelSerializer):
         fields = ("id", "image", "alt_text", "is_primary", "display_order")
 
 
+class SizeStockSerializer(serializers.Serializer):
+    size = serializers.CharField()
+    quantity = serializers.IntegerField()
+
+
 class ProductListSerializer(serializers.ModelSerializer):
     primary_image = serializers.SerializerMethodField()
     category = serializers.CharField(source="category.name", read_only=True)
@@ -51,6 +56,8 @@ class ProductListSerializer(serializers.ModelSerializer):
         max_digits=10, decimal_places=2, read_only=True
     )
     is_in_stock = serializers.BooleanField(read_only=True)
+    # Storefront only offers sizes that are actually in stock.
+    sizes = serializers.ListField(source="available_sizes", read_only=True)
 
     class Meta:
         model = Product
@@ -90,6 +97,10 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         max_digits=10, decimal_places=2, read_only=True
     )
     is_in_stock = serializers.BooleanField(read_only=True)
+    # Total units across size rows (key kept for the storefront types).
+    stock_quantity = serializers.IntegerField(source="total_stock", read_only=True)
+    sizes = serializers.ListField(source="available_sizes", read_only=True)
+    size_stock = serializers.SerializerMethodField()
     # Annotated by ProductViewSet.get_object for the detail route.
     average_rating = serializers.SerializerMethodField()
     rating_count = serializers.SerializerMethodField()
@@ -110,6 +121,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             "is_in_stock",
             "stock_quantity",
             "sizes",
+            "size_stock",
             "images",
             "average_rating",
             "rating_count",
@@ -129,6 +141,12 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.IntegerField(allow_null=True))
     def get_user_rating(self, obj) -> int | None:
         return getattr(obj, "user_rating", None)
+
+    @extend_schema_field(SizeStockSerializer(many=True))
+    def get_size_stock(self, obj):
+        # Only buyable rows, mirroring `sizes`.
+        rows = [row for row in obj.size_stock.all() if row.size and row.quantity > 0]
+        return SizeStockSerializer(rows, many=True).data
 
 
 class ProductReviewSerializer(serializers.ModelSerializer):

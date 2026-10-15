@@ -223,6 +223,11 @@ export interface ProductImage {
   display_order: number;
 }
 
+export interface SizeStock {
+  size: string;
+  quantity: number;
+}
+
 export interface Product {
   id: number;
   title: string;
@@ -232,8 +237,9 @@ export interface Product {
   description: string;
   base_price: string;
   sale_price: string | null;
+  /** Read-only total across size rows. */
   stock_quantity: number;
-  sizes: string[];
+  size_stock: SizeStock[];
   is_in_stock: boolean;
   is_featured: boolean;
   images: ProductImage[];
@@ -247,8 +253,7 @@ export interface ProductPayload {
   base_price: string;
   sale_price: string | null;
   category_id: number;
-  stock_quantity: number;
-  sizes: string[];
+  size_stock: SizeStock[];
   is_featured: boolean;
 }
 
@@ -281,6 +286,7 @@ export interface Customer {
 export interface AdminOrderItem {
   id: number;
   product_title: string;
+  size: string;
   unit_price: string;
   quantity: number;
   line_total: string;

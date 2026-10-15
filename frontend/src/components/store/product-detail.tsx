@@ -187,7 +187,11 @@ export function ProductDetail({ product }: ProductDetailProps) {
   // Sized products need an explicit size; one-size products skip straight in.
   const hasSizes = product.sizes.length > 0;
   const sizeChosen = !hasSizes || size !== "";
-  const maxQuantity = Math.max(1, product.stock_quantity);
+  // Per-size stock: the stepper and the scarcity hint follow the chosen size.
+  const sizeQuantity = (option: string) =>
+    product.size_stock.find((row) => row.size === option)?.quantity ?? 0;
+  const stockLeft = hasSizes ? sizeQuantity(size) : product.stock_quantity;
+  const maxQuantity = Math.max(1, stockLeft);
   // Cart state is per product + size: switching size re-offers "Add to
   // Cart" while the selected size shows "In Cart".
   const sizeInCart = (cart?.items ?? []).some(
@@ -257,11 +261,12 @@ export function ProductDetail({ product }: ProductDetailProps) {
     year: "numeric",
   });
   // Exact counts only at <=5 (scarcity nudge); "In stock" otherwise so
-  // full inventory stays unpublished.
+  // full inventory stays unpublished. Sized products report the chosen size.
+  const lowStock = product.is_in_stock && stockLeft > 0 && stockLeft <= 5;
   const availabilityLabel = !product.is_in_stock
     ? "Out of stock"
-    : product.stock_quantity <= 5
-      ? `Only ${product.stock_quantity} left`
+    : lowStock
+      ? `Only ${stockLeft} left${hasSizes && size ? ` in ${size}` : ""}`
       : "In stock";
 
   return (
@@ -497,7 +502,13 @@ export function ProductDetail({ product }: ProductDetailProps) {
                     type="button"
                     aria-pressed={size === option}
                     disabled={adding}
-                    onClick={() => setSize(option)}
+                    onClick={() => {
+                      setSize(option);
+                      // A smaller size must not keep a bigger quantity.
+                      setQuantity((prev) =>
+                        Math.max(1, Math.min(prev, sizeQuantity(option))),
+                      );
+                    }}
                     className={`h-10 min-w-11 rounded-lg border px-4 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 ${
                       size === option
                         ? "border-primary bg-primary text-primary-foreground"
@@ -540,9 +551,9 @@ export function ProductDetail({ product }: ProductDetailProps) {
               </Button>
             </div>
           </div>
-          {product.is_in_stock && product.stock_quantity <= 5 && (
+          {lowStock && (
             <p className="mt-1.5 text-right text-xs text-muted-foreground tabular-nums">
-              Max {product.stock_quantity} available
+              Max {stockLeft} available
             </p>
           )}
 
@@ -646,7 +657,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 className={`font-medium tabular-nums ${
                   !product.is_in_stock
                     ? "text-destructive"
-                    : product.stock_quantity <= 5
+                    : lowStock
                       ? "text-amber-600 dark:text-amber-400"
                       : ""
                 }`}

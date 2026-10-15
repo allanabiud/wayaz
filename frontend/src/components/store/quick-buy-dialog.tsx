@@ -42,10 +42,10 @@ export function QuickBuyDialog({
   const [size, setSize] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [busy, setBusy] = useState(false);
-  const [stock, setStock] = useState<number | null>(null);
+  const [detail, setDetail] = useState<StoreProductDetail | null>(null);
 
   // The grid payload has no stock count, only the detail endpoint does;
-  // clamp the stepper to it (the server re-validates anyway).
+  // clamp the stepper to the picked size's units (the server re-validates).
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -53,11 +53,8 @@ export function QuickBuyDialog({
       .get<StoreProductDetail>(
         `/api/v1/catalog/products/${encodeURIComponent(product.slug)}/`,
       )
-      .then((detail) => {
-        if (cancelled) return;
-        const available = Math.max(1, detail.stock_quantity);
-        setStock(available);
-        setQuantity((prev) => Math.min(prev, available));
+      .then((res) => {
+        if (!cancelled) setDetail(res);
       })
       .catch(() => {
         // Keep the fallback cap; the add call still validates server-side.
@@ -71,12 +68,19 @@ export function QuickBuyDialog({
     if (next) {
       setSize("");
       setQuantity(1);
-      setStock(null);
+      setDetail(null);
     }
     onOpenChange(next);
   };
 
-  const maxQuantity = stock ?? FALLBACK_MAX_QTY;
+  const availableFor = (option: string) =>
+    detail?.size_stock.find((row) => row.size === option)?.quantity ?? 0;
+  // One-size products report the total; sized ones follow the chosen size.
+  const stockLeft = size
+    ? availableFor(size)
+    : (detail?.stock_quantity ?? null);
+  const maxQuantity =
+    stockLeft === null ? FALLBACK_MAX_QTY : Math.max(1, stockLeft);
   const lineTotal = Number(product.current_price) * quantity;
   const canBuy = Boolean(size) && product.is_in_stock && !busy;
 
@@ -131,7 +135,13 @@ export function QuickBuyDialog({
                   type="button"
                   aria-pressed={size === option}
                   disabled={busy}
-                  onClick={() => setSize(option)}
+                  onClick={() => {
+                    setSize(option);
+                    // A smaller size must not keep a bigger quantity.
+                    setQuantity((prev) =>
+                      Math.max(1, Math.min(prev, availableFor(option))),
+                    );
+                  }}
                   className={`h-10 min-w-11 rounded-lg border px-4 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 ${
                     size === option
                       ? "border-primary bg-primary text-primary-foreground"
@@ -173,9 +183,9 @@ export function QuickBuyDialog({
             </div>
           </div>
 
-          {stock !== null && stock <= 5 && (
+          {stockLeft !== null && stockLeft <= 5 && (
             <p className="text-xs font-medium text-amber-600">
-              Only {stock} left in stock
+              Only {stockLeft} left{size ? ` in size ${size}` : ""}
             </p>
           )}
         </div>

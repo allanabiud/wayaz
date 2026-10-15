@@ -8,7 +8,7 @@ from django.db import models, transaction
 from django.db.models import F
 from django.utils import timezone
 
-from catalog.models import Product
+from catalog.models import Product, ProductSize
 
 from .delivery import DELIVERY_ZONE_CHOICES
 
@@ -82,6 +82,7 @@ class OrderItem(models.Model):
     )
     # Snapshots captured at purchase time so history survives catalog edits.
     product_title = models.CharField(max_length=255)
+    size = models.CharField(max_length=50, blank=True, default="")
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     quantity = models.PositiveIntegerField(default=1)
 
@@ -296,15 +297,30 @@ class Order(models.Model):
         return f"https://wa.me/{number}?text={quote(text)}"
 
     def cancel(self):
-        """Cancel the order and restore reserved stock to its products."""
+        """Cancel the order and restore reserved stock to its size rows."""
         if self.status == self.Status.CANCELLED:
             return self
         with transaction.atomic():
             for item in self.items.all():
-                if item.product_id:
-                    Product.objects.filter(pk=item.product_id).update(
-                        stock_quantity=F("stock_quantity") + item.quantity
+                if not item.product_id:
+                    continue
+                restored = ProductSize.objects.filter(
+                    product_id=item.product_id, size=item.size
+                ).update(quantity=F("quantity") + item.quantity)
+                if not restored and item.size == "":
+                    # Only re-create a one-size row: legacy items carry no
+                    # size, so their units aren't attributable on sized goods.
+                    has_sized_rows = (
+                        ProductSize.objects.filter(product_id=item.product_id)
+                        .exclude(size="")
+                        .exists()
                     )
+                    if not has_sized_rows:
+                        ProductSize.objects.create(
+                            product_id=item.product_id,
+                            size="",
+                            quantity=item.quantity,
+                        )
             self.status = self.Status.CANCELLED
             self.save(update_fields=["status", "updated_at"])
         return self

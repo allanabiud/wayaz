@@ -73,14 +73,16 @@ class AdminOverviewView(APIView):
     def get(self, request):
         total_products = Product.objects.count()
         total_stock = (
-            Product.objects.aggregate(total=Sum("stock_quantity"))["total"] or 0
+            Product.objects.aggregate(total=Sum("size_stock__quantity"))["total"] or 0
         )
 
-        out_of_stock_count = Product.objects.filter(stock_quantity=0).count()
+        out_of_stock_count = Product.objects.with_stock().filter(_stock=0).count()
         low_stock_products = list(
-            Product.objects.filter(stock_quantity__gt=0, stock_quantity__lte=5)
+            Product.objects.with_stock()
+            .filter(_stock__gt=0, _stock__lte=5)
             .select_related("category")
-            .order_by("stock_quantity")[:10]
+            .prefetch_related("size_stock")
+            .order_by("_stock")[:10]
         )
 
         total_categories = Category.objects.count()
@@ -254,7 +256,7 @@ class AdminOverviewView(APIView):
                 "title": wishlist_products[row["product_id"]].title,
                 "saves": row["saves"],
                 "price": float(wishlist_products[row["product_id"]].current_price),
-                "stock": wishlist_products[row["product_id"]].stock_quantity,
+                "stock": wishlist_products[row["product_id"]].total_stock,
             }
             for row in wishlist_rows
             if row["product_id"] in wishlist_products
@@ -443,7 +445,7 @@ class AdminOverviewView(APIView):
             for row in (
                 Product.objects.values("category__name")
                 .annotate(
-                    units=Sum("stock_quantity"),
+                    units=Sum("size_stock__quantity"),
                     products=Count("id"),
                 )
                 .order_by("-units")
@@ -518,7 +520,7 @@ class AdminOverviewView(APIView):
                             if p.primary_image and p.primary_image.image
                             else None
                         ),
-                        "stock_quantity": p.stock_quantity,
+                        "stock_quantity": p.total_stock,
                     }
                     for p in low_stock_products
                 ],
@@ -558,7 +560,9 @@ class AdminNavCountsView(APIView):
 
 class AdminProductViewSet(viewsets.ModelViewSet):
     queryset = (
-        Product.objects.select_related("category").prefetch_related("images").all()
+        Product.objects.select_related("category")
+        .prefetch_related("images", "size_stock")
+        .all()
     )
     serializer_class = AdminProductSerializer
     permission_classes = [IsStaffOrAdminUser]
@@ -582,9 +586,9 @@ class AdminProductViewSet(viewsets.ModelViewSet):
 
         in_stock = params.get("in_stock")
         if in_stock in ("true", "1"):
-            qs = qs.filter(stock_quantity__gt=0)
+            qs = qs.with_stock().filter(_stock__gt=0)
         elif in_stock in ("false", "0"):
-            qs = qs.filter(stock_quantity=0)
+            qs = qs.with_stock().filter(_stock=0)
 
         return qs
 
@@ -681,13 +685,15 @@ class AdminProductStockView(APIView):
         description=(
             "Send `stock_quantity` to set an absolute level, or `adjustment` "
             "to shift the current one (negative values included). Both clamp "
-            "at zero."
+            "at zero. `size` names the stock row; one-size products default "
+            'to "".'
         ),
         request=inline_serializer(
             name="AdminStockUpdateRequest",
             fields={
                 "stock_quantity": serializers.IntegerField(required=False),
                 "adjustment": serializers.IntegerField(required=False),
+                "size": serializers.CharField(required=False, allow_blank=True),
             },
         ),
         responses={
@@ -698,10 +704,24 @@ class AdminProductStockView(APIView):
     )
     def post(self, request, product_id):
         try:
-            product = Product.objects.get(id=product_id)
+            product = Product.objects.prefetch_related("size_stock").get(id=product_id)
         except Product.DoesNotExist:
             return Response(
                 {"detail": "Product not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        size = (request.data.get("size") or "").strip()
+        if not size and product.sizes:
+            return Response(
+                {"detail": "Send 'size' - stock is tracked per size."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        row = product.size_stock.filter(size=size).first()
+        if row is None:
+            return Response(
+                {"detail": f"No stock row for size '{size}'."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         new_stock = request.data.get("stock_quantity")
@@ -709,7 +729,7 @@ class AdminProductStockView(APIView):
 
         if new_stock is not None:
             try:
-                product.stock_quantity = max(0, int(new_stock))
+                row.quantity = max(0, int(new_stock))
             except ValueError:
                 return Response(
                     {"detail": "Invalid stock quantity."},
@@ -717,9 +737,7 @@ class AdminProductStockView(APIView):
                 )
         elif adjustment is not None:
             try:
-                product.stock_quantity = max(
-                    0, product.stock_quantity + int(adjustment)
-                )
+                row.quantity = max(0, row.quantity + int(adjustment))
             except ValueError:
                 return Response(
                     {"detail": "Invalid adjustment number."},
@@ -731,7 +749,8 @@ class AdminProductStockView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        product.save()
+        row.save(update_fields=["quantity"])
+        product = Product.objects.prefetch_related("size_stock").get(id=product_id)
         return Response(AdminProductSerializer(product).data)
 
 
@@ -1059,10 +1078,16 @@ class AdminAnalyticsView(APIView):
             order__in=confirmed_orders
         ).values_list("product_id", flat=True)
         dead_stock = list(
-            Product.objects.filter(stock_quantity__gt=0)
+            Product.objects.with_stock()
+            .filter(_stock__gt=0)
             .exclude(id__in=sold_product_ids)
-            .values("id", "title", "stock_quantity", "base_price")
-            .order_by("-stock_quantity")[:5]
+            .values(
+                "id",
+                "title",
+                "base_price",
+                stock_quantity=F("_stock"),
+            )
+            .order_by("-_stock")[:5]
         )
 
         return Response(

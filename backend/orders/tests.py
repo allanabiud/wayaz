@@ -9,7 +9,8 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from catalog.models import Category, Product
+from catalog.factories import create_product
+from catalog.models import Category
 from orders.models import Cart, CartItem, Coupon, Order, OrderItem
 from orders.tokens import verify_payment_token
 from payments.models import PaymentTransaction
@@ -22,14 +23,14 @@ class CartAPITestCase(TestCase):
         self.client = APIClient()
 
         self.category = Category.objects.create(name="Shoes", slug="shoes")
-        self.product_1 = Product.objects.create(
+        self.product_1 = create_product(
             title="Running Sneaker",
             category=self.category,
             base_price=3000.00,
             sale_price=2500.00,
             stock_quantity=5,
         )
-        self.product_2 = Product.objects.create(
+        self.product_2 = create_product(
             title="Court Sneaker",
             category=self.category,
             base_price=3000.00,
@@ -114,7 +115,7 @@ class CartAPITestCase(TestCase):
         self.assertEqual(del_res.data["total_items"], 0)
 
     def test_update_cart_item_size(self):
-        sized = Product.objects.create(
+        sized = create_product(
             title="Denim Jacket",
             category=self.category,
             base_price=4000.00,
@@ -151,7 +152,7 @@ class CartAPITestCase(TestCase):
         self.assertIn("size", bad_res.data)
 
     def test_size_change_merges_into_the_matching_line(self):
-        sized = Product.objects.create(
+        sized = create_product(
             title="Denim Jacket",
             category=self.category,
             base_price=4000.00,
@@ -186,7 +187,7 @@ class CartAPITestCase(TestCase):
         self.assertEqual(res.data["items"][0]["quantity"], 3)
 
     def test_size_merge_respects_stock(self):
-        sized = Product.objects.create(
+        sized = create_product(
             title="Denim Jacket",
             category=self.category,
             base_price=4000.00,
@@ -209,8 +210,8 @@ class CartAPITestCase(TestCase):
         )
         line_l = next(item for item in add_l.data["items"] if item["size"] == "L")
 
-        # Stock drops to 5 between the adds and the merge: 3 + 3 no longer fits.
-        Product.objects.filter(id=sized.id).update(stock_quantity=5)
+        # M stock drops to 2 between the adds and the merge: 3 + 3 no longer fits.
+        sized.size_stock.filter(size="M").update(quantity=2)
 
         res = self.client.patch(
             f"/api/v1/orders/cart/items/{line_l['id']}/",
@@ -223,7 +224,7 @@ class CartAPITestCase(TestCase):
         self.assertEqual(CartItem.objects.filter(cart_id=cart_id, size="L").count(), 1)
 
     def test_cart_lines_expose_the_size_options(self):
-        sized = Product.objects.create(
+        sized = create_product(
             title="Denim Jacket",
             category=self.category,
             base_price=4000.00,
@@ -239,6 +240,43 @@ class CartAPITestCase(TestCase):
         )
         # The cart views render the size picker from this list.
         self.assertEqual(res.data["items"][0]["product"]["sizes"], ["M", "L"])
+
+    def test_cart_stock_is_tracked_per_size(self):
+        sized = create_product(
+            title="Denim Jacket",
+            category=self.category,
+            base_price=4000.00,
+            stock_quantity=4,
+            sizes=["M", "L"],  # 2 units each
+        )
+        cart_id = self.client.get("/api/v1/orders/cart/").headers["X-CART-ID"]
+
+        fill_m = self.client.post(
+            "/api/v1/orders/cart/items/",
+            {"product_id": sized.id, "quantity": 2, "size": "M"},
+            HTTP_X_CART_ID=cart_id,
+            format="json",
+        )
+        self.assertEqual(fill_m.status_code, status.HTTP_201_CREATED)
+
+        # M is full now - another M hits its own ceiling, not the product's.
+        res = self.client.post(
+            "/api/v1/orders/cart/items/",
+            {"product_id": sized.id, "quantity": 1, "size": "M"},
+            HTTP_X_CART_ID=cart_id,
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(res.data["available_stock"], 2)
+
+        # L has its own two units and is still sellable.
+        res = self.client.post(
+            "/api/v1/orders/cart/items/",
+            {"product_id": sized.id, "quantity": 2, "size": "L"},
+            HTTP_X_CART_ID=cart_id,
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
 
     def test_cart_merge_on_login(self):
         init_res = self.client.get("/api/v1/orders/cart/")
@@ -267,7 +305,7 @@ class CheckoutAPITestCase(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.category = Category.objects.create(name="Shirts", slug="shirts")
-        self.product = Product.objects.create(
+        self.product = create_product(
             title="Linen Shirt",
             category=self.category,
             base_price=3000.00,
@@ -318,7 +356,7 @@ class CheckoutAPITestCase(TestCase):
         self.assertEqual(Decimal(str(item["line_total"])), Decimal("5000.00"))
 
         self.product.refresh_from_db()
-        self.assertEqual(self.product.stock_quantity, 3)
+        self.assertEqual(self.product.total_stock, 3)
         self.assertEqual(self.cart.items.count(), 0)
 
         self.assertIn("wa.me/", res.data["whatsapp_link"])
@@ -384,7 +422,7 @@ class CheckoutAPITestCase(TestCase):
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Order.objects.count(), 0)
         self.product.refresh_from_db()
-        self.assertEqual(self.product.stock_quantity, 5)
+        self.assertEqual(self.product.total_stock, 5)
         self.assertEqual(self.cart.items.count(), 1)
 
     def test_checkout_rejects_empty_cart(self):
@@ -396,7 +434,7 @@ class CheckoutAPITestCase(TestCase):
     def test_checkout_requires_a_size_for_sized_products(self):
         """Cart lines may sit size-less until the shopper picks one, but the
         order itself must never be placed without a size."""
-        sized = Product.objects.create(
+        sized = create_product(
             title="Denim Jacket",
             category=self.category,
             base_price=4000.00,
@@ -409,7 +447,7 @@ class CheckoutAPITestCase(TestCase):
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(Order.objects.count(), 0)
         self.product.refresh_from_db()
-        self.assertEqual(self.product.stock_quantity, 5)
+        self.assertEqual(self.product.total_stock, 5)
 
         # Choosing a size unblocks the same cart.
         line = CartItem.objects.get(product=sized, cart=self.cart)
@@ -432,7 +470,7 @@ class CheckoutAPITestCase(TestCase):
         self.assertEqual(res.data["status"], Order.Status.PROCESSING)
         # Stock stays reserved while processing.
         self.product.refresh_from_db()
-        self.assertEqual(self.product.stock_quantity, 3)
+        self.assertEqual(self.product.total_stock, 3)
 
     def test_authenticated_checkout_attaches_user(self):
         user = User.objects.create_user(
@@ -452,13 +490,42 @@ class CheckoutAPITestCase(TestCase):
         res = self.checkout()
         order = Order.objects.get(order_number=res.data["order_number"])
         self.product.refresh_from_db()
-        self.assertEqual(self.product.stock_quantity, 3)
+        self.assertEqual(self.product.total_stock, 3)
 
         order.cancel()
         order.refresh_from_db()
         self.assertEqual(order.status, Order.Status.CANCELLED)
         self.product.refresh_from_db()
-        self.assertEqual(self.product.stock_quantity, 5)
+        self.assertEqual(self.product.total_stock, 5)
+
+    def test_checkout_decrements_only_the_ordered_size(self):
+        sized = create_product(
+            title="Denim Jacket",
+            category=self.category,
+            base_price=4000.00,
+            stock_quantity=4,
+            sizes=["M", "L"],  # 2 units each
+        )
+        CartItem.objects.create(cart=self.cart, product=sized, quantity=1, size="M")
+
+        res = self.checkout()
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        jacket = next(
+            item
+            for item in res.data["items"]
+            if item["product_title"] == "Denim Jacket"
+        )
+        self.assertEqual(jacket["size"], "M")
+
+        quantities = {row.size: row.quantity for row in sized.size_stock.all()}
+        self.assertEqual(quantities, {"M": 1, "L": 2})
+        self.assertEqual(self.product.total_stock, 3)
+
+        order = Order.objects.get(order_number=res.data["order_number"])
+        order.cancel()
+        quantities = {row.size: row.quantity for row in sized.size_stock.all()}
+        self.assertEqual(quantities, {"M": 2, "L": 2})
+        self.assertEqual(self.product.total_stock, 5)
 
     def test_order_number_format(self):
         res = self.checkout()
@@ -543,7 +610,7 @@ class OrderHistoryAPITestCase(TestCase):
 
     def test_item_exposes_product_slug_for_buy_again(self):
         category = Category.objects.create(name="Shirts", slug="shirts")
-        product = Product.objects.create(
+        product = create_product(
             title="Linen Shirt",
             category=category,
             base_price=Decimal("2500.00"),
@@ -585,7 +652,7 @@ class AdminOrderConfirmTestCase(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.category = Category.objects.create(name="Denim", slug="denim")
-        self.product = Product.objects.create(
+        self.product = create_product(
             title="Selvedge Jeans",
             category=self.category,
             base_price=4000.00,
@@ -663,7 +730,7 @@ class AdminOrderConfirmTestCase(TestCase):
         self.order.refresh_from_db()
         self.assertEqual(self.order.status, Order.Status.CANCELLED)
         self.product.refresh_from_db()
-        self.assertEqual(self.product.stock_quantity, 5)
+        self.assertEqual(self.product.total_stock, 5)
         # Cancelling is not the confirmation event - no confirm email.
         self.assertEqual(len(mail.outbox), 0)
 
@@ -687,7 +754,7 @@ class CouponCheckoutTestCase(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.category = Category.objects.create(name="Jeans", slug="jeans")
-        self.product = Product.objects.create(
+        self.product = create_product(
             title="Wide-Leg Jeans",
             category=self.category,
             base_price=3000.00,
@@ -774,7 +841,7 @@ class CouponCheckoutTestCase(TestCase):
         # Nothing was ordered and no stock was committed.
         self.assertEqual(Order.objects.count(), 0)
         self.product.refresh_from_db()
-        self.assertEqual(self.product.stock_quantity, 10)
+        self.assertEqual(self.product.total_stock, 10)
 
     def test_checkout_without_a_coupon_is_unaffected(self):
         res = self.checkout()
@@ -926,7 +993,7 @@ class CouponValidateAPITestCase(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.category = Category.objects.create(name="Jeans", slug="jeans")
-        self.product = Product.objects.create(
+        self.product = create_product(
             title="Wide-Leg Jeans",
             category=self.category,
             base_price=3000.00,
@@ -1197,7 +1264,7 @@ class CancelStaleOrdersTestCase(TestCase):
 
     def setUp(self):
         self.category = Category.objects.create(name="Denim", slug="denim")
-        self.product = Product.objects.create(
+        self.product = create_product(
             title="Stale Jeans",
             category=self.category,
             base_price=Decimal("2000.00"),
@@ -1242,7 +1309,7 @@ class CancelStaleOrdersTestCase(TestCase):
         order.refresh_from_db()
         self.product.refresh_from_db()
         self.assertEqual(order.status, Order.Status.CANCELLED)
-        self.assertEqual(self.product.stock_quantity, 7)  # 5 + 2 restored
+        self.assertEqual(self.product.total_stock, 7)  # 5 + 2 restored
 
     def test_recent_order_is_left_alone(self):
         order = self._order(minutes_old=5)
@@ -1291,4 +1358,4 @@ class CancelStaleOrdersTestCase(TestCase):
         order.refresh_from_db()
         self.product.refresh_from_db()
         self.assertEqual(order.status, Order.Status.PROCESSING)
-        self.assertEqual(self.product.stock_quantity, 5)
+        self.assertEqual(self.product.total_stock, 5)

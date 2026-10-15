@@ -7,7 +7,7 @@ from pathlib import Path
 from django.conf import settings
 
 from accounts.models import WishlistItem
-from catalog.models import Category, Product, ProductImage
+from catalog.models import Category, Product, ProductImage, ProductSize
 from orders.models import Cart, CartItem, Order, OrderItem
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
@@ -296,16 +296,27 @@ def seed_catalog(stdout, style, source=None, wipe=False):
 
     for pdata in products_data:
         variants_info = pdata.pop("variants")
-        pdata["stock_quantity"] = sum(v["stock_quantity"] for v in variants_info)
-        pdata["sizes"] = list(dict.fromkeys(v["size"] for v in variants_info))
+        # Colors are decorative; stock is what matters, summed per size.
+        per_size = {}
+        for variant in variants_info:
+            per_size[variant["size"]] = (
+                per_size.get(variant["size"], 0) + variant["stock_quantity"]
+            )
         product, created = Product.objects.update_or_create(
             title=pdata["title"],
             defaults=pdata,
         )
+        ProductSize.objects.filter(product=product).delete()
+        ProductSize.objects.bulk_create(
+            [
+                ProductSize(product=product, size=size, quantity=qty, display_order=i)
+                for i, (size, qty) in enumerate(per_size.items())
+            ]
+        )
         curated_titles[pdata["category"].slug].append(product.title)
         stdout.write(
             f"  Product: {product.title} ({'created' if created else 'updated'}) "
-            f"Stock: {product.stock_quantity}"
+            f"Stock: {product.total_stock}"
         )
 
     attached = 0
@@ -351,7 +362,7 @@ def seed_catalog(stdout, style, source=None, wipe=False):
             # Every fifth item is one-size so both card flows appear.
             sizes = [] if i % 5 == 4 else plan["sizes"]
             stock = STOCK_CYCLE[i % len(STOCK_CYCLE)]
-            Product.objects.update_or_create(
+            product, _ = Product.objects.update_or_create(
                 title=title,
                 defaults={
                     "category": category,
@@ -362,10 +373,24 @@ def seed_catalog(stdout, style, source=None, wipe=False):
                     ),
                     "base_price": base_price,
                     "sale_price": sale_price,
-                    "stock_quantity": stock,
-                    "sizes": sizes,
                 },
             )
+            ProductSize.objects.filter(product=product).delete()
+            if not sizes:
+                ProductSize.objects.create(product=product, size="", quantity=stock)
+            else:
+                base, extra = divmod(stock, len(sizes))
+                ProductSize.objects.bulk_create(
+                    [
+                        ProductSize(
+                            product=product,
+                            size=size,
+                            quantity=base + (1 if index < extra else 0),
+                            display_order=index,
+                        )
+                        for index, size in enumerate(sizes)
+                    ]
+                )
 
         curated_qs = [Product.objects.get(title=t) for t in curated]
         generated_qs = list(
