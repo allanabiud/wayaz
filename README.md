@@ -71,11 +71,11 @@ cp .env.example .env                    # adjust secrets if needed
 .venv/bin/python manage.py runserver    # http://127.0.0.1:8000
 ```
 
-`seed` stages demo data: `manage.py seed catalog` seeds the 4 categories,
-curated products, and photos from `examples/` (add `--wipe` to clear all
-products, categories, carts, and orders first); `manage.py seed shop` layers
-demo shop activity on top without touching products. The default stage, `all`,
-runs both. The shop stage creates 20 demo customers (login `amina.wanjiku` /
+`seed` stages demo data: `manage.py seed catalog` seeds the 2 categories
+(Jeans and Shoes), curated products, and photos from `examples/` (add `--wipe` to
+clear all products, categories, carts, and orders first); `manage.py seed shop`
+layers demo shop activity on top without touching products. The default stage,
+`all`, runs both. The shop stage creates 20 demo customers (login `amina.wanjiku` /
 `wayaz1234`, password shared across all demo customers) with addresses,
 ~90 days of backdated orders, active carts, wishlist saves, and product
 reviews, so the admin dashboard and analytics charts have data to plot. It

@@ -7,11 +7,15 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 // Absolute base for fetch(): Node cannot resolve relative URLs, and in
 // production the server uses API_PROXY_URL (never inlined into the client
-// bundle). On the client this always equals API_URL.
+// bundle). On the client, when NEXT_PUBLIC_API_URL is empty, we must keep
+// it empty ("") so browser fetches stay same-origin (/api/v1/*) instead
+// of falling back to localhost.
 const SERVER_BASE =
-  (typeof window === "undefined" ? process.env.API_PROXY_URL : undefined) ||
-  API_URL ||
-  "http://127.0.0.1:8000";
+  typeof window === "undefined"
+    ? process.env.API_PROXY_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      "http://127.0.0.1:8000"
+    : (process.env.NEXT_PUBLIC_API_URL ?? "");
 
 export const SERVER_API_URL = SERVER_BASE;
 
