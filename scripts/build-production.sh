@@ -132,6 +132,7 @@ rsync -az -e "$RSYNC_SSH" \
   --exclude 'docs/' \
   --exclude '.env' --exclude '.env.*' \
   --exclude 'node_modules/' \
+  --exclude '.venv/' \
   --exclude '.next/' \
   --exclude 'staticfiles/' \
   --exclude 'media/' \
