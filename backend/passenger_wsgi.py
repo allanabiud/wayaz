@@ -10,4 +10,4 @@ if CURRENT_DIR not in sys.path:
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
-from config.wsgi import application  # noqa: E402
+from config.wsgi import application  # noqa: E402, F401
