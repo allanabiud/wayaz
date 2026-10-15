@@ -221,3 +221,40 @@
     opacity: 0.5;
   }
 }
+
+/* Inline pending dot for <Link>s (next/link useLinkStatus recipe): fixed
+   size so there's no layout shift, invisible until 100ms of pending so
+   fast navigations never flash it. */
+.link-hint {
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  margin-left: 0.25rem;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0;
+  visibility: hidden; /* reserve space without showing the hint */
+}
+
+.link-hint.is-pending {
+  /* Fade in after 100ms, then pulse while the navigation is in flight */
+  visibility: visible;
+  animation-name: link-hint-fade-in, link-hint-pulse;
+  animation-duration: 200ms, 1s;
+  animation-delay: 100ms, 100ms;
+  animation-timing-function: ease, ease-in-out;
+  animation-iteration-count: 1, infinite;
+  animation-fill-mode: forwards, none;
+}
+
+@keyframes link-hint-fade-in {
+  to {
+    opacity: 0.35;
+  }
+}
+
+@keyframes link-hint-pulse {
+  50% {
+    opacity: 0.15;
+  }
+}

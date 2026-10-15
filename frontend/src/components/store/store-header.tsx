@@ -31,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { LinkHint } from "@/components/ui/link-hint";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/lib/auth-context";
@@ -143,6 +144,7 @@ export function StoreHeader() {
               alt={settings?.store_name || "Wayaz Collection"}
               className="h-auto max-h-9 w-auto sm:h-full sm:max-h-full object-contain"
             />
+            <LinkHint />
           </Link>
 
           {/* The results popover drops down beneath the search field. */}
@@ -474,18 +476,21 @@ export function StoreHeader() {
                   <Link href="/account" className="flex items-center gap-1.5">
                     <User className="size-4" />
                     <span>My Account</span>
+                    <LinkHint />
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="cursor-pointer">
                   <Link href="/orders" className="flex items-center gap-1.5">
                     <ClipboardList className="size-4" />
                     <span>Orders</span>
+                    <LinkHint />
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="cursor-pointer">
                   <Link href="/contact" className="flex items-center gap-1.5">
                     <Mail className="size-4" />
                     <span>Contact Us</span>
+                    <LinkHint />
                   </Link>
                 </DropdownMenuItem>
                 {canManage && (
@@ -498,6 +503,7 @@ export function StoreHeader() {
                       <Link href="/admin" className="flex items-center gap-1.5">
                         <LayoutDashboard className="size-4" />
                         <span>Admin Dashboard</span>
+                        <LinkHint />
                       </Link>
                     </DropdownMenuItem>
                   </>
