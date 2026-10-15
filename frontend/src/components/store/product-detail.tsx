@@ -31,7 +31,7 @@ import { Button } from "@/components/ui/button";
 import { WhatsAppIcon } from "@/components/brand-icons";
 import { ProductCard } from "@/components/store/product-card";
 import { ProductReviews } from "@/components/store/product-reviews";
-import { RestockDialog } from "@/components/store/restock-dialog";
+import { RestockDialog, RestockLabel } from "@/components/store/restock-dialog";
 import { useStore } from "@/lib/store-context";
 import { useAuth } from "@/lib/auth-context";
 import { mediaUrl } from "@/lib/media";
@@ -555,8 +555,8 @@ export function ProductDetail({ product }: ProductDetailProps) {
               className={cn("mt-5 w-full gap-2 sm:mt-6", "restock-button")}
               onClick={() => setNotifyOpen(true)}
             >
-              <BellRing className="size-4" />
-              Notify on restock
+              <BellRing className="size-4 shrink-0" />
+              <RestockLabel />
             </Button>
           ) : (
             <div
@@ -789,8 +789,8 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 )}
                 onClick={() => setNotifyOpen(true)}
               >
-                <BellRing className="size-4" />
-                Notify on restock
+                <BellRing className="size-4 shrink-0" />
+                <RestockLabel />
               </Button>
             )}
           </div>

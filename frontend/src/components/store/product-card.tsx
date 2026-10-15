@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { WhatsAppIcon } from "@/components/brand-icons";
 import { useStore } from "@/lib/store-context";
 import { QuickBuyDialog } from "@/components/store/quick-buy-dialog";
-import { RestockDialog } from "@/components/store/restock-dialog";
+import { RestockDialog, RestockLabel } from "@/components/store/restock-dialog";
 import { mediaUrl } from "@/lib/media";
 import {
   formatKsh,
@@ -56,6 +56,15 @@ export function ProductCard({
   const [quickMode, setQuickMode] = useState<"add" | "buy">("buy");
   const [notifyOpen, setNotifyOpen] = useState(false);
   const bumping = bumpingId === product.id;
+
+  // Rounded percentage off, shown beside the sale price (e.g. -20%).
+  const basePrice = Number(product.base_price);
+  const discountPct =
+    product.is_on_sale && basePrice > 0
+      ? Math.round(
+          ((basePrice - Number(product.current_price)) / basePrice) * 100,
+        )
+      : 0;
 
   const openQuickBuy = (mode: "add" | "buy") => {
     setQuickMode(mode);
@@ -185,6 +194,11 @@ export function ProductCard({
                 Ksh {formatKsh(product.base_price)}
               </span>
             )}
+            {product.is_on_sale && discountPct > 0 && (
+              <Badge variant="destructive" className="px-1.5 tabular-nums">
+                -{discountPct}%
+              </Badge>
+            )}
           </p>
         </div>
 
@@ -196,8 +210,8 @@ export function ProductCard({
             className={cn("mt-auto w-full gap-1.5", "restock-button")}
             onClick={() => setNotifyOpen(true)}
           >
-            <BellRing className="size-4" />
-            Notify on restock
+            <BellRing className="size-4 shrink-0" />
+            <RestockLabel />
           </Button>
         ) : (
           /* Stacked on phones, side by side from xl where cards are wide

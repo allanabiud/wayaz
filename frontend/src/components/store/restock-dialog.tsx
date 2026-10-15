@@ -24,6 +24,16 @@ interface RestockableProduct {
   title: string;
 }
 
+// Short wording for narrow cells (cards, sticky bar); full wording from sm.
+export function RestockLabel() {
+  return (
+    <>
+      <span className="sm:hidden">Notify me</span>
+      <span className="hidden sm:inline">Notify on restock</span>
+    </>
+  );
+}
+
 export function RestockDialog({
   product,
   open,
