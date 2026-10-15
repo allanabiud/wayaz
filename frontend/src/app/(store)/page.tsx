@@ -13,6 +13,13 @@ async function getInitialCatalog(): Promise<StorefrontCatalog | null> {
         "/api/v1/catalog/products/?page_size=100",
       ),
     ]);
+    // A restarting backend can answer 200 HTML; treat that as no SSR catalog.
+    if (
+      !Array.isArray(categoriesRes?.results) ||
+      !Array.isArray(productsRes?.results)
+    ) {
+      return null;
+    }
     return {
       categories: categoriesRes.results,
       products: productsRes.results,
