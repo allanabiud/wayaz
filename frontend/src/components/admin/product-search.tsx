@@ -5,14 +5,11 @@ import { useRouter } from "next/navigation";
 import { Loader2, Search, X } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { formatKsh } from "@/lib/store-api";
 import type { Paginated, Product } from "@/lib/types";
 
-export function ProductSearch({
-  onFocusChange,
-}: {
-  onFocusChange?: (focused: boolean) => void;
-}) {
+export function ProductSearch() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Product[]>([]);
@@ -21,11 +18,6 @@ export function ProductSearch({
   const [focused, setFocused] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const changeFocus = (value: boolean) => {
-    setFocused(value);
-    onFocusChange?.(value);
-  };
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -87,7 +79,12 @@ export function ProductSearch({
   return (
     <div
       ref={containerRef}
-      className={`relative shrink-0 transition-[width] duration-200 ${focused ? "w-52 sm:w-96" : "w-40 sm:w-56 lg:w-64"}`}
+      className={cn(
+        "relative shrink-0 transition-[width] duration-200 max-md:order-last",
+        // Own full-width row below md; inline field from md up.
+        "w-full md:w-56 lg:w-64",
+        focused && "md:w-96",
+      )}
     >
       <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
       <input
@@ -100,11 +97,11 @@ export function ProductSearch({
           setOpen(true);
         }}
         onFocus={() => {
-          changeFocus(true);
+          setFocused(true);
           setOpen(true);
         }}
         onBlur={() => {
-          changeFocus(false);
+          setFocused(false);
           setOpen(false);
         }}
         onKeyDown={(e) => {

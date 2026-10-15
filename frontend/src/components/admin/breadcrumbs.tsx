@@ -69,7 +69,7 @@ export function Breadcrumbs() {
   });
 
   return (
-    <nav aria-label="breadcrumb" className="min-w-0">
+    <nav aria-label="breadcrumb" className="min-w-0 truncate">
       <ol className="flex items-center gap-1.5 text-sm">
         {crumbs.map((crumb, index) => (
           <li

@@ -132,7 +132,7 @@ export function StoreHeader() {
         </aside>
       )}
       <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
-        <div className="flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-2 py-2 pr-2 sm:h-14 sm:flex-nowrap sm:gap-x-4 sm:py-0 sm:pr-3">
+        <div className="flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-2 sm:h-14 sm:flex-nowrap sm:gap-x-4 sm:py-0 sm:pl-0 sm:pr-3">
           <Link
             href="/"
             className="order-1 flex min-w-0 shrink-0 items-center outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:order-none sm:h-full"
