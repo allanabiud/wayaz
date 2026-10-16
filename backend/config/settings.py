@@ -276,7 +276,7 @@ EMAIL_USE_SSL = _env_bool("EMAIL_USE_SSL", "true")
 EMAIL_USE_TLS = _env_bool("EMAIL_USE_TLS", "false")
 # Short timeout so a hanging mail server can't stall checkout.
 EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "10"))
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "Wayaz <orders@wayaz.co.ke>")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "Wayaz <info@wayaz.co.ke>")
 
 # Shop owner/manager address that receives a copy of every new order.
 MANAGER_EMAIL = os.environ.get("MANAGER_EMAIL", "")

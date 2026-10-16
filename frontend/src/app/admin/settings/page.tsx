@@ -492,7 +492,7 @@ export default function AdminSettingsPage() {
                     type="email"
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
-                    placeholder="orders@wayaz.co.ke"
+                    placeholder="info@wayaz.co.ke"
                   />
                 </div>
 

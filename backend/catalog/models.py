@@ -262,7 +262,7 @@ class StoreSettings(models.Model):
         blank=True,
         help_text='List of {"label": "Sales", "number": "2547..."} objects.',
     )
-    contact_email = models.EmailField(blank=True, default="orders@wayaz.co.ke")
+    contact_email = models.EmailField(blank=True, default="info@wayaz.co.ke")
     address = models.CharField(max_length=255, blank=True, default="Nairobi, Kenya")
     instagram_url = models.URLField(
         max_length=255, blank=True, default="https://www.instagram.com/wayaz"
