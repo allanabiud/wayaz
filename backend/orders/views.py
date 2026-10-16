@@ -1,9 +1,11 @@
 import uuid
+from datetime import timedelta
 from decimal import Decimal
 
 from django.db import transaction
 from django.db.models import F
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
@@ -12,6 +14,8 @@ from rest_framework.views import APIView
 
 from accounts.models import Address
 from catalog.models import Product, ProductSize
+from payments.models import PaymentTransaction
+from payments.views import reconcile_transaction
 
 from .delivery import delivery_fee
 from .emails import send_new_order_email_merchant, send_order_confirmation_email
@@ -26,6 +30,11 @@ from .serializers import (
     UpdateCartItemSerializer,
 )
 from .tokens import make_payment_token
+
+# The payment modal polls for this long before giving up, and those polls
+# reconcile the attempt themselves; checkout only asks Safaricom about a
+# hold's attempts older than this.
+STK_ATTEMPT_LIVE_SECONDS = 120
 
 
 def get_or_create_cart(request):
@@ -368,6 +377,32 @@ class CheckoutView(APIView):
             return Response(
                 {"detail": "Your cart is empty."}, status=status.HTTP_400_BAD_REQUEST
             )
+
+        if data["payment_method"] == Order.PaymentMethod.M_PESA:
+            # Zombie holds: a STK attempt stuck PENDING (its callback never
+            # arrived) would block this checkout for the whole in-flight
+            # grace window even though nothing is really being paid. Ask
+            # Safaricom what actually happened first - deliberately outside
+            # the checkout transaction below so a resolved payment can never
+            # be rolled back with it. A failed attempt releases its hold; a
+            # paid one becomes a real order, and the guard inside then lets
+            # this checkout through.
+            guest_id = data.get("guest_id") or (
+                str(cart.id) if not request.user.is_authenticated else ""
+            )
+            stale_attempts = PaymentTransaction.objects.filter(
+                status=PaymentTransaction.Status.PENDING,
+                created_at__lt=timezone.now()
+                - timedelta(seconds=STK_ATTEMPT_LIVE_SECONDS),
+                order__status=Order.Status.AWAITING_PAYMENT,
+                order__payment_status=Order.PaymentStatus.PENDING,
+            )
+            if request.user.is_authenticated:
+                stale_attempts = stale_attempts.filter(order__user=request.user)
+            else:
+                stale_attempts = stale_attempts.filter(order__guest_id=guest_id)
+            for payment in stale_attempts:
+                reconcile_transaction(payment, force=True)
 
         try:
             with transaction.atomic():

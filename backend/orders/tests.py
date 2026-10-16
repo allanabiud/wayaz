@@ -1,8 +1,10 @@
 from datetime import timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core import mail
+from django.core.cache import cache
 from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -490,6 +492,69 @@ class CheckoutAPITestCase(TestCase):
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("in progress", res.data["detail"])
         # The double stock reservation never happened.
+        self.assertEqual(Order.objects.count(), 1)
+
+    @override_settings(MPESA_ENVIRONMENT="sandbox")
+    def test_checkout_recovers_zombie_hold_before_blocking(self):
+        """A hold whose STK attempt died with an undelivered callback would
+        block retries for the whole in-flight grace window; checkout now
+        asks Safaricom first and a failed attempt releases itself at once."""
+        cache.clear()
+        payload = {**self.checkout_payload, "payment_method": "mpesa"}
+        first = self.checkout(payload)
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+        hold = Order.objects.get(order_number=first.data["order_number"])
+        tx = PaymentTransaction.objects.create(
+            order=hold,
+            merchant_request_id="MR_ZOMBIE",
+            checkout_request_id="ws_CO_ZOMBIE",
+            amount=hold.total_amount,
+            phone_number="254712345678",
+            status=PaymentTransaction.Status.PENDING,
+        )
+        # Aged past the modal's polling window: nothing is still asking.
+        PaymentTransaction.objects.filter(pk=tx.pk).update(
+            created_at=timezone.now() - timedelta(minutes=10)
+        )
+
+        with patch(
+            "payments.views.stk_query",
+            return_value={
+                "ResultCode": "1032",
+                "ResultDesc": "Request cancelled by user",
+            },
+        ):
+            res = self.checkout(payload)
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        # The zombie hold released itself; only the fresh order remains.
+        self.assertFalse(Order.objects.filter(pk=hold.pk).exists())
+        self.assertEqual(Order.objects.count(), 1)
+
+    @override_settings(MPESA_ENVIRONMENT="sandbox")
+    def test_checkout_keeps_blocking_fresh_attempt_without_asking_daraja(self):
+        """Attempts younger than the modal's window belong to the modal's own
+        polling; checkout must not ask Daraja about those."""
+        cache.clear()
+        payload = {**self.checkout_payload, "payment_method": "mpesa"}
+        first = self.checkout(payload)
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+        hold = Order.objects.get(order_number=first.data["order_number"])
+        PaymentTransaction.objects.create(
+            order=hold,
+            merchant_request_id="MR_FRESH",
+            checkout_request_id="ws_CO_FRESH",
+            amount=hold.total_amount,
+            phone_number="254712345678",
+            status=PaymentTransaction.Status.PENDING,
+        )
+
+        with patch("payments.views.stk_query") as query:
+            res = self.checkout(payload)
+
+        query.assert_not_called()
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("in progress", res.data["detail"])
         self.assertEqual(Order.objects.count(), 1)
 
     def test_mpesa_hold_blocks_only_the_shopper_who_owns_it(self):
@@ -1321,6 +1386,7 @@ class AdminCouponAPITestCase(TestCase):
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
 
+@override_settings(MPESA_ENVIRONMENT="mock")
 class CancelStaleOrdersTestCase(TestCase):
     """Unpaid M-Pesa orders must not hold stock forever: stale payment
     holds are restocked and dropped outright, while pre-hold orders that
@@ -1410,6 +1476,66 @@ class CancelStaleOrdersTestCase(TestCase):
         call_command("cancel_stale_orders")
         order.refresh_from_db()
         self.assertEqual(order.status, Order.Status.AWAITING_PAYMENT)
+
+    @override_settings(MPESA_ENVIRONMENT="sandbox")
+    def test_sweep_recovers_paid_attempt_instead_of_sweeping_it(self):
+        """Lost callback but Safaricom says paid: the sweep turns the hold
+        into a real order instead of deleting money we already took."""
+        order = self._order(minutes_old=self.STALE_MINUTES)
+        PaymentTransaction.objects.create(
+            order=order,
+            merchant_request_id="MR2",
+            checkout_request_id="ws_CO_SWEEP_PAID",
+            amount=order.total_amount,
+            phone_number="254712345678",
+            status=PaymentTransaction.Status.PENDING,
+        )
+        with patch(
+            "payments.views.stk_query",
+            return_value={
+                "ResultCode": "0",
+                "ResultDesc": "The service request is processed successfully.",
+            },
+        ):
+            call_command("cancel_stale_orders")
+
+        order.refresh_from_db()
+        self.assertEqual(order.payment_status, Order.PaymentStatus.PAID)
+        self.assertEqual(order.status, Order.Status.PROCESSING)
+        # Paid means the reservation stays: nothing was restocked.
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.total_stock, 5)
+
+    @override_settings(MPESA_ENVIRONMENT="sandbox")
+    def test_sweep_asks_daraja_before_parking_a_zombie_hold_in_grace(self):
+        """An attempt Daraja calls failed releases immediately instead of
+        hiding behind the one-hour in-flight grace."""
+        order = self._order(minutes_old=self.STALE_MINUTES)
+        PaymentTransaction.objects.create(
+            order=order,
+            merchant_request_id="MR3",
+            checkout_request_id="ws_CO_SWEEP_FAIL",
+            amount=order.total_amount,
+            phone_number="254712345678",
+            status=PaymentTransaction.Status.PENDING,
+        )
+        with patch(
+            "payments.views.stk_query",
+            return_value={
+                "ResultCode": "1037",
+                "ResultDesc": "DS timeout user cannot be reached",
+            },
+        ):
+            call_command("cancel_stale_orders")
+
+        self.assertFalse(Order.objects.filter(pk=order.pk).exists())
+        self.assertFalse(
+            PaymentTransaction.objects.filter(
+                checkout_request_id="ws_CO_SWEEP_FAIL"
+            ).exists()
+        )
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.total_stock, 7)  # 5 + 2 restored
 
     def test_paid_and_manually_confirmed_orders_are_left_alone(self):
         paid = self._order(

@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core import mail
+from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework import status
@@ -155,6 +156,93 @@ class MpesaPaymentTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         response = self.client.get(url, {"payment_token": "bogus"})
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @override_settings(MPESA_ENVIRONMENT="sandbox")
+    def test_status_poll_recovers_payment_when_callback_never_arrives(self):
+        """The callback is best-effort, so polling itself asks Safaricom: a
+        paid attempt whose callback was lost still flips the order to PAID."""
+        cache.clear()
+        self._make_hold()
+        tx = self._make_tx("ws_CO_RECOVER_OK")
+        url = reverse(
+            "payment-status", kwargs={"checkout_request_id": tx.checkout_request_id}
+        )
+        with patch(
+            "payments.views.stk_query",
+            return_value={
+                "ResultCode": "0",
+                "ResultDesc": "The service request is processed successfully.",
+            },
+        ) as query:
+            response = self.client.get(url, {"payment_token": self.token})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        query.assert_called_once_with(tx.checkout_request_id)
+        self.assertEqual(response.data["status"], "COMPLETED")
+        self.assertEqual(response.data["payment_status"], Order.PaymentStatus.PAID)
+        tx.refresh_from_db()
+        self.order.refresh_from_db()
+        self.assertEqual(tx.status, PaymentTransaction.Status.COMPLETED)
+        self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
+        # Payment reveals the hold; staff confirm it later.
+        self.assertEqual(self.order.status, Order.Status.PROCESSING)
+
+    @override_settings(MPESA_ENVIRONMENT="sandbox")
+    def test_status_poll_releases_hold_when_attempt_failed(self):
+        """A lost failure callback must not leave the hold blocking checkouts:
+        polling resolves it and reports the release."""
+        cache.clear()
+        self._make_hold()
+        tx = self._make_tx("ws_CO_RECOVER_FAIL")
+        url = reverse(
+            "payment-status", kwargs={"checkout_request_id": tx.checkout_request_id}
+        )
+        with patch(
+            "payments.views.stk_query",
+            return_value={
+                "ResultCode": "1032",
+                "ResultDesc": "Request cancelled by user",
+            },
+        ):
+            response = self.client.get(url, {"payment_token": self.token})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "FAILED")
+        self.assertEqual(response.data["result_desc"], "Request cancelled by user")
+        # The release cascades the unpaid hold and its transactions away.
+        self.assertFalse(Order.objects.filter(pk=self.order.pk).exists())
+        self.assertFalse(PaymentTransaction.objects.filter(pk=tx.pk).exists())
+
+    def test_status_poll_never_calls_daraja_in_mock_mode(self):
+        """Mock results come from the simulate endpoint only - the fake
+        stk_query would claim success for any request."""
+        cache.clear()
+        tx = self._make_tx("ws_CO_MOCK_NOSYNC")
+        url = reverse(
+            "payment-status", kwargs={"checkout_request_id": tx.checkout_request_id}
+        )
+        with patch("payments.views.stk_query") as query:
+            response = self.client.get(url, {"payment_token": self.token})
+
+        query.assert_not_called()
+        self.assertEqual(response.data["status"], "PENDING")
+
+    @override_settings(MPESA_ENVIRONMENT="sandbox")
+    def test_status_poll_queries_daraja_at_most_once_per_cooldown(self):
+        """The modal polls every couple of seconds; Daraja hears about the
+        attempt at most once per cooldown window."""
+        cache.clear()
+        tx = self._make_tx("ws_CO_COOLDOWN")
+        url = reverse(
+            "payment-status", kwargs={"checkout_request_id": tx.checkout_request_id}
+        )
+        with patch("payments.views.stk_query", return_value=None) as query:
+            first = self.client.get(url, {"payment_token": self.token})
+            second = self.client.get(url, {"payment_token": self.token})
+
+        self.assertEqual(query.call_count, 1)
+        self.assertEqual(first.data["status"], "PENDING")
+        self.assertEqual(second.data["status"], "PENDING")
 
     def test_mock_simulate_success(self):
         tx = self._make_tx("ws_CO_789012")
@@ -439,3 +527,27 @@ class MpesaPaymentTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
         tx.refresh_from_db()
         self.assertEqual(tx.status, PaymentTransaction.Status.PENDING)
+
+    def test_late_duplicate_callback_acks_without_second_reveal(self):
+        """A webhook arriving after direct reconciliation resolved the
+        attempt must not email the shopper and merchant again; it only
+        backfills the receipt the query could not carry."""
+        tx = self._make_tx("ws_CO_LATE_OK")
+        tx.status = PaymentTransaction.Status.COMPLETED
+        tx.result_code = 0
+        tx.save()
+        self.order.payment_status = Order.PaymentStatus.PAID
+        self.order.save()
+
+        response = self.client.post(
+            callback_url(), success_payload(tx.checkout_request_id), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        tx.refresh_from_db()
+        self.order.refresh_from_db()
+        self.assertEqual(tx.status, PaymentTransaction.Status.COMPLETED)
+        self.assertEqual(tx.mpesa_receipt_number, "QGH8876543")
+        self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
+        # No second reveal happened.
+        self.assertEqual(len(mail.outbox), 0)

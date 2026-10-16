@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from orders.models import Order
 from payments.models import PaymentTransaction
+from payments.views import reconcile_transaction
 
 # Recent PENDING transaction means the shopper may still be at the PIN prompt.
 IN_FLIGHT_GRACE = timedelta(hours=1)
@@ -42,21 +43,30 @@ class Command(BaseCommand):
             help="Report what would be swept or cancelled without changing anything.",
         )
 
-    def _stale(self, method, statuses, cutoff):
+    def _stale(self, method, statuses, cutoff, recover=False):
+        base = Order.objects.filter(
+            status__in=statuses,
+            payment_status=Order.PaymentStatus.PENDING,
+            payment_method=method,
+            created_at__lt=cutoff,
+        )
+        if recover:
+            # Zombie holds: the STK attempt sits PENDING forever when the
+            # callback never arrives, and the in-flight grace below would
+            # shield the hold for a whole hour - blocking checkout retries
+            # with it. Ask Safaricom directly first: a paid attempt becomes
+            # a real order and leaves this set; a failed one releases its
+            # hold right here. Only a genuinely open attempt keeps the grace
+            # (this also never sweeps an order Safaricom says was paid).
+            for payment in PaymentTransaction.objects.filter(
+                status=PaymentTransaction.Status.PENDING, order__in=base
+            ):
+                reconcile_transaction(payment, force=True)
         in_flight = PaymentTransaction.objects.filter(
             status=PaymentTransaction.Status.PENDING,
             created_at__gte=timezone.now() - IN_FLIGHT_GRACE,
         ).values_list("order_id", flat=True)
-        return (
-            Order.objects.filter(
-                status__in=statuses,
-                payment_status=Order.PaymentStatus.PENDING,
-                payment_method=method,
-                created_at__lt=cutoff,
-            )
-            .exclude(id__in=list(in_flight))
-            .order_by("created_at")
-        )
+        return base.exclude(id__in=list(in_flight)).order_by("created_at")
 
     def handle(self, *args, **options):
         now = timezone.now()
@@ -70,6 +80,8 @@ class Command(BaseCommand):
                 # pre-hold M-Pesa orders that never got verified.
                 [Order.Status.AWAITING_PAYMENT, Order.Status.PROCESSING],
                 now - timedelta(minutes=options["minutes"]),
+                # Recovering resolves real payments: never under --dry-run.
+                recover=not dry,
             )
         )
         if options["include_cod"]:

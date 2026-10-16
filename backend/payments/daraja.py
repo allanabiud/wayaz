@@ -165,7 +165,7 @@ def stk_query(checkout_request_id: str) -> dict | None:
         shortcode = get_active_shortcode()
         password = generate_stk_password(shortcode, settings.MPESA_PASSKEY, timestamp)
 
-        url = f"{get_base_url()}/mpesa/stkpushqueryrequestv1/query"
+        url = f"{get_base_url()}/mpesa/stkpushquery/v1/query"
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",

@@ -4,6 +4,7 @@ import uuid
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.cache import cache
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import (
@@ -85,6 +86,85 @@ def release_failed_hold(transaction):
     if hold:
         # Cascades its payment transactions, same as the cron sweep.
         order.delete()
+
+
+# Status polling runs every couple of seconds; ask Daraja at most this often
+# per transaction so a long PIN prompt cannot hammer the API.
+RECONCILE_COOLDOWN_SECONDS = 10
+
+
+def reconcile_transaction(payment, *, force: bool = False) -> bool:
+    """Resolve an unresolved STK attempt by asking Safaricom directly.
+
+    The Daraja callback is best-effort - a server-to-server POST to a public
+    URL that some networks never deliver - so nothing that matters may depend
+    on it. Status polling, the checkout hold guard and the stale-order sweep
+    all call this to learn the real outcome instead of leaving the
+    transaction PENDING forever.
+
+    Returns True when the transaction is in a terminal state afterwards
+    (already resolved, or resolved here); False when it is still unresolved:
+    still processing at Safaricom, Daraja could not answer, mock mode (the
+    fake stk_query would "succeed" any request; the simulate endpoint drives
+    mock results), or the cooldown suppressed the query.
+    """
+    if payment.status != PaymentTransaction.Status.PENDING:
+        return True
+    if settings.MPESA_ENVIRONMENT == "mock":
+        return False
+    if not force:
+        if cache.get(f"mpesa_reconcile_{payment.pk}"):
+            return False
+        cache.set(f"mpesa_reconcile_{payment.pk}", 1, RECONCILE_COOLDOWN_SECONDS)
+
+    query = stk_query(payment.checkout_request_id)
+    if query is None:
+        # Still processing, or Daraja could not answer: not terminal yet.
+        return False
+    result_code = str(query.get("ResultCode", ""))
+    result_desc = str(query.get("ResultDesc", ""))
+    succeeded = result_code == "0"
+
+    with transaction.atomic():
+        try:
+            locked = PaymentTransaction.objects.select_for_update().get(pk=payment.pk)
+        except PaymentTransaction.DoesNotExist:
+            # Released or swept away already: terminal (a failure path).
+            return True
+        if locked.status != PaymentTransaction.Status.PENDING:
+            # A concurrent callback (or poll) resolved it first.
+            _copy_terminal_state(locked, payment)
+            return True
+        try:
+            locked.result_code = int(result_code)
+        except ValueError:
+            locked.result_code = None
+        locked.result_desc = result_desc or locked.result_desc
+        # stkpushquery carries no receipt number; a late callback backfills it.
+        locked.status = (
+            PaymentTransaction.Status.COMPLETED
+            if succeeded
+            else PaymentTransaction.Status.FAILED
+        )
+        locked.save()
+        _copy_terminal_state(locked, payment)
+        order = locked.order
+
+    if succeeded:
+        # Reveal a held order exactly like the callback would.
+        complete_paid_order(order)
+    else:
+        # Cancelled/failed/expired: hand the reserved stock straight back.
+        release_failed_hold(locked)
+    return True
+
+
+def _copy_terminal_state(source, target) -> None:
+    """Mirror resolved fields onto the caller's (possibly stale) instance."""
+    target.status = source.status
+    target.result_code = source.result_code
+    target.result_desc = source.result_desc
+    target.mpesa_receipt_number = source.mpesa_receipt_number
 
 
 class STKPushInitiateView(APIView):
@@ -217,25 +297,49 @@ class STKPushStatusView(APIView):
         },
     )
     def get(self, request, checkout_request_id):
-        transaction = get_object_or_404(
+        payment = get_object_or_404(
             PaymentTransaction.objects.select_related("order"),
             checkout_request_id=checkout_request_id,
         )
 
-        if not request_owns_order(request, transaction.order):
+        if not request_owns_order(request, payment.order):
             return Response(
                 {"detail": "You are not authorised to view this payment."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        order_number = payment.order.order_number
+        if (
+            payment.status == PaymentTransaction.Status.PENDING
+            and reconcile_transaction(payment)
+        ):
+            # Resolved while we watched - reload the outcome; the failed path
+            # releases the hold outright, which cascades the transaction away.
+            try:
+                payment = PaymentTransaction.objects.select_related("order").get(
+                    pk=payment.pk
+                )
+            except PaymentTransaction.DoesNotExist:
+                return Response(
+                    {
+                        "checkout_request_id": checkout_request_id,
+                        "order_number": order_number,
+                        "status": PaymentTransaction.Status.FAILED,
+                        "payment_status": Order.PaymentStatus.FAILED,
+                        "mpesa_receipt_number": None,
+                        "result_desc": payment.result_desc
+                        or "M-Pesa payment failed or was cancelled.",
+                    }
+                )
+
         return Response(
             {
-                "checkout_request_id": transaction.checkout_request_id,
-                "order_number": transaction.order.order_number,
-                "status": transaction.status,
-                "payment_status": transaction.order.payment_status,
-                "mpesa_receipt_number": transaction.mpesa_receipt_number,
-                "result_desc": transaction.result_desc,
+                "checkout_request_id": payment.checkout_request_id,
+                "order_number": payment.order.order_number,
+                "status": payment.status,
+                "payment_status": payment.order.payment_status,
+                "mpesa_receipt_number": payment.mpesa_receipt_number,
+                "result_desc": payment.result_desc,
             }
         )
 
@@ -418,6 +522,27 @@ class DarajaCallbackView(APIView):
                     f"Callback received for unknown checkout_request_id: {checkout_request_id}"
                 )
                 return Response({"ResultCode": 0, "ResultDesc": "Accepted"})
+
+            if transaction.status == PaymentTransaction.Status.COMPLETED:
+                # Late or duplicate delivery: status polling (or the sweep)
+                # may already have reconciled this attempt against Daraja.
+                # Backfill a receipt we are missing and ack - re-running the
+                # reveal path would email the shopper and merchant twice.
+                if result_code == 0 and not transaction.mpesa_receipt_number:
+                    items = stk_callback.get("CallbackMetadata", {}).get("Item", [])
+                    for item in items:
+                        if item.get("Name") == "MpesaReceiptNumber":
+                            transaction.mpesa_receipt_number = item.get("Value")
+                            transaction.save(update_fields=["mpesa_receipt_number"])
+                            break
+                return Response({"ResultCode": 0, "ResultDesc": "Success"})
+
+            if (
+                transaction.status == PaymentTransaction.Status.FAILED
+                and result_code != 0
+            ):
+                # Duplicate failure delivery: already failed and released.
+                return Response({"ResultCode": 0, "ResultDesc": "Success"})
 
             transaction.result_code = result_code
             transaction.result_desc = result_desc
