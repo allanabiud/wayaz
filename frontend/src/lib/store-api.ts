@@ -240,6 +240,12 @@ export function storedCartId(): string | null {
   return window.localStorage.getItem(CART_KEY);
 }
 
+export function clearStoredCartId(): void {
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(CART_KEY);
+  }
+}
+
 function rememberCart(cart: Cart): Cart {
   if (typeof window !== "undefined") {
     window.localStorage.setItem(CART_KEY, cart.id);
@@ -469,6 +475,7 @@ export function fetchUserProfile(): Promise<AccountProfile> {
 }
 
 export function updateUserProfile(profile: {
+  username?: string;
   first_name?: string;
   last_name?: string;
   email?: string;

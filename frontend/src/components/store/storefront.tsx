@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/states";
@@ -137,6 +138,7 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
     addingId,
     addProduct,
     cartProductIds,
+    settings,
   } = useStore();
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
 
@@ -177,43 +179,44 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
 
   return (
     <>
-      <section className="border-b bg-muted/30">
-        <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
-            <div className="min-w-0 lg:flex-1">
-              <p className="text-xs font-semibold tracking-[0.25em] text-gold uppercase">
-                Wayaz Collection
-              </p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-                Shop the collection.
+      <section className="border-b bg-muted/20">
+        <div className="mx-auto w-full max-w-7xl px-4 py-3 sm:px-6 sm:py-4">
+          {/* Mobile: stacked. sm+: side-by-side */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-6">
+            {/* Title + tagline */}
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+              <h1 className="text-lg font-semibold tracking-tight sm:text-xl">
+                Shop the collection
               </h1>
-              <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-                Fresh fits delivered across Kenya - order on WhatsApp or add
-                pieces to your cart.
+              <p className="text-sm text-muted-foreground">
+                {settings?.tagline || "Fresh fits across Kenya"}
               </p>
             </div>
 
+            {/* Category buttons */}
             {catalogLoading && !catalog ? (
-              <div className="flex shrink-0 flex-wrap gap-2" aria-hidden="true">
-                <Skeleton className="h-9 w-28 lg:h-14 lg:w-32" />
-                <Skeleton className="h-9 w-28 lg:h-14 lg:w-32" />
+              <div className="flex gap-2 overflow-x-auto pb-0.5" aria-hidden="true">
+                <Skeleton className="h-11 w-24 shrink-0 rounded-md" />
+                <Skeleton className="h-11 w-24 shrink-0 rounded-md" />
+                <Skeleton className="h-11 w-24 shrink-0 rounded-md" />
               </div>
             ) : categorySections.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-2 lg:shrink-0 lg:flex-nowrap">
+              <nav
+                aria-label="Categories"
+                className="flex gap-2 overflow-x-auto pb-0.5 sm:flex-wrap sm:items-stretch sm:overflow-visible sm:pb-0"
+              >
                 {categorySections.map((section) => (
-                  <Button
+                  <Link
                     key={section.key}
-                    size="lg"
-                    className="gap-1.5 lg:h-14 lg:gap-2.5 lg:px-6 lg:text-base"
-                    asChild
+                    href={`/categories/${section.key}`}
+                    className="group inline-flex shrink-0 items-center gap-2.5 rounded-md bg-primary px-4 py-3 text-base font-semibold uppercase tracking-wide text-primary-foreground shadow-sm transition-all duration-150 hover:bg-primary/90 active:scale-[0.98] sm:shrink sm:py-3.5"
                   >
-                    <Link href={`/categories/${section.key}`}>
-                      <CategoryIcon name={section.icon} className="lg:size-6" />
-                      {section.name}
-                    </Link>
-                  </Button>
+                    <CategoryIcon name={section.icon} className="size-5 opacity-90" />
+                    <span>{section.name}</span>
+                    <ArrowRight className="size-4 opacity-70 transition-transform duration-150 group-hover:translate-x-0.5" />
+                  </Link>
                 ))}
-              </div>
+              </nav>
             ) : null}
           </div>
         </div>
@@ -273,8 +276,11 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
                   )}
                 </h2>
                 {sectionHref && (
-                  <Button size="sm" className="shrink-0" asChild>
-                    <Link href={sectionHref}>View all</Link>
+                  <Button size="sm" className="group shrink-0 gap-1.5" asChild>
+                    <Link href={sectionHref}>
+                      <span>View all</span>
+                      <ArrowRight className="size-3.5 transition-transform duration-150 group-hover:translate-x-0.5" />
+                    </Link>
                   </Button>
                 )}
               </div>

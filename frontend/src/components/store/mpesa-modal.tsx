@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { ApiError } from "@/lib/api";
 import {
   pollPaymentStatus,
   simulateMockPayment,
@@ -33,7 +34,9 @@ interface MpesaPaymentModalProps {
   onCancelOrFailed: (reason?: string) => void;
 }
 
-const TOTAL_TIMEOUT_SECONDS = 60;
+// Long enough for a slow PIN entry plus Safaricom's callback lag; the STK
+// prompt itself expires at ~60s, so a late success still gets caught here.
+const TOTAL_TIMEOUT_SECONDS = 120;
 
 export function MpesaPaymentModal({
   open,
@@ -100,8 +103,25 @@ export function MpesaPaymentModal({
             res.result_desc || "M-Pesa payment was cancelled or failed.",
           );
         }
-      } catch {
-        // Keep polling through network errors.
+      } catch (err) {
+        // 404/403 mean the payment can never resolve from this endpoint: a
+        // failed hold is released and deleted (or swept), so stop instead of
+        // spinning to the timeout. Anything else is a transient network
+        // error - keep polling.
+        if (
+          err instanceof ApiError &&
+          (err.status === 404 || err.status === 403)
+        ) {
+          if (isCancelled) return;
+          clearInterval(pollInterval);
+          clearInterval(timer);
+          setStatus("failed");
+          setStatusMessage(
+            err.status === 404
+              ? "M-Pesa payment was cancelled or failed."
+              : err.message,
+          );
+        }
       }
     }, 2500);
 
@@ -164,7 +184,7 @@ export function MpesaPaymentModal({
             <div className="rounded-xl border bg-muted/40 p-4 space-y-2 text-sm">
               <div className="flex items-center gap-2 font-medium text-foreground">
                 <Loader2 className="size-4 animate-spin text-emerald-600" />
-                <span>Waiting for M-Pesa PIN...</span>
+                <span>Waiting for M-Pesa Payment...</span>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Unlock your phone and enter your M-Pesa PIN to complete payment

@@ -1326,7 +1326,7 @@ class CancelStaleOrdersTestCase(TestCase):
     holds are restocked and dropped outright, while pre-hold orders that
     never got verified are cancelled the old way."""
 
-    # Older than the 24h sweep window.
+    # Older than the 5-minute sweep window.
     STALE_MINUTES = 25 * 60
 
     def setUp(self):
@@ -1390,8 +1390,8 @@ class CancelStaleOrdersTestCase(TestCase):
         self.assertEqual(self.product.total_stock, 7)  # 5 + 2 restored
 
     def test_recent_order_is_left_alone(self):
-        # Halfway to the limit: the window is a day, not minutes.
-        order = self._order(minutes_old=12 * 60)
+        # Inside the 5-minute window: the sweep only takes stale holds.
+        order = self._order(minutes_old=1)
         call_command("cancel_stale_orders")
         order.refresh_from_db()
         self.assertEqual(order.status, Order.Status.AWAITING_PAYMENT)

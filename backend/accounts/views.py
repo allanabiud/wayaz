@@ -1,3 +1,5 @@
+import logging
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
@@ -30,6 +32,8 @@ from .serializers import (
 )
 
 User = get_user_model()
+
+logger = logging.getLogger(__name__)
 
 
 @extend_schema(
@@ -196,10 +200,12 @@ class ForgotPasswordView(generics.GenericAPIView):
                     settings.DEFAULT_FROM_EMAIL,
                     [user.email],
                 )
-            except Exception:
+            except Exception:  # noqa: BLE001 - response must not reveal existence
                 # Never let delivery trouble reveal whether the account
                 # exists; the console backend prints it in development.
-                pass
+                logger.exception(
+                    "Failed to send password reset email to %s", user.email
+                )
 
         return Response(
             {"detail": "If that email has an account, a reset link is on its way."},

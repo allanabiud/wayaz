@@ -183,8 +183,10 @@ store_code=000
 health_code=000
 for _ in $(seq 1 20); do
   store_code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
+    -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36' \
     https://wayaz.co.ke/ || :)"
   health_code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
+    -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36' \
     https://api.wayaz.co.ke/api/health/ || :)"
   if [ "$store_code" = "200" ] && [ "$health_code" = "200" ]; then
     verified=true

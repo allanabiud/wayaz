@@ -57,6 +57,36 @@ def complete_paid_order(order):
         logger.exception("Merchant order email failed for %s", order.order_number)
 
 
+def release_failed_hold(transaction):
+    """A failed or cancelled M-Pesa attempt hands its reserved stock back
+    immediately instead of waiting for the cron sweep, and drops the unpaid
+    hold outright (it was never a real order) so the shopper can check out
+    again at once. Paid orders are left alone, and so is an order whose
+    earlier attempt is still awaiting a PIN prompt."""
+    order = transaction.order
+    if order.payment_status != Order.PaymentStatus.PENDING:
+        return
+    if order.payment_method != Order.PaymentMethod.M_PESA:
+        return
+    if order.status not in (
+        Order.Status.AWAITING_PAYMENT,
+        Order.Status.PROCESSING,
+    ):
+        return
+    # A retry may still be live: only the last unresolved attempt may release.
+    other_attempt_pending = PaymentTransaction.objects.filter(
+        order=order, status=PaymentTransaction.Status.PENDING
+    ).exclude(pk=transaction.pk)
+    if other_attempt_pending.exists():
+        return
+
+    hold = order.status == Order.Status.AWAITING_PAYMENT
+    order.cancel()  # atomic: status flip + stock restoration
+    if hold:
+        # Cascades its payment transactions, same as the cron sweep.
+        order.delete()
+
+
 class STKPushInitiateView(APIView):
     """POST /api/v1/payments/mpesa/stk-push/ - initiates an STK Push for an
     order. Ownership is enforced (authenticated shopper or checkout
@@ -270,6 +300,8 @@ class STKPushMockSimulateView(APIView):
             transaction.result_code = 1032
             transaction.result_desc = "Request cancelled by user."
             transaction.save()
+            # Same release path as the real failure callback.
+            release_failed_hold(transaction)
 
             return Response(
                 {
@@ -450,9 +482,11 @@ class DarajaCallbackView(APIView):
                 complete_paid_order(transaction.order)
 
             else:
-                # Cancelled or failed PIN entry
+                # Cancelled or failed PIN entry: give the reserved stock back
+                # right away rather than leaving it held until the sweep.
                 transaction.status = PaymentTransaction.Status.FAILED
                 transaction.save()
+                release_failed_hold(transaction)
 
             return Response({"ResultCode": 0, "ResultDesc": "Success"})
 

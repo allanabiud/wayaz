@@ -90,6 +90,7 @@ function ProfileForm({
 
   const [firstName, setFirstName] = useState(profile.first_name);
   const [lastName, setLastName] = useState(profile.last_name);
+  const [username, setUsername] = useState(profile.username);
   const [email, setEmail] = useState(profile.email);
   const [phone, setPhone] = useState(profile.phone_number);
   const [saving, setSaving] = useState(false);
@@ -99,6 +100,7 @@ function ProfileForm({
     setSaving(true);
     try {
       const updated = await updateUserProfile({
+        username: username.trim(),
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         email: email.trim(),
@@ -106,6 +108,7 @@ function ProfileForm({
       });
       // Keep the header dropdown & session in sync with the edit.
       updateSessionUser({
+        username: updated.username,
         email: updated.email,
         phone_number: updated.phone_number,
         display_name: updated.display_name,
@@ -142,6 +145,18 @@ function ProfileForm({
             placeholder="e.g. Wanjiku"
           />
         </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label htmlFor="username">Username</Label>
+          <Input
+            id="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="e.g. janewanjiku"
+          />
+          <p className="text-xs text-muted-foreground">
+            Used to log in to your account.
+          </p>
+        </div>
         <div className="space-y-1.5">
           <Label htmlFor="accountEmail">Email Address</Label>
           <Input
@@ -166,11 +181,6 @@ function ProfileForm({
             Used for M-Pesa prompts and delivery calls.
           </p>
         </div>
-      </div>
-
-      <div className="flex items-center justify-between gap-3 rounded-lg bg-muted/40 px-3 py-2 text-sm">
-        <span className="text-muted-foreground">Username</span>
-        <span className="font-medium">{profile.username}</span>
       </div>
 
       <div className="flex justify-end">

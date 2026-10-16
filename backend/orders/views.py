@@ -392,7 +392,7 @@ class CheckoutView(APIView):
                             {
                                 "detail": (
                                     "An M-Pesa payment for your previous order "
-                                    "is still in progress. Wait a few minutes "
+                                    "is still in progress. Wait up to 5 minutes "
                                     "for it to expire, then try again."
                                 )
                             }

@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/** Hand-drawn glyphs — lucide ships no jeans or sneaker icon. */
+/** Hand-drawn glyphs - lucide ships no jeans or sneaker icon. */
 function JeansIcon(props: LucideProps) {
   return (
     <svg

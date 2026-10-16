@@ -22,6 +22,7 @@ import {
   fetchStorefrontCatalog,
   fetchStoreSettings,
   storedCartId,
+  clearStoredCartId,
   updateCartItem,
   type Cart,
   type StoreProduct,
@@ -143,9 +144,11 @@ export function StoreProvider({
     api
       .post<Cart>("/api/v1/orders/cart/merge/", { guest_cart_id: guestId })
       .then((merged) => {
+        clearStoredCartId();
         setCart(merged);
       })
       .catch(() => {
+        clearStoredCartId();
         fetchCart()
           .then(setCart)
           .catch(() => {});

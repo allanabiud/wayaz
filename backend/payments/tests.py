@@ -9,8 +9,8 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from catalog.factories import create_product
-from catalog.models import Category
-from orders.models import Cart, CartItem, Order
+from catalog.models import Category, ProductSize
+from orders.models import Cart, CartItem, Order, OrderItem
 from orders.tokens import make_payment_token
 from payments.models import PaymentTransaction
 
@@ -228,29 +228,121 @@ class MpesaPaymentTests(TestCase):
         self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
         self.assertEqual(len(mail.outbox), 2)
 
-    def test_failed_callback_leaves_hold_untouched(self):
+    def _reserve_stock_on_hold(self):
+        """A product with 2 of its 5 units reserved by the payment hold,
+        mimicking what CheckoutView does before the STK push goes out."""
+        category = Category.objects.create(name="Denim", slug="denim")
+        product = create_product(
+            title="Reserved Jeans",
+            category=category,
+            base_price=Decimal("3500.00"),
+            stock_quantity=5,
+        )
+        ProductSize.objects.filter(product=product, size="").update(quantity=3)
+        OrderItem.objects.create(
+            order=self.order,
+            product=product,
+            product_title=product.title,
+            unit_price=Decimal("1750.00"),
+            quantity=2,
+        )
         self._make_hold()
-        tx = self._make_tx("ws_CO_HOLD_FAIL")
-        payload = {
+        return product
+
+    @staticmethod
+    def _fail_payload(transaction, code=1032, desc="Request cancelled by user"):
+        return {
             "Body": {
                 "stkCallback": {
-                    "MerchantRequestID": tx.merchant_request_id,
-                    "CheckoutRequestID": tx.checkout_request_id,
-                    "ResultCode": 1032,
-                    "ResultDesc": "Request cancelled by user",
+                    "MerchantRequestID": transaction.merchant_request_id,
+                    "CheckoutRequestID": transaction.checkout_request_id,
+                    "ResultCode": code,
+                    "ResultDesc": desc,
                 }
             }
         }
-        response = self.client.post(callback_url(), payload, format="json")
+
+    def test_failed_callback_releases_stock_and_drops_hold(self):
+        """A cancelled PIN hands the reserved stock back immediately instead
+        of leaving it held until the cron sweep, and drops the unpaid hold so
+        the shopper can check out again at once."""
+        product = self._reserve_stock_on_hold()
+        tx = self._make_tx("ws_CO_HOLD_FAIL")
+
+        response = self.client.post(
+            callback_url(), self._fail_payload(tx), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Hold and its transaction are gone; the 2 reserved units are back.
+        self.assertFalse(Order.objects.filter(pk=self.order.pk).exists())
+        self.assertFalse(PaymentTransaction.objects.filter(pk=tx.pk).exists())
+        product.refresh_from_db()
+        self.assertEqual(product.total_stock, 5)
+        # Nothing ordered, nobody emailed.
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_failed_attempt_never_touches_a_paid_order(self):
+        """A late failure callback for an already-paid order must not undo
+        the payment or restock sold units."""
+        self.order.payment_status = Order.PaymentStatus.PAID
+        self.order.status = Order.Status.PROCESSING
+        self.order.save()
+        tx = self._make_tx("ws_CO_LATE_FAIL")
+
+        response = self.client.post(
+            callback_url(), self._fail_payload(tx), format="json"
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         tx.refresh_from_db()
-        self.order.refresh_from_db()
         self.assertEqual(tx.status, PaymentTransaction.Status.FAILED)
-        # Nothing ordered, nobody emailed - the sweep collects it later.
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, Order.Status.PROCESSING)
+        self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
+
+    def test_failure_of_one_attempt_keeps_hold_while_another_is_pending(self):
+        """A retry can still be awaiting its PIN prompt: only the last
+        unresolved attempt may release the hold."""
+        self._make_hold()
+        failing = self._make_tx("ws_CO_RETRY_FAIL")
+        PaymentTransaction.objects.create(
+            order=self.order,
+            merchant_request_id="MR2",
+            checkout_request_id="ws_CO_RETRY_LIVE",
+            amount=self.order.total_amount,
+            phone_number="254712345678",
+            status=PaymentTransaction.Status.PENDING,
+        )
+
+        response = self.client.post(
+            callback_url(), self._fail_payload(failing), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        failing.refresh_from_db()
+        self.assertEqual(failing.status, PaymentTransaction.Status.FAILED)
+        self.order.refresh_from_db()
         self.assertEqual(self.order.status, Order.Status.AWAITING_PAYMENT)
         self.assertEqual(self.order.payment_status, Order.PaymentStatus.PENDING)
-        self.assertEqual(len(mail.outbox), 0)
+
+    def test_mock_simulate_fail_releases_hold(self):
+        """The mock cancel button takes the same release path as the real
+        failure callback."""
+        product = self._reserve_stock_on_hold()
+        tx = self._make_tx("ws_CO_MOCK_FAIL")
+
+        response = self.client.post(
+            reverse("mock-simulate"),
+            {"checkout_request_id": tx.checkout_request_id, "action": "fail"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.assertFalse(Order.objects.filter(pk=self.order.pk).exists())
+        self.assertFalse(PaymentTransaction.objects.filter(pk=tx.pk).exists())
+        product.refresh_from_db()
+        self.assertEqual(product.total_stock, 5)
 
     @override_settings(MPESA_ENVIRONMENT="sandbox")
     def test_mock_simulate_disabled_outside_mock_mode(self):
