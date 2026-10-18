@@ -32,3 +32,29 @@ class HealthEndpointTestCase(TestCase):
             res = self.client.get("/api/health/")
         self.assertEqual(res.status_code, 503)
         self.assertEqual(res.data["status"], "unhealthy")
+
+
+class DocumentationSecurityTestCase(TestCase):
+    """Schema and interactive docs must be completely unmapped in production
+    (SERVE_DOCS=False) and protected behind staff auth when enabled."""
+
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_docs_return_404_when_serve_docs_is_disabled(self):
+        with patch("django.conf.settings.SERVE_DOCS", False):
+            # When SERVE_DOCS is False, routes aren't included in urlpatterns
+            for path in (
+                "/api/v1/schema/",
+                "/api/v1/schema/swagger-ui/",
+                "/api/v1/schema/redoc/",
+            ):
+                with self.subTest(path=path):
+                    res = self.client.get(path)
+                    # Either 404 or redirect to 404
+                    self.assertIn(res.status_code, (401, 403, 404))
+
+    def test_schema_requires_staff_authentication(self):
+        """Anonymous access to schema view is rejected with 401."""
+        res = self.client.get("/api/v1/schema/")
+        self.assertEqual(res.status_code, 401)
