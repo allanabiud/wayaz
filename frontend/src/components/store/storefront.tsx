@@ -195,7 +195,10 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
 
             {/* Category buttons */}
             {catalogLoading && !catalog ? (
-              <div className="flex gap-2 overflow-x-auto pb-0.5" aria-hidden="true">
+              <div
+                className="flex gap-2 overflow-x-auto pb-0.5"
+                aria-hidden="true"
+              >
                 <Skeleton className="h-11 w-24 shrink-0 rounded-md" />
                 <Skeleton className="h-11 w-24 shrink-0 rounded-md" />
                 <Skeleton className="h-11 w-24 shrink-0 rounded-md" />
@@ -211,7 +214,10 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
                     href={`/categories/${section.key}`}
                     className="group inline-flex shrink-0 items-center gap-2.5 rounded-md bg-primary px-4 py-3 text-base font-semibold uppercase tracking-wide text-primary-foreground shadow-sm transition-all duration-150 hover:bg-primary/90 active:scale-[0.98] sm:shrink sm:py-3.5"
                   >
-                    <CategoryIcon name={section.icon} className="size-5 opacity-90" />
+                    <CategoryIcon
+                      name={section.icon}
+                      className="size-5 opacity-90"
+                    />
                     <span>{section.name}</span>
                     <ArrowRight className="size-4 opacity-70 transition-transform duration-150 group-hover:translate-x-0.5" />
                   </Link>

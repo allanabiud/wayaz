@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { ProductGridSkeleton } from "@/components/store/product-card-skeleton";
 
 // Generic storefront fallback: banner block + a product grid, matching the
 // homepage shape. Route-level files (product, search, category) take
@@ -23,16 +24,8 @@ export default function StoreLoading() {
       </section>
       <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
         <Skeleton className="h-5 w-40" />
-        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, index) => (
-            <div key={index} className="overflow-hidden rounded-2xl border">
-              <Skeleton className="aspect-[3/4] w-full rounded-none" />
-              <div className="space-y-2 p-3">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-1/3" />
-              </div>
-            </div>
-          ))}
+        <div className="mt-4">
+          <ProductGridSkeleton count={8} />
         </div>
       </div>
     </main>

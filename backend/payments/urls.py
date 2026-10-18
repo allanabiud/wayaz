@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     DarajaCallbackView,
+    STKPushCancelView,
     STKPushInitiateView,
     STKPushMockSimulateView,
     STKPushStatusView,
@@ -9,6 +10,7 @@ from .views import (
 
 urlpatterns = [
     path("mpesa/stk-push/", STKPushInitiateView.as_view(), name="mpesa-stk-push"),
+    path("mpesa/cancel/", STKPushCancelView.as_view(), name="mpesa-cancel"),
     # The callback URL embeds the shared secret (MPESA_CALLBACK_URL must
     # end in /<secret>/); the view rejects anything else in constant time.
     path(

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, ClipboardList, X } from "lucide-react";
+import { CheckCircle2, ClipboardList, Loader2, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/admin/table-skeleton";
 import {
   Table,
   TableBody,
@@ -33,6 +33,15 @@ import { useQuery } from "@/lib/use-query";
 import type { AdminOrder, AdminOrdersResponse } from "@/lib/types";
 
 const PAGE_SIZE = 10;
+
+const ORDER_COLUMNS = [
+  { header: "Order", width: "w-[20%]" },
+  { header: "Customer", width: "w-[24%]" },
+  { header: "Status", width: "w-[16%]" },
+  { header: "Payment", width: "w-[14%]" },
+  { header: "Total", width: "w-[12%]", align: "right" as const },
+  { header: "Date", width: "w-[14%]", align: "right" as const },
+];
 
 const STATUS_OPTIONS = [
   { value: "all", label: "All Statuses" },
@@ -78,7 +87,7 @@ export default function AdminOrdersPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
   const queryParams = new URLSearchParams();
   queryParams.set("page", String(page));
@@ -102,7 +111,7 @@ export default function AdminOrdersPage() {
     orderNumber: string,
     nextStatus: string,
   ) => {
-    setUpdatingStatus(true);
+    setUpdatingStatus(nextStatus);
     try {
       await api.patch(`/api/v1/admin/orders/${orderNumber}/`, {
         status: nextStatus,
@@ -123,7 +132,7 @@ export default function AdminOrdersPage() {
         err instanceof ApiError ? err.message : "Failed to update status.",
       );
     } finally {
-      setUpdatingStatus(false);
+      setUpdatingStatus(null);
     }
   };
 
@@ -152,6 +161,7 @@ export default function AdminOrdersPage() {
               setPage(1);
             }}
             placeholder="Search order #, customer, email, phone…"
+            loading={loading && Boolean(data)}
           />
         }
         filters={
@@ -181,6 +191,15 @@ export default function AdminOrdersPage() {
         trailing={
           data && (
             <>
+              {loading && (
+                <Badge
+                  variant="outline"
+                  className="h-9 gap-1.5 px-2.5 text-xs text-muted-foreground animate-pulse"
+                >
+                  <Loader2 className="size-3 animate-spin text-primary" />
+                  <span>Updating…</span>
+                </Badge>
+              )}
               <Badge variant="outline" className="h-9 px-3 text-xs font-mono">
                 {data.count} results
               </Badge>
@@ -197,11 +216,7 @@ export default function AdminOrdersPage() {
       {error && <ErrorState message={error} onRetry={refetch} />}
 
       {loading && !data && (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-xl" />
-          ))}
-        </div>
+        <TableSkeleton columns={ORDER_COLUMNS} rowCount={10} />
       )}
 
       {data && data.results.length === 0 && (
@@ -220,7 +235,11 @@ export default function AdminOrdersPage() {
       )}
 
       {data && data.results.length > 0 && (
-        <>
+        <div
+          className={`space-y-4 transition-opacity duration-200 ${
+            loading ? "opacity-60 pointer-events-none" : "opacity-100"
+          }`}
+        >
           <div className="hidden rounded-2xl bg-card shadow-(--shadow-card) overflow-hidden md:block">
             <Table className="table-fixed">
               <TableHeader>
@@ -349,7 +368,7 @@ export default function AdminOrdersPage() {
             itemCount={data?.results.length ?? 0}
             onPageChange={setPage}
           />
-        </>
+        </div>
       )}
 
       {selectedOrder && (
@@ -391,7 +410,7 @@ export default function AdminOrdersPage() {
                   </p>
                   <Button
                     size="sm"
-                    disabled={updatingStatus}
+                    disabled={Boolean(updatingStatus)}
                     onClick={() =>
                       handleStatusChange(
                         selectedOrder.order_number,
@@ -400,8 +419,14 @@ export default function AdminOrdersPage() {
                     }
                     className="gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
                   >
-                    <CheckCircle2 className="size-4" />
-                    Confirm Order
+                    {updatingStatus === "CONFIRMED" ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="size-4" />
+                    )}
+                    {updatingStatus === "CONFIRMED"
+                      ? "Confirming…"
+                      : "Confirm Order"}
                   </Button>
                 </div>
               )}
@@ -416,12 +441,17 @@ export default function AdminOrdersPage() {
                     variant={
                       selectedOrder.status === st ? "default" : "outline"
                     }
-                    disabled={updatingStatus || selectedOrder.status === st}
+                    disabled={
+                      Boolean(updatingStatus) || selectedOrder.status === st
+                    }
                     onClick={() =>
                       handleStatusChange(selectedOrder.order_number, st)
                     }
-                    className="text-xs cursor-pointer"
+                    className="text-xs cursor-pointer gap-1"
                   >
+                    {updatingStatus === st && (
+                      <Loader2 className="size-3 animate-spin" />
+                    )}
                     {STATUS_LABELS[st]}
                   </Button>
                 ))}

@@ -342,3 +342,39 @@ class Order(models.Model):
 
     def __str__(self):
         return f"{self.order_number} ({self.get_status_display()})"
+
+
+class EmailLog(models.Model):
+    """Audit and retry log for transactional emails."""
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        SENT = "SENT", "Sent"
+        FAILED = "FAILED", "Failed"
+
+    recipient = models.EmailField()
+    subject = models.CharField(max_length=255)
+    email_type = models.CharField(max_length=60, db_index=True)
+    order = models.ForeignKey(
+        Order,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="email_logs",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    error_message = models.TextField(blank=True, default="")
+    retry_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.email_type} to {self.recipient} ({self.status})"

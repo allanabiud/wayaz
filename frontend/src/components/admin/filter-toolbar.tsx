@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Search, X } from "lucide-react";
+import { Loader2, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 export function FilterToolbar({
@@ -28,12 +28,14 @@ export function FilterSearch({
   placeholder,
   onSubmit,
   onClear,
+  loading = false,
 }: {
   value: string;
   onValueChange: (value: string) => void;
   placeholder: string;
   onSubmit?: () => void;
   onClear?: () => void;
+  loading?: boolean;
 }) {
   const handleClear = () => {
     if (onClear) onClear();
@@ -42,7 +44,11 @@ export function FilterSearch({
 
   const field = (
     <>
-      <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+      {loading ? (
+        <Loader2 className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 animate-spin text-primary" />
+      ) : (
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+      )}
       <Input
         value={value}
         onChange={(e) => onValueChange(e.target.value)}

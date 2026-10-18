@@ -3,7 +3,8 @@ import logging
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from drf_spectacular.utils import (
@@ -194,12 +195,53 @@ class ForgotPasswordView(generics.GenericAPIView):
                 "- Wayaz Collection"
             )
             try:
-                send_mail(
+                from catalog.models import StoreSettings
+
+                store = StoreSettings.load()
+            except Exception:  # noqa: BLE001
+                store = None
+
+            frontend_url = settings.FRONTEND_URL.rstrip("/")
+            logo_url = None
+            if store and store.logo:
+                try:
+                    path = store.logo.url
+                    logo_url = (
+                        path
+                        if (path.startswith("http://") or path.startswith("https://"))
+                        else f"{frontend_url}/{path.lstrip('/')}"
+                    )
+                except Exception:  # noqa: BLE001
+                    logo_url = None
+            if not logo_url:
+                logo_url = f"{frontend_url}/wayaz_logo.jpeg"
+
+            try:
+                html_body = render_to_string(
+                    "emails/password_reset.html",
+                    {
+                        "user": user,
+                        "store": store,
+                        "logo_url": logo_url,
+                        "frontend_url": frontend_url,
+                        "reset_url": reset_url,
+                        "days": days,
+                    },
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception("Failed to render password reset HTML")
+                html_body = None
+
+            try:
+                msg = EmailMultiAlternatives(
                     "Reset your Wayaz password",
                     body,
                     settings.DEFAULT_FROM_EMAIL,
                     [user.email],
                 )
+                if html_body:
+                    msg.attach_alternative(html_body, "text/html")
+                msg.send(fail_silently=False)
             except Exception:  # noqa: BLE001 - response must not reveal existence
                 # Never let delivery trouble reveal whether the account
                 # exists; the console backend prints it in development.

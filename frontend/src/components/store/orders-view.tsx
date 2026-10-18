@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ChevronRight,
   ClipboardList,
+  Loader2,
   LogIn,
   Printer,
   RotateCcw,
@@ -50,15 +51,63 @@ function formatOrderedAt(iso: string): string {
 function OrdersSkeleton() {
   return (
     <div className="space-y-4" aria-hidden="true">
-      {Array.from({ length: 3 }).map((_, index) => (
-        <div key={index} className="rounded-2xl border bg-card p-4">
-          <div className="flex items-center justify-between gap-3">
-            <Skeleton className="h-5 w-40" />
-            <Skeleton className="h-5 w-24 rounded-full" />
+      {Array.from({ length: 2 }).map((_, index) => (
+        <div
+          key={index}
+          className="rounded-2xl border bg-card overflow-hidden shadow-xs"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 bg-muted/20">
+            <div className="flex items-center gap-2">
+              <Skeleton className="size-4 rounded-sm" />
+              <Skeleton className="h-4 w-36" />
+            </div>
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
           </div>
-          <div className="mt-4 space-y-2">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-2/3" />
+          <div className="px-4 py-4 space-y-4">
+            {/* Timeline skeleton */}
+            <div className="my-2 flex items-center justify-between px-2">
+              <div className="flex flex-col items-center gap-1.5">
+                <Skeleton className="size-6 rounded-full" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+              <Skeleton className="h-0.5 flex-1 mx-2" />
+              <div className="flex flex-col items-center gap-1.5">
+                <Skeleton className="size-6 rounded-full" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+              <Skeleton className="h-0.5 flex-1 mx-2" />
+              <div className="flex flex-col items-center gap-1.5">
+                <Skeleton className="size-6 rounded-full" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            </div>
+
+            {/* Items skeleton */}
+            <div className="space-y-2 border-t pt-3">
+              <div className="flex justify-between">
+                <Skeleton className="h-4 w-52" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+              <div className="flex justify-between">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            </div>
+
+            {/* Pricing skeleton */}
+            <div className="space-y-1.5 border-t pt-3">
+              <div className="flex justify-between">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+              <div className="flex justify-between">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-24 font-bold" />
+              </div>
+            </div>
           </div>
         </div>
       ))}
@@ -318,9 +367,14 @@ export function OrdersView() {
         <p className="text-xs font-semibold tracking-[0.2em] text-gold uppercase">
           Your account
         </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
-          Orders
-        </h1>
+        <div className="flex items-center gap-2">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
+            Orders
+          </h1>
+          {loading && Boolean(data) && (
+            <Loader2 className="mt-1 size-4 animate-spin text-primary" />
+          )}
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">
           Every order you&apos;ve placed with your account, newest first.
         </p>
@@ -353,7 +407,11 @@ export function OrdersView() {
             }
           />
         ) : (
-          <>
+          <div
+            className={`space-y-4 transition-opacity duration-200 ${
+              loading ? "opacity-60 pointer-events-none" : "opacity-100"
+            }`}
+          >
             <div className="space-y-4">
               {orders.map((order) => (
                 <OrderCard
@@ -397,7 +455,7 @@ export function OrdersView() {
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
     </main>

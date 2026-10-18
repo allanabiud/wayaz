@@ -17,6 +17,11 @@ class Command(BaseCommand):
             default=None,
             help="Recipient address (default: MANAGER_EMAIL).",
         )
+        parser.add_argument(
+            "--sample-order",
+            action="store_true",
+            help="Send a branded sample order confirmation email with logo and products.",
+        )
 
     def handle(self, *args, **options):
         recipient = options["to"] or getattr(settings, "MANAGER_EMAIL", "")
@@ -25,20 +30,37 @@ class Command(BaseCommand):
                 "No recipient: pass --to or set MANAGER_EMAIL in the environment."
             )
 
-        host = settings.EMAIL_HOST
+        host = settings.EMAIL_HOST or "console (local)"
         port = settings.EMAIL_PORT
         self.stdout.write(
             f"Sending via {host}:{port} as {settings.EMAIL_HOST_USER} "
             f"(from {settings.DEFAULT_FROM_EMAIL}) -> {recipient}"
         )
+
         try:
-            send_mail(
-                "Wayaz SMTP test",
-                "SMTP is working. This is a test message from the Wayaz backend.",
-                settings.DEFAULT_FROM_EMAIL,
-                [recipient],
-                fail_silently=False,
-            )
+            if options.get("sample_order"):
+                from orders.emails import send_order_confirmation_email
+                from orders.models import Order
+
+                order = Order.objects.first()
+                if not order:
+                    raise CommandError(
+                        "No orders exist in the database to use as a sample."
+                    )
+
+                # Temporarily point email to recipient
+                original_email = order.email
+                order.email = recipient
+                send_order_confirmation_email(order)
+                order.email = original_email
+            else:
+                send_mail(
+                    "Wayaz SMTP test",
+                    "SMTP is working. This is a test message from the Wayaz backend.",
+                    settings.DEFAULT_FROM_EMAIL,
+                    [recipient],
+                    fail_silently=False,
+                )
         except Exception as exc:  # noqa: BLE001 - report any backend failure
             raise CommandError(f"Email failed: {type(exc).__name__}: {exc}") from exc
 

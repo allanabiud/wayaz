@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="x-apple-disable-message-reformatting">
+  <title>{% block title %}{{ store.store_name }}{% endblock %}</title>
+  <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <![endif]-->
+  <style>
+    /* Reset styles */
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      height: 100% !important;
+      width: 100% !important;
+      background-color: #f7f7f8;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    * {
+      -ms-text-size-adjust: 100%;
+      -webkit-text-size-adjust: 100%;
+    }
+    div[style*="margin: 16px 0"] {
+      margin: 0 !important;
+    }
+    table, td {
+      mso-table-lspace: 0pt !important;
+      mso-table-rspace: 0pt !important;
+    }
+    table {
+      border-spacing: 0 !important;
+      border-collapse: collapse !important;
+      table-layout: fixed !important;
+      margin: 0 auto !important;
+    }
+    img {
+      -ms-interpolation-mode: bicubic;
+      border: 0;
+      height: auto;
+      line-height: 100%;
+      outline: none;
+      text-decoration: none;
+    }
+    a {
+      text-decoration: none;
+      color: #e00613;
+    }
+    /* Mobile responsive */
+    @media screen and (max-width: 600px) {
+      .email-container {
+        width: 100% !important;
+        margin: auto !important;
+        border-radius: 0 !important;
+      }
+      .stack-column,
+      .stack-column-dir {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        direction: ltr !important;
+      }
+      .mobile-padding {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+      }
+      .mobile-center {
+        text-align: center !important;
+      }
+      .product-thumb {
+        width: 60px !important;
+        height: 60px !important;
+      }
+    }
+  </style>
+</head>
+<body width="100%" style="margin: 0; padding: 0; mso-line-height-rule: exactly; background-color: #f7f7f8;">
+  <center role="article" aria-roledescription="email" lang="en" style="width: 100%; background-color: #f7f7f8; text-align: left;">
+    
+    <!-- Preview Text Spacer -->
+    <div style="display: none; font-size: 1px; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden; mso-hide: all; font-family: sans-serif;">
+      {% block preview_text %}{{ store.store_name }} - Kenyan Fashion & Streetwear{% endblock %}
+    </div>
+
+    <!-- Outer Table Container -->
+    <table align="center" role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: auto; background-color: #f7f7f8;">
+      <tr>
+        <td style="padding: 24px 12px 32px 12px;" class="mobile-padding">
+          
+          <!-- Inner Main Card: 600px Max Width -->
+          <table align="center" role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" class="email-container" style="max-width: 600px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 12px; border: 1px solid #e4e4e7; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+            
+            <!-- Top Red Accent Bar -->
+            <tr>
+              <td height="4" style="background-color: #e00613; font-size: 1px; line-height: 1px;">&nbsp;</td>
+            </tr>
+
+            <!-- Header: Logo & Store Link -->
+            <tr>
+              <td style="padding: 24px 32px 20px 32px; border-bottom: 1px solid #f4f4f5;" class="mobile-padding">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                  <tr>
+                    <td valign="middle" align="left">
+                      <a href="{{ frontend_url }}" target="_blank" style="display: inline-block; text-decoration: none;">
+                        {% if logo_url %}
+                          <img src="{{ logo_url }}" alt="{{ store.store_name }}" width="130" style="display: block; max-width: 130px; height: auto; border: 0;" />
+                        {% else %}
+                          <span style="font-size: 20px; font-weight: 800; letter-spacing: -0.5px; color: #18181b;">WAYAZ <span style="color: #e00613;">COLLECTION</span></span>
+                        {% endif %}
+                      </a>
+                    </td>
+                    <td valign="middle" align="right">
+                      <a href="{{ frontend_url }}" target="_blank" style="font-size: 12px; font-weight: 600; color: #71717a; text-decoration: none; padding: 6px 12px; background-color: #f4f4f5; border-radius: 6px; display: inline-block;">
+                        Visit Shop &rarr;
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Main Content Area -->
+            <tr>
+              <td style="padding: 32px 32px 28px 32px;" class="mobile-padding">
+                {% block content %}{% endblock %}
+              </td>
+            </tr>
+
+            <!-- Help / WhatsApp Contact Banner -->
+            {% block help_section %}
+            <tr>
+              <td style="padding: 0 32px 28px 32px;" class="mobile-padding">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #fbfbfc; border: 1px solid #e4e4e7; border-radius: 10px; padding: 18px 20px;">
+                  <tr>
+                    <td valign="middle" align="left">
+                      <p style="margin: 0; font-size: 13px; font-weight: 700; color: #18181b;">Need help or have questions?</p>
+                      <p style="margin: 3px 0 0 0; font-size: 12px; color: #71717a; line-height: 1.4;">
+                        Our team is here to help. Reach us on WhatsApp or reply directly to this email.
+                      </p>
+                    </td>
+                    {% if whatsapp_link %}
+                    <td valign="middle" align="right" style="padding-left: 12px;">
+                      <a href="{{ whatsapp_link }}" target="_blank" style="background-color: #25D366; color: #ffffff; font-size: 12px; font-weight: 700; padding: 9px 16px; border-radius: 6px; display: inline-block; text-decoration: none; white-space: nowrap;">
+                        Chat on WhatsApp
+                      </a>
+                    </td>
+                    {% endif %}
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            {% endblock %}
+
+            <!-- Footer -->
+            <tr>
+              <td style="background-color: #18181b; padding: 28px 32px; color: #a1a1aa;" class="mobile-padding">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                  <tr>
+                    <td align="left" style="font-size: 12px; line-height: 1.6;">
+                      <p style="margin: 0 0 8px 0; font-weight: 700; color: #ffffff; font-size: 13px;">
+                        {{ store.store_name }}
+                      </p>
+                      <p style="margin: 0 0 12px 0; color: #71717a; font-size: 11px;">
+                        {{ store.tagline|default:"Fresh pieces delivered across Kenya." }}
+                      </p>
+                      {% if store.contact_email or store.contact_phone %}
+                      <p style="margin: 0 0 12px 0; font-size: 11px; color: #a1a1aa;">
+                        {% if store.contact_email %}Email: <a href="mailto:{{ store.contact_email }}" style="color: #ffffff; text-decoration: underline;">{{ store.contact_email }}</a>{% endif %}
+                        {% if store.contact_phone %} &nbsp;|&nbsp; Tel: <span style="color: #ffffff;">{{ store.contact_phone }}</span>{% endif %}
+                      </p>
+                      {% endif %}
+                      {% if store.address %}
+                      <p style="margin: 0 0 12px 0; font-size: 11px; color: #71717a;">
+                        {{ store.address }}
+                      </p>
+                      {% endif %}
+                      <p style="margin: 16px 0 0 0; padding-top: 12px; border-top: 1px solid #27272a; font-size: 11px; color: #71717a;">
+                        &copy; {% now "Y" %} {{ store.store_name }}. All rights reserved.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+          </table>
+          <!-- End Inner Main Card -->
+
+        </td>
+      </tr>
+    </table>
+    <!-- End Outer Table Container -->
+
+  </center>
+</body>
+</html>

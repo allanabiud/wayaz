@@ -7,6 +7,7 @@ import {
   Check,
   Heart,
   Image as ImageIcon,
+  Loader2,
   ShoppingBag,
   Zap,
 } from "lucide-react";
@@ -223,7 +224,11 @@ export function ProductCard({
               disabled={buying || bumping}
               onClick={handleBuyNow}
             >
-              <Zap className="size-4" />
+              {buying ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Zap className="size-4" />
+              )}
               {buying ? "Adding…" : "Buy now"}
             </Button>
             <Button
@@ -231,7 +236,9 @@ export function ProductCard({
               disabled={adding || bumping}
               onClick={handleAdd}
             >
-              {inCart ? (
+              {adding || bumping ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : inCart ? (
                 <Check className="size-4" />
               ) : (
                 <ShoppingBag className="size-4" />

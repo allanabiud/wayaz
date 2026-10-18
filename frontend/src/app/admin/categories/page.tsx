@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/admin/table-skeleton";
 import {
   Table,
   TableBody,
@@ -40,6 +40,14 @@ import { EmptyState, ErrorState, PageHeader } from "@/components/ui/states";
 import { api, ApiError } from "@/lib/api";
 import { useQuery } from "@/lib/use-query";
 import type { Category, Paginated } from "@/lib/types";
+
+const CATEGORY_COLUMNS = [
+  { header: "Name", width: "w-[40%]" },
+  { header: "Description", width: "w-[32%]" },
+  { header: "Products", width: "w-[12%]" },
+  { header: "Order", width: "w-[8%]" },
+  { header: "Actions", width: "w-[8%]", align: "right" as const },
+];
 
 interface CategoryForm {
   id: number | null;
@@ -166,20 +174,27 @@ export default function AdminCategoriesPage() {
             : "Organise the storefront into browsable sections"
         }
         action={
-          <Button onClick={openCreate} className="gap-2">
-            <Plus className="size-4" /> Add Category
-          </Button>
+          <div className="flex items-center gap-2">
+            {loading && data && (
+              <Badge
+                variant="outline"
+                className="h-9 gap-1.5 px-3 text-xs text-muted-foreground animate-in fade-in duration-200"
+              >
+                <Loader2 className="size-3 animate-spin text-primary" />
+                Updating…
+              </Badge>
+            )}
+            <Button onClick={openCreate} className="gap-2">
+              <Plus className="size-4" /> Add Category
+            </Button>
+          </div>
         }
       />
 
       {error && <ErrorState message={error} onRetry={refetch} />}
 
       {loading && !data && (
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-14 w-full rounded-xl" />
-          ))}
-        </div>
+        <TableSkeleton columns={CATEGORY_COLUMNS} rowCount={5} />
       )}
 
       {!loading && data && categories.length === 0 && (
@@ -195,7 +210,11 @@ export default function AdminCategoriesPage() {
       )}
 
       {categories.length > 0 && (
-        <>
+        <div
+          className={`space-y-4 transition-opacity duration-200 ${
+            loading ? "opacity-60 pointer-events-none" : "opacity-100"
+          }`}
+        >
           <div className="space-y-3 md:hidden">
             {categories.map((category) => (
               <div
@@ -331,7 +350,7 @@ export default function AdminCategoriesPage() {
             itemCount={categories.length}
             onPageChange={setPage}
           />
-        </>
+        </div>
       )}
 
       <Dialog
@@ -429,7 +448,12 @@ export default function AdminCategoriesPage() {
             <Button variant="outline" onClick={closeForm} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={() => void save()} disabled={saving}>
+            <Button
+              onClick={() => void save()}
+              disabled={saving}
+              className="gap-1.5"
+            >
+              {saving && <Loader2 className="size-4 animate-spin" />}
               {saving
                 ? "Saving…"
                 : form?.id
@@ -476,7 +500,9 @@ export default function AdminCategoriesPage() {
               variant="destructive"
               onClick={() => void remove()}
               disabled={deleting}
+              className="gap-1.5"
             >
+              {deleting && <Loader2 className="size-4 animate-spin" />}
               {deleting ? "Deleting…" : "Delete"}
             </Button>
           </DialogFooter>

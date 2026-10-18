@@ -17,6 +17,7 @@ import {
   Check,
   Heart,
   Image as ImageIcon,
+  Loader2,
   Minus,
   Plus,
   Share2,
@@ -577,10 +578,12 @@ export function ProductDetail({ product }: ProductDetailProps) {
               <Button
                 size="lg"
                 className="w-full gap-2 sm:flex-1"
-                disabled={!canAdd}
+                disabled={!canAdd || adding}
                 onClick={handleAdd}
               >
-                {sizeInCart ? (
+                {adding ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : sizeInCart ? (
                   <Check className="size-4" />
                 ) : (
                   <ShoppingBag className="size-4" />
@@ -594,7 +597,11 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 disabled={!canAdd || buying}
                 onClick={() => void handleBuyNow()}
               >
-                <Zap className="size-4" />
+                {buying ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Zap className="size-4" />
+                )}
                 {buying ? "Adding…" : "Buy now"}
               </Button>
               <Button
@@ -770,10 +777,12 @@ export function ProductDetail({ product }: ProductDetailProps) {
               size="lg"
               className="gap-2 rounded-full sm:min-w-40"
               variant={product.is_in_stock ? "default" : "outline"}
-              disabled={!canAdd}
+              disabled={!canAdd || adding}
               onClick={handleAdd}
             >
-              {sizeInCart ? (
+              {adding ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : sizeInCart ? (
                 <Check className="size-4" />
               ) : (
                 <ShoppingBag className="size-4" />
@@ -788,7 +797,11 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 disabled={!canAdd || buying}
                 onClick={() => void handleBuyNow()}
               >
-                <Zap className="size-4" />
+                {buying ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Zap className="size-4" />
+                )}
                 {buying ? "Adding…" : "Buy now"}
               </Button>
             ) : (

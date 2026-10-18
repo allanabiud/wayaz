@@ -551,3 +551,146 @@ class MpesaPaymentTests(TestCase):
         self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
         # No second reveal happened.
         self.assertEqual(len(mail.outbox), 0)
+
+    def test_cancel_unpaid_hold_releases_stock_and_deletes_hold(self):
+        product = self._reserve_stock_on_hold()
+        self._make_tx("ws_CO_CANCEL_HOLD")
+        url = reverse("mpesa-cancel")
+
+        response = self.client.post(
+            url,
+            {"order_number": self.order.order_number, "payment_token": self.token},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "CANCELLED")
+
+        # Hold and transactions are gone, reserved stock is restored
+        self.assertFalse(Order.objects.filter(pk=self.order.pk).exists())
+        product.refresh_from_db()
+        self.assertEqual(product.total_stock, 5)
+
+    def test_cancel_requires_order_ownership(self):
+        self._make_hold()
+        url = reverse("mpesa-cancel")
+
+        # No token
+        res1 = self.client.post(
+            url, {"order_number": self.order.order_number}, format="json"
+        )
+        self.assertEqual(res1.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Invalid token
+        res2 = self.client.post(
+            url,
+            {"order_number": self.order.order_number, "payment_token": "bad-token"},
+            format="json",
+        )
+        self.assertEqual(res2.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_cancel_rejected_when_order_already_paid(self):
+        self.order.payment_status = Order.PaymentStatus.PAID
+        self.order.save()
+        url = reverse("mpesa-cancel")
+
+        response = self.client.post(
+            url,
+            {"order_number": self.order.order_number, "payment_token": self.token},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("already marked as paid", response.data["detail"])
+
+    @override_settings(MPESA_ENVIRONMENT="sandbox")
+    def test_cancel_reveals_order_if_daraja_already_confirmed_payment(self):
+        self._make_hold()
+        self._make_tx("ws_CO_ALREADY_PAID_ON_PHONE")
+        url = reverse("mpesa-cancel")
+
+        with patch(
+            "payments.views.stk_query",
+            return_value={
+                "ResultCode": "0",
+                "ResultDesc": "The service request is processed successfully.",
+            },
+        ):
+            response = self.client.post(
+                url,
+                {"order_number": self.order.order_number, "payment_token": self.token},
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["status"], "COMPLETED")
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
+        self.assertEqual(self.order.status, Order.Status.PROCESSING)
+
+    def test_stk_push_initiate_failure_releases_hold(self):
+        product = self._reserve_stock_on_hold()
+        url = reverse("mpesa-stk-push")
+
+        with patch(
+            "payments.views.initiate_stk_push",
+            side_effect=RuntimeError("Daraja network timeout"),
+        ):
+            response = self.client.post(
+                url,
+                {
+                    "order_number": self.order.order_number,
+                    "phone_number": "0712345678",
+                    "payment_token": self.token,
+                },
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # Empty hold was released so customer is not trapped
+        self.assertFalse(Order.objects.filter(pk=self.order.pk).exists())
+        product.refresh_from_db()
+        self.assertEqual(product.total_stock, 5)
+
+    def test_stk_push_rejected_for_zero_amount(self):
+        self.order.total_amount = Decimal("0.00")
+        self.order.save()
+        url = reverse("mpesa-stk-push")
+
+        response = self.client.post(
+            url,
+            {
+                "order_number": self.order.order_number,
+                "phone_number": "0712345678",
+                "payment_token": self.token,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("greater than zero", response.data["detail"])
+
+    def test_stk_push_rejected_for_cancelled_order(self):
+        self.order.status = Order.Status.CANCELLED
+        self.order.save()
+        url = reverse("mpesa-stk-push")
+
+        response = self.client.post(
+            url,
+            {
+                "order_number": self.order.order_number,
+                "phone_number": "0712345678",
+                "payment_token": self.token,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("cancelled", response.data["detail"])
+
+    def test_format_phone_number_variants(self):
+        from payments.daraja import format_phone_number
+
+        self.assertEqual(format_phone_number("0712345678"), "254712345678")
+        self.assertEqual(format_phone_number("0112345678"), "254112345678")
+        self.assertEqual(format_phone_number("+254 712 345 678"), "254712345678")
+        self.assertEqual(format_phone_number("+2540712345678"), "254712345678")
+        self.assertEqual(format_phone_number("00254712345678"), "254712345678")
+        self.assertEqual(format_phone_number("712345678"), "254712345678")
+        self.assertEqual(format_phone_number("112345678"), "254112345678")

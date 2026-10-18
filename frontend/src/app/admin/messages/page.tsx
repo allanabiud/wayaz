@@ -196,6 +196,7 @@ export default function AdminMessagesPage() {
               setPage(1);
             }}
             placeholder="Search name, email, subject or message…"
+            loading={loading && Boolean(data)}
           />
         }
         filters={
@@ -235,6 +236,22 @@ export default function AdminMessagesPage() {
             )}
           </>
         }
+        trailing={
+          <div className="flex items-center gap-2">
+            {loading && data && (
+              <Badge
+                variant="outline"
+                className="h-9 gap-1.5 px-3 text-xs text-muted-foreground animate-in fade-in duration-200"
+              >
+                <Loader2 className="size-3 animate-spin text-primary" />
+                Updating…
+              </Badge>
+            )}
+            <Badge variant="secondary" className="h-9 px-3 text-xs">
+              {data?.count ?? 0} total
+            </Badge>
+          </div>
+        }
       />
 
       {actionError && (
@@ -242,9 +259,26 @@ export default function AdminMessagesPage() {
       )}
 
       {loading && !data ? (
-        <div className="space-y-2">
+        <div className="rounded-lg border bg-card divide-y">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-md" />
+            <div
+              key={i}
+              className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+            >
+              <div className="space-y-2 min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-4 w-12 rounded" />
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-3 w-36" />
+                </div>
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-3 w-3/4" />
+              </div>
+              <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                <Skeleton className="size-8 rounded-md" />
+                <Skeleton className="size-8 rounded-md" />
+              </div>
+            </div>
           ))}
         </div>
       ) : error ? (
@@ -266,95 +300,101 @@ export default function AdminMessagesPage() {
           }
         />
       ) : (
-        <div className="rounded-lg border bg-card divide-y">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              onClick={() => viewMessage(msg)}
-              className={`p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:bg-muted/50 cursor-pointer transition-colors ${
-                !msg.is_read ? "bg-primary/5 font-medium" : ""
-              }`}
-            >
-              <div className="space-y-1 min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  {!msg.is_read ? (
-                    <Badge
-                      variant="default"
-                      className="text-[10px] bg-primary text-primary-foreground font-semibold px-1.5 py-0"
-                    >
-                      Unread
-                    </Badge>
-                  ) : (
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] text-muted-foreground font-normal px-1.5 py-0"
-                    >
-                      Read
-                    </Badge>
-                  )}
-                  <span className="text-sm font-semibold">{msg.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    &lt;{msg.email}&gt;
-                  </span>
-                  {msg.phone && (
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Phone className="size-3" />
-                      {msg.phone}
+        <div
+          className={`space-y-4 transition-opacity duration-200 ${
+            loading ? "opacity-60 pointer-events-none" : "opacity-100"
+          }`}
+        >
+          <div className="rounded-lg border bg-card divide-y">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                onClick={() => viewMessage(msg)}
+                className={`p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:bg-muted/50 cursor-pointer transition-colors ${
+                  !msg.is_read ? "bg-primary/5 font-medium" : ""
+                }`}
+              >
+                <div className="space-y-1 min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {!msg.is_read ? (
+                      <Badge
+                        variant="default"
+                        className="text-[10px] bg-primary text-primary-foreground font-semibold px-1.5 py-0"
+                      >
+                        Unread
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] text-muted-foreground font-normal px-1.5 py-0"
+                      >
+                        Read
+                      </Badge>
+                    )}
+                    <span className="text-sm font-semibold">{msg.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      &lt;{msg.email}&gt;
                     </span>
-                  )}
-                  <span className="text-xs text-muted-foreground ml-auto hidden sm:inline">
-                    {formatDate(msg.created_at)}
-                  </span>
+                    {msg.phone && (
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Phone className="size-3" />
+                        {msg.phone}
+                      </span>
+                    )}
+                    <span className="text-xs text-muted-foreground ml-auto hidden sm:inline">
+                      {formatDate(msg.created_at)}
+                    </span>
+                  </div>
+                  <p className="text-sm text-foreground truncate">
+                    {msg.subject}
+                  </p>
+                  <p className="text-xs text-muted-foreground line-clamp-1">
+                    {msg.message}
+                  </p>
                 </div>
-                <p className="text-sm text-foreground truncate">
-                  {msg.subject}
-                </p>
-                <p className="text-xs text-muted-foreground line-clamp-1">
-                  {msg.message}
-                </p>
-              </div>
 
-              <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 cursor-pointer"
-                  title={msg.is_read ? "Mark as unread" : "Mark as read"}
-                  onClick={(e) => toggleRead(msg, e)}
-                  disabled={togglingId === msg.id}
-                >
-                  {msg.is_read ? (
-                    <Mail className="size-4 text-muted-foreground" />
-                  ) : (
-                    <MailOpen className="size-4 text-primary" />
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 text-destructive hover:bg-destructive/10 cursor-pointer"
-                  title="Delete message"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPendingDelete(msg);
-                  }}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
+                <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 cursor-pointer"
+                    title={msg.is_read ? "Mark as unread" : "Mark as read"}
+                    onClick={(e) => toggleRead(msg, e)}
+                    disabled={togglingId === msg.id}
+                  >
+                    {msg.is_read ? (
+                      <Mail className="size-4 text-muted-foreground" />
+                    ) : (
+                      <MailOpen className="size-4 text-primary" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 text-destructive hover:bg-destructive/10 cursor-pointer"
+                    title="Delete message"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPendingDelete(msg);
+                    }}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          {data && data.count > PAGE_SIZE && (
+            <ListPagination
+              page={page}
+              count={data.count}
+              pageSize={PAGE_SIZE}
+              itemCount={messages.length}
+              onPageChange={setPage}
+            />
+          )}
         </div>
-      )}
-
-      {data && data.count > PAGE_SIZE && (
-        <ListPagination
-          page={page}
-          count={data.count}
-          pageSize={PAGE_SIZE}
-          itemCount={messages.length}
-          onPageChange={setPage}
-        />
       )}
 
       <Dialog

@@ -426,6 +426,19 @@ export function simulateMockPayment(
   });
 }
 
+export function cancelMpesaPayment(
+  order_number: string,
+  payment_token?: string,
+): Promise<{ detail: string; status: string }> {
+  return api.post<{ detail: string; status: string }>(
+    "/api/v1/payments/mpesa/cancel/",
+    {
+      order_number,
+      payment_token,
+    },
+  );
+}
+
 export function fetchUserAddresses(): Promise<Paginated<Address>> {
   return api.get<Paginated<Address>>("/api/v1/auth/addresses/");
 }

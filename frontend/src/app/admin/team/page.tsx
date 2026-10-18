@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/admin/table-skeleton";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -38,6 +38,15 @@ import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useQuery } from "@/lib/use-query";
 import type { AdminTeamMember, Paginated, UserRole } from "@/lib/types";
+
+const TEAM_COLUMNS = [
+  { header: "Name", width: "w-[28%]" },
+  { header: "Email", width: "w-[26%]" },
+  { header: "Role", width: "w-[13%]" },
+  { header: "Status", width: "w-[13%]" },
+  { header: "Last login", width: "w-[10%]" },
+  { header: "Actions", width: "w-[10%]", align: "right" as const },
+];
 
 interface MemberForm {
   id: number | null;
@@ -232,22 +241,29 @@ export default function AdminTeamPage() {
             : "Who can reach the dashboard"
         }
         action={
-          canManage ? (
-            <Button onClick={openCreate} className="gap-2">
-              <Plus className="size-4" /> Add Teammate
-            </Button>
-          ) : undefined
+          <div className="flex items-center gap-2">
+            {loading && data && (
+              <Badge
+                variant="outline"
+                className="h-9 gap-1.5 px-3 text-xs text-muted-foreground animate-in fade-in duration-200"
+              >
+                <Loader2 className="size-3 animate-spin text-primary" />
+                Updating…
+              </Badge>
+            )}
+            {canManage && (
+              <Button onClick={openCreate} className="gap-2">
+                <Plus className="size-4" /> Add Teammate
+              </Button>
+            )}
+          </div>
         }
       />
 
       {error && <ErrorState message={error} onRetry={refetch} />}
 
       {loading && !data && (
-        <div className="space-y-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-14 w-full rounded-xl" />
-          ))}
-        </div>
+        <TableSkeleton columns={TEAM_COLUMNS} rowCount={4} />
       )}
 
       {!loading && data && members.length === 0 && (
@@ -265,7 +281,11 @@ export default function AdminTeamPage() {
       )}
 
       {members.length > 0 && (
-        <>
+        <div
+          className={`space-y-4 transition-opacity duration-200 ${
+            loading ? "opacity-60 pointer-events-none" : "opacity-100"
+          }`}
+        >
           <div className="space-y-3 md:hidden">
             {members.map((member) => (
               <div
@@ -461,7 +481,7 @@ export default function AdminTeamPage() {
             itemCount={members.length}
             onPageChange={setPage}
           />
-        </>
+        </div>
       )}
 
       <Dialog
@@ -573,7 +593,12 @@ export default function AdminTeamPage() {
             <Button variant="outline" onClick={closeForm} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={() => void save()} disabled={saving}>
+            <Button
+              onClick={() => void save()}
+              disabled={saving}
+              className="gap-1.5"
+            >
+              {saving && <Loader2 className="size-4 animate-spin" />}
               {saving ? "Saving…" : form?.id ? "Save changes" : "Add teammate"}
             </Button>
           </DialogFooter>
@@ -618,7 +643,9 @@ export default function AdminTeamPage() {
               variant="destructive"
               onClick={() => void remove()}
               disabled={deleting}
+              className="gap-1.5"
             >
+              {deleting && <Loader2 className="size-4 animate-spin" />}
               {deleting ? "Removing…" : "Remove"}
             </Button>
           </DialogFooter>

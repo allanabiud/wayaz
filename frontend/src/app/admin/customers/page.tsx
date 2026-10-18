@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Heart, Mail, MapPin, Phone } from "lucide-react";
+import { Heart, Loader2, Mail, MapPin, Phone } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ListPagination } from "@/components/ui/pagination";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/admin/table-skeleton";
 import {
   Table,
   TableBody,
@@ -22,6 +22,15 @@ import { useQuery } from "@/lib/use-query";
 import type { Customer, Paginated } from "@/lib/types";
 
 const PAGE_SIZE = 10;
+
+const CUSTOMER_COLUMNS = [
+  { header: "Customer", width: "w-[26%]" },
+  { header: "Contact", width: "w-[28%]" },
+  { header: "Role", width: "w-[12%]" },
+  { header: "Addresses", width: "w-[12%]", align: "right" as const },
+  { header: "Wishlist", width: "w-[10%]", align: "right" as const },
+  { header: "Joined", width: "w-[12%]", align: "right" as const },
+];
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -82,23 +91,31 @@ export default function CustomersPage() {
             value={search}
             onValueChange={setSearch}
             placeholder="Search name, email, username…"
+            loading={loading && Boolean(data)}
           />
         }
         trailing={
-          <Badge variant="secondary" className="h-9 px-3 text-xs">
-            {data?.count ?? 0} total
-          </Badge>
+          <div className="flex items-center gap-2">
+            {loading && data && (
+              <Badge
+                variant="outline"
+                className="h-9 gap-1.5 px-3 text-xs text-muted-foreground animate-in fade-in duration-200"
+              >
+                <Loader2 className="size-3 animate-spin text-primary" />
+                Updating…
+              </Badge>
+            )}
+            <Badge variant="secondary" className="h-9 px-3 text-xs">
+              {data?.count ?? 0} total
+            </Badge>
+          </div>
         }
       />
 
       {error && <ErrorState message={error} onRetry={refetch} />}
 
       {loading && !data && (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-14 w-full rounded-xl" />
-          ))}
-        </div>
+        <TableSkeleton columns={CUSTOMER_COLUMNS} rowCount={6} />
       )}
 
       {data && rows.length === 0 && (
@@ -113,7 +130,11 @@ export default function CustomersPage() {
       )}
 
       {data && rows.length > 0 && (
-        <>
+        <div
+          className={`space-y-4 transition-opacity duration-200 ${
+            loading ? "opacity-60 pointer-events-none" : "opacity-100"
+          }`}
+        >
           <div className="md:hidden space-y-3">
             {rows.map((c) => (
               <Card key={c.id} className="p-4">
@@ -273,7 +294,7 @@ export default function CustomersPage() {
             itemCount={rows.length}
             onPageChange={setPage}
           />
-        </>
+        </div>
       )}
     </div>
   );

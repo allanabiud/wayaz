@@ -2,7 +2,7 @@
 
 import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, Plus, Star } from "lucide-react";
+import { Eye, Loader2, Plus, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ListPagination } from "@/components/ui/pagination";
@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/admin/table-skeleton";
 import {
   Table,
   TableBody,
@@ -30,6 +30,14 @@ import type { Category, Paginated, Product } from "@/lib/types";
 
 const ALL = "__all__";
 const PAGE_SIZE = 10;
+
+const PRODUCT_COLUMNS = [
+  { header: "Product", width: "w-[36%]" },
+  { header: "Category", width: "w-[20%]" },
+  { header: "Price", width: "w-[16%]" },
+  { header: "Stock", width: "w-[14%]" },
+  { header: "Action", width: "w-[14%]", align: "right" as const },
+];
 
 function money(value: string | number): string {
   const n = Number(value);
@@ -120,6 +128,7 @@ function ProductsContent() {
               setPage(1);
             }}
             placeholder="Search products by title or category…"
+            loading={loading && Boolean(data)}
           />
         }
         filters={
@@ -167,16 +176,30 @@ function ProductsContent() {
             )}
           </>
         }
+        trailing={
+          data && (
+            <>
+              {loading && (
+                <Badge
+                  variant="outline"
+                  className="h-9 gap-1.5 px-2.5 text-xs text-muted-foreground animate-pulse"
+                >
+                  <Loader2 className="size-3 animate-spin text-primary" />
+                  <span>Updating…</span>
+                </Badge>
+              )}
+              <Badge variant="outline" className="h-9 px-3 text-xs font-mono">
+                {data.count} results
+              </Badge>
+            </>
+          )
+        }
       />
 
       {error && <ErrorState message={error} onRetry={refetch} />}
 
       {loading && !data && (
-        <div className="space-y-2">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-xl" />
-          ))}
-        </div>
+        <TableSkeleton columns={PRODUCT_COLUMNS} rowCount={10} />
       )}
 
       {!loading && data && products.length === 0 && (
@@ -203,7 +226,11 @@ function ProductsContent() {
       )}
 
       {products.length > 0 && (
-        <>
+        <div
+          className={`space-y-4 transition-opacity duration-200 ${
+            loading ? "opacity-60 pointer-events-none" : "opacity-100"
+          }`}
+        >
           {/* Mobile: card list; the table is unusable on small screens. */}
           <div className="space-y-3 md:hidden">
             {products.map((product) => {
@@ -383,7 +410,7 @@ function ProductsContent() {
             itemCount={products.length}
             onPageChange={setPage}
           />
-        </>
+        </div>
       )}
     </div>
   );

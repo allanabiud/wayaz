@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Banknote, Smartphone } from "lucide-react";
+import { Banknote, Loader2, Smartphone } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/admin/table-skeleton";
 import {
   Table,
   TableBody,
@@ -27,6 +27,16 @@ import { FilterSearch, FilterToolbar } from "@/components/admin/filter-toolbar";
 import { api } from "@/lib/api";
 import { formatKsh } from "@/lib/store-api";
 import { useQuery } from "@/lib/use-query";
+
+const PAYMENT_COLUMNS = [
+  { header: "Method", width: "w-[10%]" },
+  { header: "Order", width: "w-[18%]" },
+  { header: "Amount", width: "w-[12%]", align: "right" as const },
+  { header: "Status", width: "w-[14%]" },
+  { header: "Reference", width: "w-[18%]" },
+  { header: "Phone", width: "w-[14%]" },
+  { header: "Date", width: "w-[14%]", align: "right" as const },
+];
 
 type PaymentMethodFilter = "all" | "mpesa" | "cod";
 type PaymentStatusFilter = "all" | "COMPLETED" | "PENDING" | "FAILED";
@@ -137,6 +147,7 @@ export default function AdminPaymentsPage() {
             value={search}
             onValueChange={setSearch}
             placeholder="Search order #, phone, receipt…"
+            loading={loading && Boolean(data)}
           />
         }
         filters={
@@ -190,9 +201,20 @@ export default function AdminPaymentsPage() {
         }
         trailing={
           data && (
-            <Badge variant="outline" className="h-9 px-3 text-xs font-mono">
-              {data.count} results
-            </Badge>
+            <>
+              {loading && (
+                <Badge
+                  variant="outline"
+                  className="h-9 gap-1.5 px-2.5 text-xs text-muted-foreground animate-pulse"
+                >
+                  <Loader2 className="size-3 animate-spin text-primary" />
+                  <span>Updating…</span>
+                </Badge>
+              )}
+              <Badge variant="outline" className="h-9 px-3 text-xs font-mono">
+                {data.count} results
+              </Badge>
+            </>
           )
         }
       />
@@ -200,11 +222,7 @@ export default function AdminPaymentsPage() {
       {error && <ErrorState message={error} onRetry={refetch} />}
 
       {loading && !data && (
-        <div className="space-y-2">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-xl" />
-          ))}
-        </div>
+        <TableSkeleton columns={PAYMENT_COLUMNS} rowCount={10} />
       )}
 
       {data && rows.length === 0 && (
@@ -223,7 +241,11 @@ export default function AdminPaymentsPage() {
       )}
 
       {data && rows.length > 0 && (
-        <>
+        <div
+          className={`space-y-4 transition-opacity duration-200 ${
+            loading ? "opacity-60 pointer-events-none" : "opacity-100"
+          }`}
+        >
           <div className="hidden rounded-2xl bg-card shadow-(--shadow-card) overflow-hidden md:block">
             <Table className="table-fixed">
               <TableHeader>
@@ -364,7 +386,7 @@ export default function AdminPaymentsPage() {
             itemCount={rows.length}
             onPageChange={setPage}
           />
-        </>
+        </div>
       )}
     </div>
   );

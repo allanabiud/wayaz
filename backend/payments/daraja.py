@@ -36,6 +36,10 @@ def get_active_shortcode() -> str:
 def format_phone_number(phone: str) -> str:
     """Formats phone number to Kenyan international format without + (e.g. 254712345678)."""
     cleaned = "".join(filter(str.isdigit, str(phone)))
+    if cleaned.startswith("00254") and len(cleaned) == 14:
+        cleaned = cleaned[2:]
+    if cleaned.startswith("2540") and len(cleaned) == 13:
+        cleaned = "254" + cleaned[4:]
     if cleaned.startswith("0") and len(cleaned) == 10:
         return "254" + cleaned[1:]
     if cleaned.startswith("7") and len(cleaned) == 9:
@@ -184,10 +188,16 @@ def stk_query(checkout_request_id: str) -> dict | None:
 
     if response.status_code != 200 or "ResultCode" not in data:
         # Daraja error envelope ({"errorMessage": ...}) or a non-200:
-        # transient - treat as "couldn't ask".
-        logger.error(
-            f"[DARAJA] STK query inconclusive for {checkout_request_id} "
-            f"(HTTP {response.status_code}): {data}"
-        )
+        # If transaction is simply still in progress at PIN entry, log at INFO.
+        msg = data.get("errorMessage") or data.get("ResponseDescription") or ""
+        if "being processed" in str(msg).lower():
+            logger.info(
+                f"[DARAJA] STK transaction in progress for {checkout_request_id}: {msg}"
+            )
+        else:
+            logger.warning(
+                f"[DARAJA] STK query inconclusive for {checkout_request_id} "
+                f"(HTTP {response.status_code}): {data}"
+            )
         return None
     return data

@@ -39,6 +39,7 @@ import { useStore } from "@/lib/store-context";
 import { ApiError } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import {
+  cancelMpesaPayment,
   createAddress,
   fetchAutoCoupon,
   fetchUserAddresses,
@@ -300,8 +301,7 @@ export function CheckoutView() {
     if (!failedPayment) return;
     setRetrying(true);
     try {
-      // The hold and its payment token stay valid until the sweep collects
-      // them, so a retry needs no new order.
+      // If the hold is still active, retry the STK push directly.
       const stkRes = await initiateMpesaStkPush(
         failedPayment.order.order_number,
         failedPayment.phone,
@@ -316,6 +316,18 @@ export function CheckoutView() {
         isMock: stkRes.is_mock,
       });
     } catch (err) {
+      if (
+        err instanceof ApiError &&
+        (err.status === 404 || err.status === 400)
+      ) {
+        // The hold was released and stock restored to inventory.
+        // Return shopper to the checkout form with their items ready.
+        setFailedPayment(null);
+        toast.info(
+          "Your cart and details are saved. Please click Place Order to try again.",
+        );
+        return;
+      }
       toast.error(
         err instanceof ApiError
           ? err.message
@@ -342,7 +354,7 @@ export function CheckoutView() {
             untouched - try the payment again or keep shopping.
           </p>
 
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Button
               onClick={() => void retryPayment()}
               disabled={retrying}
@@ -351,7 +363,25 @@ export function CheckoutView() {
               {retrying && <Loader2 className="size-4 animate-spin" />}
               Try again
             </Button>
-            <Button variant="outline" asChild>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (failedPayment) {
+                  try {
+                    await cancelMpesaPayment(
+                      failedPayment.order.order_number,
+                      failedPayment.order.payment_token,
+                    );
+                  } catch {
+                    // Best-effort release
+                  }
+                }
+                setFailedPayment(null);
+              }}
+            >
+              Return to checkout
+            </Button>
+            <Button variant="ghost" asChild>
               <Link href="/cart">Back to cart</Link>
             </Button>
           </div>
@@ -970,7 +1000,8 @@ export function CheckoutView() {
                 disabled={submitting}
                 className="w-full gap-2 text-base py-5 font-semibold"
               >
-                {submitting ? "Placing Order..." : "Place Order"}
+                {submitting && <Loader2 className="size-4 animate-spin" />}
+                {submitting ? "Placing Order…" : "Place Order"}
               </Button>
 
               <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
@@ -1006,9 +1037,27 @@ export function CheckoutView() {
             toast.success(`Payment received! Receipt: ${receipt}`);
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
-          onCancelOrFailed={() => {
+          onCancelOrFailed={async (reason, switchToCod) => {
             const hold = mpesaModal.order!;
             setMpesaModal((prev) => ({ ...prev, open: false }));
+
+            // Release hold and restore stock immediately on the backend
+            try {
+              await cancelMpesaPayment(hold.order_number, hold.payment_token);
+            } catch {
+              // Best-effort release
+            }
+
+            if (switchToCod) {
+              setPaymentMethod("cod");
+              setFailedPayment(null);
+              toast.info(
+                "Switched to Cash on Delivery. Click Place Order to confirm.",
+              );
+              window.scrollTo({ top: 0, behavior: "smooth" });
+              return;
+            }
+
             // Nothing was ordered - offer a retry, never a success screen.
             setFailedPayment({ order: hold, phone: mpesaModal.phoneNumber });
             window.scrollTo({ top: 0, behavior: "smooth" });

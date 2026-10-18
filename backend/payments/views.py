@@ -220,6 +220,18 @@ class STKPushInitiateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if order.status == Order.Status.CANCELLED:
+            return Response(
+                {"detail": "This order has been cancelled. Please place a new order."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if order.total_amount <= 0:
+            return Response(
+                {"detail": "Order total must be greater than zero to pay via M-Pesa."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         formatted_phone = format_phone_number(phone_number)
         if len(formatted_phone) < 12:
             return Response(
@@ -258,10 +270,125 @@ class STKPushInitiateView(APIView):
             )
         except Exception as e:
             logger.exception("Failed to initiate STK push")
+            # If no transactions exist for this hold, release it so shopper is not trapped
+            if (
+                order.status == Order.Status.AWAITING_PAYMENT
+                and not order.payment_transactions.exists()
+            ):
+                try:
+                    order.cancel()
+                    order.delete()
+                except Exception:
+                    pass
             return Response(
                 {"detail": f"Failed to initiate M-Pesa payment: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class STKPushCancelView(APIView):
+    """POST /api/v1/payments/mpesa/cancel/ - cancels an in-flight M-Pesa payment hold.
+    Allows shoppers to voluntarily cancel a payment attempt (e.g. to switch to Cash on
+    Delivery, change their phone number, or close checkout). Restores held inventory
+    immediately and drops the hold so the shopper can check out again without delay."""
+
+    permission_classes = [permissions.AllowAny]
+    throttle_scope = "payments"
+
+    @extend_schema(
+        summary="Cancel in-flight M-Pesa payment hold",
+        request=inline_serializer(
+            name="STKPushCancelRequest",
+            fields={
+                "order_number": serializers.CharField(required=True),
+                "payment_token": serializers.CharField(required=False),
+            },
+        ),
+        responses={
+            200: inline_serializer(
+                name="STKPushCancelResponse",
+                fields={
+                    "detail": serializers.CharField(),
+                    "status": serializers.CharField(),
+                },
+            )
+        },
+    )
+    def post(self, request):
+        order_number = request.data.get("order_number")
+        if not order_number:
+            return Response(
+                {"detail": "Both 'order_number' is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        order = get_object_or_404(Order, order_number=order_number)
+
+        if not request_owns_order(request, order):
+            return Response(
+                {"detail": "You are not authorised to cancel this order."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if order.payment_status == Order.PaymentStatus.PAID:
+            return Response(
+                {
+                    "detail": "This order is already marked as paid and cannot be cancelled."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if order.status not in (
+            Order.Status.AWAITING_PAYMENT,
+            Order.Status.PROCESSING,
+        ):
+            return Response(
+                {
+                    "detail": "Order is not in an active payment hold.",
+                    "status": order.status,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        pending_txs = PaymentTransaction.objects.filter(
+            order=order, status=PaymentTransaction.Status.PENDING
+        )
+
+        # In live mode, verify customer didn't complete payment on phone right before cancelling
+        if settings.MPESA_ENVIRONMENT != "mock":
+            for tx in pending_txs:
+                query = stk_query(tx.checkout_request_id)
+                if query and str(query.get("ResultCode", "")) == "0":
+                    tx.status = PaymentTransaction.Status.COMPLETED
+                    tx.save()
+                    complete_paid_order(order)
+                    return Response(
+                        {
+                            "detail": "Payment was already completed successfully.",
+                            "status": "COMPLETED",
+                        },
+                        status=status.HTTP_200_OK,
+                    )
+
+        # Mark any pending attempts cancelled
+        pending_txs.update(
+            status=PaymentTransaction.Status.CANCELLED,
+            result_desc="Cancelled by customer at checkout",
+        )
+
+        # Release stock reservation and drop unpaid hold
+        hold = order.status == Order.Status.AWAITING_PAYMENT
+        order.cancel()
+        if hold:
+            order.delete()
+
+        return Response(
+            {
+                "detail": "M-Pesa payment cancelled and reserved stock restored.",
+                "status": "CANCELLED",
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class STKPushStatusView(APIView):

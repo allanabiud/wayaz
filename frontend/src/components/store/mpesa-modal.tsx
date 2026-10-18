@@ -31,7 +31,7 @@ interface MpesaPaymentModalProps {
   amount: string;
   isMock?: boolean;
   onSuccess: (receipt: string) => void;
-  onCancelOrFailed: (reason?: string) => void;
+  onCancelOrFailed: (reason?: string, switchToCod?: boolean) => void;
 }
 
 // Long enough for a slow PIN entry plus Safaricom's callback lag; the STK
@@ -271,7 +271,7 @@ export function MpesaPaymentModal({
           <div className="pt-2 text-center">
             <button
               type="button"
-              onClick={() => onCancelOrFailed("Cancelled by user")}
+              onClick={() => onCancelOrFailed("Cancelled by user", true)}
               className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4"
             >
               Cancel and pay on delivery instead
