@@ -43,8 +43,8 @@ export function AccountMenu() {
         <DropdownMenuTrigger asChild>
           <Button
             variant="outline"
-            size="lg"
-            className="gap-2 cursor-pointer"
+            size="sm"
+            className="h-8 gap-1.5 px-2 sm:h-9 sm:px-2.5 cursor-pointer"
             aria-label="Account menu"
           >
             <User className="size-4" />

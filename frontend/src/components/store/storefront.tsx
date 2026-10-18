@@ -72,7 +72,7 @@ function CatalogSkeleton() {
   return (
     <div aria-hidden="true">
       <Skeleton className="mb-4 h-5 w-40" />
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 md:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
           <div key={index} className="overflow-hidden rounded-2xl border">
             <Skeleton className="aspect-[3/4] w-full rounded-none" />
@@ -109,7 +109,7 @@ function TopShelf({
           {title}
         </h2>
       </div>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 md:grid-cols-4">
         {products.map((product, index) => (
           <ProductCard
             key={product.id}
@@ -228,7 +228,7 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
         </div>
       </section>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-3.5 py-6 sm:px-6 sm:py-8">
         {catalogLoading && !catalog && <CatalogSkeleton />}
         {catalogError && (
           <ErrorState message={catalogError} onRetry={refetchCatalog} />
@@ -291,7 +291,7 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 md:grid-cols-4">
                 {visible.map((product) => (
                   <ProductCard
                     key={product.id}

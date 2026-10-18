@@ -65,8 +65,8 @@ export function NotificationsMenu() {
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
-          size="lg"
-          className="relative gap-2 cursor-pointer"
+          size="sm"
+          className="relative h-8 gap-1.5 px-2 sm:h-9 sm:px-2.5 cursor-pointer"
           aria-label={
             unread > 0
               ? `Notifications: ${unread} unread messages`
@@ -76,7 +76,7 @@ export function NotificationsMenu() {
           <Bell className="size-4" />
           <span className="hidden sm:inline">Alerts</span>
           {unread > 0 && (
-            <Badge className="absolute -right-1.5 -top-1.5 size-5 justify-center rounded-full p-0 tabular-nums">
+            <Badge className="absolute -right-1 -top-1 size-4 sm:size-5 justify-center rounded-full p-0 text-[10px] tabular-nums">
               {unread > 9 ? "9+" : unread}
             </Badge>
           )}

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import type { Product } from "@/lib/types";
 
@@ -74,7 +75,10 @@ export function Breadcrumbs() {
         {crumbs.map((crumb, index) => (
           <li
             key={`${crumb.label}-${index}`}
-            className="flex min-w-0 items-center gap-1.5"
+            className={cn(
+              "flex min-w-0 items-center gap-1.5",
+              index < crumbs.length - 2 && "hidden sm:flex",
+            )}
           >
             {index > 0 && (
               <ChevronRight

@@ -156,10 +156,14 @@ export function ProductCard({
         }
         aria-pressed={wishlisted}
         onClick={() => toggleWishlist(product)}
-        className="absolute top-2 right-2 z-10 flex size-9 items-center justify-center rounded-full border bg-card/85 text-muted-foreground backdrop-blur transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="absolute top-2 right-2 z-10 flex size-8 sm:size-9 items-center justify-center rounded-full border bg-card/85 text-muted-foreground backdrop-blur transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <Heart
-          className={wishlisted ? "size-4 fill-primary text-primary" : "size-4"}
+          className={
+            wishlisted
+              ? "size-3.5 sm:size-4 fill-primary text-primary"
+              : "size-3.5 sm:size-4"
+          }
         />
       </button>
 
@@ -171,9 +175,9 @@ export function ProductCard({
         rel="noopener noreferrer"
         aria-label={`Order ${product.title} on WhatsApp`}
         title="Order on WhatsApp"
-        className="absolute top-13 right-2 z-10 flex size-9 items-center justify-center rounded-full border bg-card/85 text-emerald-600 backdrop-blur transition-colors outline-none hover:text-emerald-700 focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="absolute top-11 sm:top-13 right-2 z-10 flex size-8 sm:size-9 items-center justify-center rounded-full border bg-card/85 text-emerald-600 backdrop-blur transition-colors outline-none hover:text-emerald-700 focus-visible:ring-3 focus-visible:ring-ring/50"
       >
-        <WhatsAppIcon className="size-4" />
+        <WhatsAppIcon className="size-3.5 sm:size-4" />
       </a>
 
       <div className="flex flex-1 flex-col gap-3 p-3">
@@ -217,31 +221,33 @@ export function ProductCard({
         ) : (
           /* Stacked on phones, side by side from xl where cards are wide
              enough. Every card renders both so grid rows stay even. */
-          <div className="mt-auto flex flex-col gap-2 xl:flex-row">
+          <div className="mt-auto flex flex-col gap-1.5 xl:flex-row xl:gap-2">
             <Button
               variant="secondary"
-              className="w-full gap-1.5 xl:min-w-0 xl:flex-1"
+              size="sm"
+              className="w-full gap-1.5 text-xs sm:text-sm xl:min-w-0 xl:flex-1"
               disabled={buying || bumping}
               onClick={handleBuyNow}
             >
               {buying ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Loader2 className="size-3.5 sm:size-4 animate-spin" />
               ) : (
-                <Zap className="size-4" />
+                <Zap className="size-3.5 sm:size-4" />
               )}
               {buying ? "Adding…" : "Buy now"}
             </Button>
             <Button
-              className="w-full gap-1.5 xl:min-w-0 xl:flex-1"
+              size="sm"
+              className="w-full gap-1.5 text-xs sm:text-sm xl:min-w-0 xl:flex-1"
               disabled={adding || bumping}
               onClick={handleAdd}
             >
               {adding || bumping ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Loader2 className="size-3.5 sm:size-4 animate-spin" />
               ) : inCart ? (
-                <Check className="size-4" />
+                <Check className="size-3.5 sm:size-4" />
               ) : (
-                <ShoppingBag className="size-4" />
+                <ShoppingBag className="size-3.5 sm:size-4" />
               )}
               {adding || bumping
                 ? "Adding…"

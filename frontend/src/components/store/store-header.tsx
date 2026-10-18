@@ -133,16 +133,16 @@ export function StoreHeader() {
         </aside>
       )}
       <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
-        <div className="flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-2 sm:h-14 sm:flex-nowrap sm:gap-x-4 sm:py-0 sm:pl-0 sm:pr-3">
+        <div className="grid w-full grid-cols-[1fr_auto] items-center gap-x-2 gap-y-2 px-3 py-2 sm:flex sm:h-14 sm:items-center sm:gap-x-4 sm:py-0 sm:pl-0 sm:pr-3">
           <Link
             href="/"
-            className="order-1 flex min-w-0 shrink-0 items-center outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:order-none sm:h-full"
+            className="col-start-1 row-start-1 flex min-w-0 items-center outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:col-auto sm:row-auto sm:h-full sm:shrink-0"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={settings?.logo_url || "/wayaz_logo.jpeg"}
               alt={settings?.store_name || "Wayaz Collection"}
-              className="h-auto max-h-9 w-auto sm:h-full sm:max-h-full object-contain"
+              className="h-auto max-h-8 max-w-[130px] xs:max-w-[160px] w-auto object-contain object-left sm:max-h-full sm:max-w-none sm:h-full"
             />
             <LinkHint />
           </Link>
@@ -150,7 +150,7 @@ export function StoreHeader() {
           {/* The results popover drops down beneath the search field. */}
           <div
             role="search"
-            className="relative order-3 w-full min-w-0 sm:order-none sm:flex-1"
+            className="relative col-span-2 row-start-2 w-full min-w-0 sm:col-span-1 sm:row-auto sm:flex-1"
             onBlur={(event) => {
               if (!event.currentTarget.contains(event.relatedTarget)) {
                 setSearchOpen(false);
@@ -402,7 +402,7 @@ export function StoreHeader() {
             )}
           </div>
 
-          <div className="order-2 flex shrink-0 items-center gap-2 sm:order-none">
+          <div className="col-start-2 row-start-1 flex shrink-0 items-center gap-1.5 sm:col-auto sm:row-auto sm:gap-2">
             <ThemeToggle />
 
             {/* Always a dropdown: sign in on top when signed out, then
@@ -411,8 +411,8 @@ export function StoreHeader() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  size="lg"
-                  className="gap-2 cursor-pointer"
+                  size="sm"
+                  className="h-8 gap-1.5 px-2 sm:h-9 sm:px-2.5 cursor-pointer"
                   aria-label="Account menu"
                 >
                   <User className="size-4" />
@@ -529,15 +529,17 @@ export function StoreHeader() {
             {/* Cart */}
             <Button
               variant="outline"
-              size="lg"
-              className="gap-2 cursor-pointer"
+              size="sm"
+              className="h-8 gap-1.5 px-2 sm:h-9 sm:px-2.5 cursor-pointer"
               aria-label="Open cart"
               onClick={openCart}
             >
               <ShoppingBag className="size-4" />
               <span className="hidden sm:inline">Cart</span>
               {cartCount > 0 && (
-                <Badge className="tabular-nums">{cartCount}</Badge>
+                <Badge className="px-1.5 py-0 text-[10px] tabular-nums sm:px-2 sm:text-xs">
+                  {cartCount}
+                </Badge>
               )}
             </Button>
           </div>

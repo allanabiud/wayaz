@@ -128,14 +128,16 @@ export function OrdersSheet() {
       <SheetTrigger asChild>
         <Button
           variant="outline"
-          size="lg"
-          className="gap-2 cursor-pointer"
+          size="sm"
+          className="h-8 gap-1.5 px-2 sm:h-9 sm:px-2.5 cursor-pointer"
           aria-label="Orders"
         >
           <Clock className="size-4" />
           <span className="hidden sm:inline">Orders</span>
           {orders && (
-            <Badge className="tabular-nums">{orders.pending_count}</Badge>
+            <Badge className="px-1.5 py-0 text-[10px] tabular-nums sm:px-2 sm:text-xs">
+              {orders.pending_count}
+            </Badge>
           )}
         </Button>
       </SheetTrigger>

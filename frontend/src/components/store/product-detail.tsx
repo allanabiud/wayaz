@@ -693,7 +693,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
           <h2 className="text-lg font-semibold tracking-tight uppercase">
             More in {product.category.name}
           </h2>
-          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 md:grid-cols-4">
             {related.map((item) => (
               <ProductCard
                 key={item.id}
