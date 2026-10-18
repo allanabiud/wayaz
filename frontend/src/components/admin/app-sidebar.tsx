@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -28,6 +29,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { api } from "@/lib/api";
 import { useQuery } from "@/lib/use-query";
@@ -124,6 +126,20 @@ const itemClassName = "-mx-2 h-9 w-[calc(100%_+_1rem)] gap-3 rounded-none px-5";
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  useEffect(() => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }, [pathname, isMobile, setOpenMobile]);
+
+  const handleNavClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
+
   const { data: navCounts } = useQuery<NavCounts>(
     () => api.get<NavCounts>("/api/v1/admin/nav-counts/"),
     // Re-check on navigation so the badge matches the header bell after
@@ -149,7 +165,11 @@ export function AppSidebar() {
       {/* Height = logo's natural aspect at sidebar width, matching the
           page header. */}
       <SidebarHeader className="h-[calc(var(--sidebar-width)*362/1600)] border-b border-sidebar-border p-0">
-        <Link href="/admin" className="block h-full w-full outline-none">
+        <Link
+          href="/admin"
+          onClick={handleNavClick}
+          className="block h-full w-full outline-none"
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={settings?.logo_url || "/wayaz_logo.jpeg"}
@@ -197,7 +217,7 @@ export function AppSidebar() {
                           tooltip={item.title}
                           className={itemClassName}
                         >
-                          <Link href={item.href!}>
+                          <Link href={item.href!} onClick={handleNavClick}>
                             <item.icon className="size-4 shrink-0" />
                             <span className="min-w-0 flex-1 truncate">
                               {item.title}
@@ -223,7 +243,7 @@ export function AppSidebar() {
               tooltip="View Storefront"
               className={itemClassName}
             >
-              <Link href="/" target="_blank">
+              <Link href="/" target="_blank" onClick={handleNavClick}>
                 <ExternalLink className="size-4 shrink-0" />
                 <span>View Store</span>
               </Link>
