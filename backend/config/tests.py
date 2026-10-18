@@ -1,7 +1,11 @@
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.contrib.auth.models import AnonymousUser
+from django.test import RequestFactory, TestCase
+from drf_spectacular.views import SpectacularAPIView
 from rest_framework.test import APIClient
+
+from accounts.models import User
 
 
 class HealthEndpointTestCase(TestCase):
@@ -35,26 +39,36 @@ class HealthEndpointTestCase(TestCase):
 
 
 class DocumentationSecurityTestCase(TestCase):
-    """Schema and interactive docs must be completely unmapped in production
-    (SERVE_DOCS=False) and protected behind staff auth when enabled."""
+    """Schema and interactive docs must be protected behind staff auth."""
 
     def setUp(self):
         self.client = APIClient()
+        self.factory = RequestFactory()
 
-    def test_docs_return_404_when_serve_docs_is_disabled(self):
-        with patch("django.conf.settings.SERVE_DOCS", False):
-            # When SERVE_DOCS is False, routes aren't included in urlpatterns
-            for path in (
-                "/api/v1/schema/",
-                "/api/v1/schema/swagger-ui/",
-                "/api/v1/schema/redoc/",
-            ):
-                with self.subTest(path=path):
-                    res = self.client.get(path)
-                    # Either 404 or redirect to 404
-                    self.assertIn(res.status_code, (401, 403, 404))
-
-    def test_schema_requires_staff_authentication(self):
-        """Anonymous access to schema view is rejected with 401."""
-        res = self.client.get("/api/v1/schema/")
+    def test_schema_view_requires_staff_authentication(self):
+        """Anonymous access to SpectacularAPIView is rejected with 401."""
+        req = self.factory.get("/api/v1/schema/")
+        req.user = AnonymousUser()
+        view = SpectacularAPIView.as_view()
+        res = view(req)
         self.assertEqual(res.status_code, 401)
+
+    def test_schema_view_allows_staff_user(self):
+        """Staff user can access SpectacularAPIView with 200."""
+        req = self.factory.get("/api/v1/schema/", HTTP_HOST="localhost")
+        staff = User(email="admin@example.com", is_staff=True, is_active=True)
+        req.user = staff
+        view = SpectacularAPIView.as_view()
+        res = view(req)
+        self.assertEqual(res.status_code, 200)
+
+    def test_docs_endpoints_unmapped_or_protected(self):
+        """Live HTTP requests to docs routes either 404 (unmapped in prod) or 401 (protected)."""
+        for path in (
+            "/api/v1/schema/",
+            "/api/v1/schema/swagger-ui/",
+            "/api/v1/schema/redoc/",
+        ):
+            with self.subTest(path=path):
+                res = self.client.get(path)
+                self.assertIn(res.status_code, (401, 403, 404))
