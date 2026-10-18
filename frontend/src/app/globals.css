@@ -150,38 +150,12 @@
   *:focus-visible {
     outline: none;
   }
-  html {
-    @apply font-sans;
-    scroll-behavior: smooth;
-    -webkit-text-size-adjust: 100%;
-    text-size-adjust: 100%;
-    overflow-x: hidden;
-  }
   body {
     @apply bg-background text-foreground;
     font-size: 0.875rem; /* Haze 14px base */
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: none;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
   }
-  /* Fast tap response on mobile: eliminates the 300ms delay and tap highlights */
-  button,
-  a,
-  input,
-  select,
-  textarea,
-  [role="button"] {
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-  }
-  /* Smooth momentum scrolling on scroll containers */
-  .overflow-y-auto,
-  .overflow-x-auto {
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
+  html {
+    @apply font-sans;
   }
   /* Hide native number-input spinners; values are typed or use custom steppers. */
   input[type="number"] {
