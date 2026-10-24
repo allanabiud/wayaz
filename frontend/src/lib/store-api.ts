@@ -648,6 +648,13 @@ let cachedCatalogTime = 0;
 let catalogInFlight: Promise<StorefrontCatalog> | null = null;
 const CATALOG_CACHE_TTL_MS = 60_000;
 
+/** Pre-seed the client-side catalog cache from SSR data so the first
+ *  client-side fetch resolves from cache instead of hitting the network. */
+export function seedCatalogCache(catalog: StorefrontCatalog): void {
+  cachedCatalog = catalog;
+  cachedCatalogTime = Date.now();
+}
+
 export function fetchStorefrontCatalog(
   forceRefresh = false,
 ): Promise<StorefrontCatalog> {

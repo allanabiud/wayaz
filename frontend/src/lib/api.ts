@@ -81,7 +81,10 @@ async function refreshAccess(): Promise<boolean> {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh }),
       });
-      if (!res.ok) return false;
+      if (!res.ok) {
+        tokenStore.clear();
+        return false;
+      }
       const data = (await res.json()) as { access: string };
       tokenStore.save({ access: data.access });
       return true;
@@ -123,9 +126,20 @@ async function request<T>(
 
   let res = await doFetch(anonymous ? null : tokenStore.access);
 
-  if (res.status === 401 && !anonymous && tokenStore.refresh) {
-    if (await refreshAccess()) {
-      res = await doFetch(tokenStore.access);
+  // Handle expired/stale tokens: try refreshing, then fall back to
+  // unauthenticated so public endpoints (catalog, settings) still work
+  // even when the visitor has leftover tokens from a previous session.
+  if (res.status === 401 && !anonymous) {
+    let refreshed = false;
+    if (tokenStore.refresh) {
+      refreshed = await refreshAccess();
+      if (refreshed) {
+        res = await doFetch(tokenStore.access);
+      }
+    }
+    if (!refreshed) {
+      tokenStore.clear();
+      res = await doFetch(null);
     }
   }
 

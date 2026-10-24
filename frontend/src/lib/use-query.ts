@@ -41,11 +41,13 @@ export function useQuery<T>(
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setResult({
+        setResult((prev) => ({
           key,
-          data: null,
+          // Preserve existing / initial data so the UI stays usable
+          // while showing a non-blocking error indicator.
+          data: prev.data,
           error: err instanceof ApiError ? err.message : "Something went wrong",
-        });
+        }));
       });
 
     return () => {

@@ -21,6 +21,7 @@ import {
   fetchCart,
   fetchStorefrontCatalog,
   fetchStoreSettings,
+  seedCatalogCache,
   storedCartId,
   clearStoredCartId,
   updateCartItem,
@@ -96,6 +97,12 @@ export function StoreProvider({
   const [wishlistIds, setWishlistIds] = useState<number[]>([]);
   const [wishlistOpen, setWishlistOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+
+  // Seed the client-side catalog cache from SSR data so the first
+  // client-side fetch resolves instantly instead of hitting the network.
+  if (initialCatalog && typeof window !== "undefined") {
+    seedCatalogCache(initialCatalog);
+  }
 
   const {
     data: catalog,

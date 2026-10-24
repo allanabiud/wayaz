@@ -230,7 +230,7 @@ export function Storefront({ initialCatalog }: StorefrontProps) {
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-3.5 py-6 sm:px-6 sm:py-8">
         {catalogLoading && !catalog && <CatalogSkeleton />}
-        {catalogError && (
+        {catalogError && !catalog && (
           <ErrorState message={catalogError} onRetry={refetchCatalog} />
         )}
 
