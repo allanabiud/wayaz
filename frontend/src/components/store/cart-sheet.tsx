@@ -58,6 +58,7 @@ export function CartSheet({
                   key={item.id}
                   item={item}
                   onCartChange={onCartChange}
+                  onNavigate={() => onOpenChange(false)}
                 />
               ))}
             </ul>

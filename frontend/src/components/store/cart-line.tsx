@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import Image from "next/image";
 import { toast } from "sonner";
 import { Minus, Plus, Trash2 } from "lucide-react";
@@ -19,9 +20,11 @@ import {
 export function CartLine({
   item,
   onCartChange,
+  onNavigate,
 }: {
   item: CartLineItem;
   onCartChange: (cart: Cart) => void;
+  onNavigate?: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const product = item.product;
@@ -49,7 +52,11 @@ export function CartLine({
 
   return (
     <li className="flex gap-3 rounded-xl border bg-card p-3">
-      <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-muted">
+      <Link
+        href={`/products/${product.product_slug}`}
+        onClick={onNavigate}
+        className="relative h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-muted outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
         {thumbnail && (
           <Image
             src={thumbnail}
@@ -60,12 +67,18 @@ export function CartLine({
             className="object-cover"
           />
         )}
-      </div>
+      </Link>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <p className="min-w-0 truncate text-sm font-medium">
-            {product.product_title}
+            <Link
+              href={`/products/${product.product_slug}`}
+              onClick={onNavigate}
+              className="rounded-sm outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              {product.product_title}
+            </Link>
           </p>
           <button
             type="button"
