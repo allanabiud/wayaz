@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { toast } from "sonner";
 import {
   AlertCircle,
@@ -879,12 +880,15 @@ export function CheckoutView() {
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {item.product.thumbnail ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
-                          src={mediaUrl(item.product.thumbnail)}
-                          alt={item.product.product_title}
-                          className="size-12 rounded-lg object-cover bg-muted shrink-0"
-                        />
+                        <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-muted">
+                          <Image
+                            src={mediaUrl(item.product.thumbnail)}
+                            alt={item.product.product_title}
+                            fill
+                            sizes="48px"
+                            className="object-cover"
+                          />
+                        </div>
                       ) : (
                         <div className="flex size-12 items-center justify-center rounded-lg bg-muted shrink-0">
                           <ShoppingBag className="size-5 text-muted-foreground" />

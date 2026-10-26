@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Trash2 } from "lucide-react";
 import {
   Sheet,
@@ -64,15 +65,15 @@ export function WishlistSheet({
                     <Link
                       href={`/products/${product.slug}`}
                       onClick={() => onOpenChange(false)}
-                      className="h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-muted outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                      className="relative h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-muted outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                     >
                       {image ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
+                        <Image
                           src={image}
                           alt={product.title}
-                          loading="lazy"
-                          className="h-full w-full object-cover"
+                          fill
+                          sizes="56px"
+                          className="object-cover"
                         />
                       ) : null}
                     </Link>

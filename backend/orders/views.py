@@ -162,7 +162,8 @@ class CartItemDetailView(APIView):
         cart = get_or_create_cart(request)
         cart_item = get_object_or_404(
             CartItem.objects.select_related("product").prefetch_related(
-                "product__size_stock"
+                "product__size_stock",
+                "product__images",
             ),
             id=item_id,
             cart=cart,
@@ -371,7 +372,10 @@ class CheckoutView(APIView):
 
         cart = get_or_create_cart(request)
         items = list(
-            cart.items.select_related("product").prefetch_related("product__size_stock")
+            cart.items.select_related("product").prefetch_related(
+                "product__size_stock",
+                "product__images",
+            )
         )
         if not items:
             return Response(

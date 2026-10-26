@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { toast } from "sonner";
 import {
   ArrowRight,
@@ -254,14 +255,14 @@ export function StoreHeader() {
                               onClick={() => selectResult(product.slug)}
                               className="flex w-full items-center gap-3 rounded-lg p-2 text-left outline-none transition-colors hover:bg-accent focus-visible:bg-accent"
                             >
-                              <span className="h-12 w-9 shrink-0 overflow-hidden rounded-md bg-muted">
+                              <span className="relative h-12 w-9 shrink-0 overflow-hidden rounded-md bg-muted">
                                 {product.primary_image ? (
-                                  /* eslint-disable-next-line @next/next/no-img-element */
-                                  <img
+                                  <Image
                                     src={mediaUrl(product.primary_image)}
                                     alt=""
-                                    loading="lazy"
-                                    className="h-full w-full object-cover"
+                                    fill
+                                    sizes="36px"
+                                    className="object-cover"
                                   />
                                 ) : (
                                   <span className="flex h-full w-full items-center justify-center">
